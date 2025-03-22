@@ -1,10 +1,12 @@
 import { Tabs } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { View } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function TabsLayout() {
   const { user } = useAuth();
+
+  // Check if user is an admin
+  const isAdmin = user?.email === 'admin@gasph.app';
 
   return (
     <Tabs
@@ -60,17 +62,19 @@ export default function TabsLayout() {
         }}
         redirect={!user}
       />
-      {user && user.email === 'admin@gasph.app' && (
-        <Tabs.Screen
-          name='admin'
-          options={{
-            title: 'Admin',
-            tabBarIcon: ({ color, size }) => (
-              <FontAwesome5 name='shield-alt' size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name='admin'
+        options={{
+          title: 'Admin',
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome5 name='shield-alt' size={size} color={color} />
+          ),
+          // Hide the tab for non-admin users
+          href: isAdmin ? undefined : null,
+        }}
+        // Redirect if not an admin
+        redirect={!isAdmin}
+      />
     </Tabs>
   );
 }
