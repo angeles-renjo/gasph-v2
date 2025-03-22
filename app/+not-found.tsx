@@ -1,40 +1,61 @@
-import { Link, Stack } from 'expo-router';
-import { StyleSheet } from 'react-native';
-
-import { Text, View } from '@/components/Themed';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { Button } from '@/components/ui/Button';
 
 export default function NotFoundScreen() {
-  return (
-    <>
-      <Stack.Screen options={{ title: 'Oops!' }} />
-      <View style={styles.container}>
-        <Text style={styles.title}>This screen doesn't exist.</Text>
+  const router = useRouter();
 
-        <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Go to home screen!</Text>
-        </Link>
+  const handleGoHome = () => {
+    router.replace('/');
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <FontAwesome5 name='gas-pump' size={100} color='#dddddd' />
+        <Text style={styles.title}>Page Not Found</Text>
+        <Text style={styles.message}>
+          Sorry, the page you're looking for doesn't exist or has been moved.
+        </Text>
+        <Button
+          title='Go to Home'
+          onPress={handleGoHome}
+          style={styles.button}
+          variant='primary'
+        />
       </View>
-    </>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 10,
   },
-  link: {
-    marginTop: 15,
-    paddingVertical: 15,
+  message: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 30,
   },
-  linkText: {
-    fontSize: 14,
-    color: '#2e78b7',
+  button: {
+    minWidth: 150,
   },
 });
