@@ -1,4 +1,5 @@
 // constants/gasStations.ts
+import { Database } from '@/utils/supabase/types';
 
 export const NCR_CITIES = [
   'Quezon City',
@@ -58,4 +59,34 @@ export const DEFAULT_OPERATING_HOURS = {
   Friday: { open: '06:00', close: '22:00' },
   Saturday: { open: '06:00', close: '22:00' },
   Sunday: { open: '06:00', close: '22:00' },
+};
+
+export type GasStation = Database['public']['Tables']['gas_stations']['Row'];
+
+export interface ImportStatus {
+  city: string;
+  status: 'pending' | 'in-progress' | 'completed' | 'error';
+  stationsFound?: number;
+  stationsImported?: number;
+  error?: string;
+}
+
+export interface OverallProgress {
+  total: number;
+  processed: number;
+  imported: number;
+}
+
+export const RATE_LIMIT = {
+  SEARCH: {
+    DELAY: 1000,
+  },
+  DETAILS: {
+    DELAY: 1000,
+  },
+  RETRY: {
+    MAX_ATTEMPTS: 3,
+    BASE_DELAY: 1000,
+    MAX_DELAY: 10000,
+  },
 };

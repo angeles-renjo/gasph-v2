@@ -1,8 +1,17 @@
 // hooks/useImportStations.ts
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
+import {
+  PostgrestResponse,
+  PostgrestSingleResponse,
+} from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase/supabase';
-import { NCR_CITIES } from '@/constants/gasStations';
+import { NCR_CITIES, RATE_LIMIT } from '@/constants/gasStations';
+import {
+  GasStation,
+  ImportStatus,
+  OverallProgress,
+} from '@/constants/gasStations';
 import {
   normalizeBrand,
   formatAmenities,
@@ -11,19 +20,43 @@ import {
   searchGasStations,
 } from '@/utils/placesApi';
 
-export interface ImportStatus {
-  city: string;
-  status: 'pending' | 'in-progress' | 'completed' | 'error';
-  stationsFound?: number;
-  stationsImported?: number;
-  error?: string;
-}
+// Utilities
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-interface OverallProgress {
-  total: number;
-  processed: number;
-  imported: number;
-}
+const withTimeout = async <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string
+): Promise<T> => {
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]);
+};
+
+const retryOperation = async <T>(
+  operation: () => Promise<T>,
+  retryCount = 0,
+  context = ''
+): Promise<T> => {
+  try {
+    return await operation();
+  } catch (error: any) {
+    if (retryCount < RATE_LIMIT.RETRY.MAX_ATTEMPTS) {
+      const waitTime = Math.min(
+        RATE_LIMIT.RETRY.BASE_DELAY * Math.pow(2, retryCount),
+        RATE_LIMIT.RETRY.MAX_DELAY
+      );
+      console.log(
+        `${context} - Retry ${retryCount + 1} in ${waitTime}ms`,
+        error
+      );
+      await delay(waitTime);
+      return retryOperation(operation, retryCount + 1, context);
+    }
+    throw error;
+  }
+};
 
 export function useImportStations() {
   const [apiKey, setApiKey] = useState<string>('');
@@ -37,21 +70,108 @@ export function useImportStations() {
     imported: 0,
   });
 
-  const updateCityStatus = (city: string, update: Partial<ImportStatus>) => {
-    setImportStatuses((prevStatuses) =>
-      prevStatuses.map((status) =>
-        status.city === city ? { ...status, ...update } : status
-      )
-    );
-  };
+  const updateCityStatus = useCallback(
+    (city: string, update: Partial<ImportStatus>) => {
+      setImportStatuses((prevStatuses) =>
+        prevStatuses.map((status) =>
+          status.city === city ? { ...status, ...update } : status
+        )
+      );
+    },
+    []
+  );
 
-  const updateOverallProgress = (update: Partial<OverallProgress>) => {
-    setOverallProgress((prev: OverallProgress) => ({ ...prev, ...update }));
-  };
+  const updateOverallProgress = useCallback(
+    (update: (prev: OverallProgress) => OverallProgress) => {
+      setOverallProgress(update);
+    },
+    []
+  );
 
-  const resetImport = () => {
+  const resetImport = useCallback(() => {
     setImportStatuses(NCR_CITIES.map((city) => ({ city, status: 'pending' })));
     setOverallProgress({ total: 0, processed: 0, imported: 0 });
+  }, []);
+
+  const processStation = async (station: any, apiKey: string, city: string) => {
+    try {
+      await delay(RATE_LIMIT.DETAILS.DELAY);
+
+      const details = await retryOperation(
+        () =>
+          withTimeout(
+            fetchPlaceDetails(station.place_id, apiKey),
+            30000,
+            `Timeout fetching details for ${station.name}`
+          ),
+        0,
+        `Fetching details for ${station.name}`
+      );
+
+      const existingStationsResponse = await retryOperation<
+        PostgrestSingleResponse<GasStation[]>
+      >(
+        async () =>
+          await supabase
+            .from('gas_stations')
+            .select('id')
+            .eq('name', station.name)
+            .eq(
+              'address',
+              station.formatted_address || details.formatted_address
+            )
+            .limit(1)
+            .single(),
+        0,
+        `Checking existing station: ${station.name}`
+      );
+
+      if (
+        existingStationsResponse.error &&
+        existingStationsResponse.error.code !== 'PGRST116'
+      ) {
+        throw existingStationsResponse.error;
+      }
+
+      if (!existingStationsResponse.data) {
+        const newStation = {
+          name: station.name,
+          brand: normalizeBrand(station.name),
+          address: station.formatted_address || details.formatted_address,
+          city,
+          province: 'Metro Manila',
+          latitude: station.geometry?.location.lat,
+          longitude: station.geometry?.location.lng,
+          amenities: formatAmenities(details),
+          operating_hours: formatOperatingHours(details),
+          status: 'active',
+        } as Omit<GasStation, 'id' | 'created_at' | 'updated_at'>;
+
+        // Fixed typing for insert operation
+        const { error: insertError } = await retryOperation(
+          async () =>
+            await supabase
+              .from('gas_stations')
+              .insert(newStation)
+              .select()
+              .single(),
+          0,
+          `Inserting station: ${station.name}`
+        );
+
+        if (insertError) throw insertError;
+        return { processed: true, imported: true };
+      }
+
+      return { processed: true, imported: false };
+    } catch (error: any) {
+      console.error(`Error processing station ${station.name}:`, {
+        error,
+        errorMessage: error.message,
+        errorStack: error.stack,
+      });
+      return { processed: true, imported: false };
+    }
   };
 
   const importGasStations = async () => {
@@ -60,105 +180,81 @@ export function useImportStations() {
       return;
     }
 
-    setIsImporting(true);
-    resetImport();
+    let finalProcessed = 0;
+    let finalImported = 0;
 
-    // Process each city
-    for (const city of NCR_CITIES) {
-      try {
-        updateCityStatus(city, { status: 'in-progress' });
+    try {
+      setIsImporting(true);
+      resetImport();
 
-        // Search for gas stations in this city
-        const stations = await searchGasStations(city, apiKey);
-        updateCityStatus(city, { stationsFound: stations.length });
-        updateOverallProgress({
-          total: overallProgress.total + stations.length,
-        });
+      for (const city of NCR_CITIES) {
+        try {
+          console.log(`Starting import for ${city}`);
+          updateCityStatus(city, { status: 'in-progress' });
 
-        let importedCount = 0;
+          const stations = await retryOperation(
+            () =>
+              withTimeout(
+                searchGasStations(city, apiKey),
+                30000,
+                `Timeout searching stations in ${city}`
+              ),
+            0,
+            `Searching stations in ${city}`
+          );
 
-        // Process each station
-        for (const station of stations) {
-          try {
-            // Get detailed information about the place
-            const details = await fetchPlaceDetails(station.place_id, apiKey);
+          console.log(`Found ${stations.length} stations in ${city}`);
 
-            // Check if the station already exists in the database
-            const { data: existingStations, error: queryError } = await supabase
-              .from('gas_stations')
-              .select('id')
-              .eq('name', station.name)
-              .eq(
-                'address',
-                station.formatted_address || details.formatted_address
-              )
-              .limit(1);
+          updateCityStatus(city, { stationsFound: stations.length });
+          updateOverallProgress((prev) => ({
+            ...prev,
+            total: prev.total + stations.length,
+          }));
 
-            if (queryError) {
-              console.error('Error checking for existing station:', queryError);
-              continue;
+          let cityImportCount = 0;
+
+          for (const station of stations) {
+            console.log(`Processing station: ${station.name}`);
+            const result = await processStation(station, apiKey, city);
+
+            if (result.processed) finalProcessed++;
+            if (result.imported) {
+              finalImported++;
+              cityImportCount++;
             }
 
-            // If the station doesn't exist, insert it
-            if (!existingStations || existingStations.length === 0) {
-              const newStation = {
-                name: station.name,
-                brand: normalizeBrand(station.name),
-                address: station.formatted_address || details.formatted_address,
-                city: city,
-                province: 'Metro Manila',
-                latitude: station.geometry?.location.lat,
-                longitude: station.geometry?.location.lng,
-                amenities: formatAmenities(details),
-                operating_hours: formatOperatingHours(details),
-                status: 'active',
-              };
-
-              const { error: insertError } = await supabase
-                .from('gas_stations')
-                .insert(newStation);
-
-              if (insertError) {
-                console.error('Error inserting station:', insertError);
-                continue;
-              }
-
-              importedCount++;
-            }
-
-            updateOverallProgress({
-              processed: overallProgress.processed + 1,
-              imported:
-                overallProgress.imported +
-                (existingStations?.length === 0 ? 1 : 0),
-            });
-          } catch (stationError) {
-            console.error(
-              `Error processing station ${station.name}:`,
-              stationError
-            );
+            updateOverallProgress((prev) => ({
+              ...prev,
+              processed: prev.processed + (result.processed ? 1 : 0),
+              imported: prev.imported + (result.imported ? 1 : 0),
+            }));
           }
+
+          updateCityStatus(city, {
+            status: 'completed',
+            stationsImported: cityImportCount,
+          });
+
+          await delay(2000);
+        } catch (cityError: any) {
+          console.error(`Error importing stations for ${city}:`, cityError);
+          updateCityStatus(city, {
+            status: 'error',
+            error: cityError.message || 'Unknown error',
+          });
         }
-
-        updateCityStatus(city, {
-          status: 'completed',
-          stationsImported: importedCount,
-        });
-      } catch (cityError) {
-        console.error(`Error importing stations for ${city}:`, cityError);
-        updateCityStatus(city, {
-          status: 'error',
-          error:
-            cityError instanceof Error ? cityError.message : 'Unknown error',
-        });
       }
+    } catch (error: any) {
+      console.error('Import process error:', error);
+      Alert.alert('Error', 'An error occurred during the import process.');
+    } finally {
+      setIsImporting(false);
+      console.log('Final counts:', { finalProcessed, finalImported });
+      Alert.alert(
+        'Import Complete',
+        `Processed ${finalProcessed} stations, imported ${finalImported} new stations.`
+      );
     }
-
-    setIsImporting(false);
-    Alert.alert(
-      'Import Complete',
-      `Processed ${overallProgress.processed} stations, imported ${overallProgress.imported} new stations.`
-    );
   };
 
   return {
