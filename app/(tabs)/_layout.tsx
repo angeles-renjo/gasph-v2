@@ -5,9 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 export default function TabsLayout() {
   const { user } = useAuth();
 
-  // Check if user is an admin
-  const isAdmin = user?.email === 'admin@gasph.app';
-
   return (
     <Tabs
       screenOptions={{
@@ -60,8 +57,27 @@ export default function TabsLayout() {
             <FontAwesome5 name='user' size={size} color={color} />
           ),
         }}
-        redirect={!user}
+        // TODO: Uncomment this line when authentication is implemented
+        // redirect={!user}
       />
+
+      {/* TODO: Uncomment this conditional rendering when authentication is implemented
+        Replace the Admin tab below with this code:
+        
+        {user && user.email === 'admin@gasph.app' && (
+          <Tabs.Screen
+            name='admin'
+            options={{
+              title: 'Admin',
+              tabBarIcon: ({ color, size }) => (
+                <FontAwesome5 name='shield-alt' size={size} color={color} />
+              ),
+            }}
+          />
+        )}
+      */}
+
+      {/* Remove this tab and use the conditional rendering above when authentication is implemented */}
       <Tabs.Screen
         name='admin'
         options={{
@@ -69,11 +85,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <FontAwesome5 name='shield-alt' size={size} color={color} />
           ),
-          // Hide the tab for non-admin users
-          href: isAdmin ? undefined : null,
         }}
-        // Redirect if not an admin
-        redirect={!isAdmin}
       />
     </Tabs>
   );
