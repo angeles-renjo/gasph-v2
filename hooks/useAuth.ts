@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase/supabase';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, AuthError } from '@supabase/supabase-js';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -20,7 +20,8 @@ export function useAuth() {
         } = await supabase.auth.getSession();
 
         if (sessionError) {
-          throw sessionError;
+          console.error('Error getting session:', sessionError);
+          return;
         }
 
         if (currentSession) {
@@ -62,8 +63,8 @@ export function useAuth() {
 
       if (error) throw error;
       return { data, error: null };
-    } catch (error: any) {
-      return { data: null, error };
+    } catch (error) {
+      return { data: null, error: error as AuthError };
     }
   };
 
@@ -77,8 +78,8 @@ export function useAuth() {
 
       if (error) throw error;
       return { data, error: null };
-    } catch (error: any) {
-      return { data: null, error };
+    } catch (error) {
+      return { data: null, error: error as AuthError };
     }
   };
 
@@ -88,8 +89,8 @@ export function useAuth() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       return { error: null };
-    } catch (error: any) {
-      return { error };
+    } catch (error) {
+      return { error: error as AuthError };
     }
   };
 
