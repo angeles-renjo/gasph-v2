@@ -14,13 +14,19 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.angeles-renjo.gasph-v2",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "GasPH needs access to your location to find gas stations near you and show the most relevant fuel prices.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GasPH needs access to your location to find gas stations near you and show the most relevant fuel prices."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "web": {
       "bundler": "metro",
@@ -29,7 +35,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow GasPH to use your location to find nearby gas stations and fuel prices."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
