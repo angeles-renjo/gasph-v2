@@ -19,6 +19,7 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Database } from '@/utils/supabase/types';
+import { Button } from '@/components/ui/Button';
 
 type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
   distance?: number;
@@ -34,10 +35,19 @@ const POPULAR_BRANDS = [
 ];
 
 export default function ExploreScreen() {
-  const { location, loading: locationLoading } = useLocation();
+  const {
+    getLocationWithFallback,
+    loading: locationLoading,
+    error: locationError,
+    permissionDenied,
+    refreshLocation,
+  } = useLocation();
+
+  const locationData = getLocationWithFallback();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [filteredStations, setFilteredStations] = useState<GasStation[]>([]);
+  const [usingDefaultLocation, setUsingDefaultLocation] = useState(false);
 
   const {
     data: stations,
@@ -45,7 +55,12 @@ export default function ExploreScreen() {
     error,
     refetch,
     isRefetching,
-  } = useNearbyStations(15); // 15 km radius
+  } = useNearbyStations(15, true, locationData); // Always enabled, using location or fallback
+
+  // Update notification banner when using default location
+  useEffect(() => {
+    setUsingDefaultLocation(!!locationData.isDefaultLocation);
+  }, [locationData.isDefaultLocation]);
 
   // Filter stations based on search query and selected brand
   useEffect(() => {
@@ -83,7 +98,9 @@ export default function ExploreScreen() {
   };
 
   if (locationLoading) {
-    return <LoadingIndicator fullScreen message='Getting your location...' />;
+    return (
+      <LoadingIndicator fullScreen message='Getting location information...' />
+    );
   }
 
   if (error) {
@@ -103,6 +120,27 @@ export default function ExploreScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
+        {usingDefaultLocation && (
+          <View style={styles.defaultLocationBanner}>
+            <FontAwesome5
+              name='info-circle'
+              size={16}
+              color='#fff'
+              style={styles.bannerIcon}
+            />
+            <Text style={styles.bannerText}>
+              Using Metro Manila as default location. Enable location for better
+              results.
+            </Text>
+            <TouchableOpacity
+              style={styles.bannerButton}
+              onPress={refreshLocation}
+            >
+              <Text style={styles.bannerButtonText}>Enable</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
             <FontAwesome5
@@ -197,6 +235,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  defaultLocationBanner: {
+    backgroundColor: '#e76f51',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  bannerIcon: {
+    marginRight: 8,
+  },
+  bannerText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 12,
+  },
+  bannerButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  bannerButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   searchContainer: {
     backgroundColor: '#fff',

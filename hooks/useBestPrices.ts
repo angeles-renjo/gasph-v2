@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/utils/supabase/supabase';
-import { useLocation } from '@/hooks/useLocation';
+import { useLocation, LocationData } from '@/hooks/useLocation';
 import { calculateDistance } from '@/lib/geo';
 import { Database } from '@/utils/supabase/types';
 
@@ -14,14 +14,20 @@ interface UseBestPricesParams {
   fuelType?: FuelType;
   maxDistance?: number;
   enabled?: boolean;
+  providedLocation?: LocationData; // Accept an optional location parameter
 }
 
 export function useBestPrices({
   fuelType,
   maxDistance = 15, // Default to 15 kilometers
   enabled = true,
+  providedLocation,
 }: UseBestPricesParams = {}) {
-  const { location, loading: locationLoading } = useLocation();
+  const { getLocationWithFallback, loading: locationLoading } = useLocation();
+
+  // Use the provided location or get it from the hook
+  // Ensure we always have a valid location by using getLocationWithFallback which never returns null
+  const location = providedLocation || getLocationWithFallback();
 
   return useQuery({
     queryKey: ['bestPrices', location, fuelType, maxDistance],

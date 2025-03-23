@@ -10,9 +10,14 @@ type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
 
 export function useNearbyStations(
   radiusKm: number = 5,
-  enabled: boolean = true
+  enabled: boolean = true,
+  providedLocation?: LocationData // Accept an optional location parameter
 ) {
-  const { location, loading: locationLoading } = useLocation();
+  const { getLocationWithFallback, loading: locationLoading } = useLocation();
+
+  // Use the provided location or get it from the hook
+  // Ensure we always have a valid location by using getLocationWithFallback which never returns null
+  const location = providedLocation || getLocationWithFallback();
 
   return useQuery({
     queryKey: ['nearbyStations', location, radiusKm],
@@ -52,6 +57,6 @@ export function useNearbyStations(
 
       return stationsWithDistance;
     },
-    enabled: !!location && !locationLoading && enabled,
+    enabled: !!location && enabled,
   });
 }

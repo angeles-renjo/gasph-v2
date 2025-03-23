@@ -6,6 +6,7 @@ import {
   Dimensions,
   TouchableOpacity,
   Platform,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import MapView, {
@@ -34,33 +35,46 @@ export default function MapScreen() {
     location,
     loading: locationLoading,
     error: locationError,
+    permissionDenied,
     refreshLocation,
+    getLocationWithFallback,
   } = useLocation();
 
   const [selectedStationId, setSelectedStationId] = useState<string | null>(
     null
   );
   const [region, setRegion] = useState<Region | null>(null);
+  const [usingDefaultLocation, setUsingDefaultLocation] = useState(false);
+
+  // Decide if we need to use a fallback location - ensure we never have null
+  const locationData =
+    permissionDenied || !location ? getLocationWithFallback() : location;
+
+  useEffect(() => {
+    // locationData cannot be null as getLocationWithFallback always returns a value
+    setUsingDefaultLocation(!!locationData?.isDefaultLocation);
+  }, [locationData]);
 
   const {
     data: stations,
     isLoading,
     error,
     refetch,
-  } = useNearbyStations(10, !!location); // 10 km radius
+  } = useNearbyStations(10, !!locationData, locationData); // 10 km radius
 
   // Set initial region when location is available
   useEffect(() => {
-    if (location && !region) {
+    // We now ensure locationData can never be null with our improved retrieval logic
+    if (locationData && !region) {
       const initialRegion = {
-        latitude: location.latitude,
-        longitude: location.longitude,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
         latitudeDelta: LATITUDE_DELTA,
         longitudeDelta: LONGITUDE_DELTA,
       };
       setRegion(initialRegion);
     }
-  }, [location]);
+  }, [locationData]);
 
   const handleMarkerPress = (stationId: string) => {
     setSelectedStationId(stationId);
@@ -71,10 +85,10 @@ export default function MapScreen() {
   };
 
   const centerOnUserLocation = () => {
-    if (location && mapRef.current) {
+    if (locationData && mapRef.current) {
       mapRef.current.animateToRegion({
-        latitude: location.latitude,
-        longitude: location.longitude,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
         latitudeDelta: LATITUDE_DELTA,
         longitudeDelta: LONGITUDE_DELTA,
       });
@@ -83,19 +97,16 @@ export default function MapScreen() {
     }
   };
 
+  const openAppSettings = () => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('app-settings:');
+    } else {
+      Linking.openSettings();
+    }
+  };
+
   if (locationLoading) {
     return <LoadingIndicator fullScreen message='Getting your location...' />;
-  }
-
-  if (locationError || !location) {
-    return (
-      <ErrorDisplay
-        fullScreen
-        title='Location Error'
-        message="We couldn't determine your location. Please check your location permissions and try again."
-        onRetry={refreshLocation}
-      />
-    );
   }
 
   if (error) {
@@ -120,19 +131,25 @@ export default function MapScreen() {
               style={styles.map}
               initialRegion={region}
               provider={PROVIDER_GOOGLE}
-              showsUserLocation
+              showsUserLocation={!usingDefaultLocation}
               showsMyLocationButton={false}
               onRegionChangeComplete={setRegion}
             >
               {/* User's location marker */}
-              <Marker
-                coordinate={{
-                  latitude: location.latitude,
-                  longitude: location.longitude,
-                }}
-                pinColor='#2a9d8f'
-                title='Your Location'
-              />
+              {locationData && (
+                <Marker
+                  coordinate={{
+                    latitude: locationData.latitude,
+                    longitude: locationData.longitude,
+                  }}
+                  pinColor='#2a9d8f'
+                  title={
+                    usingDefaultLocation
+                      ? 'Default Location (Metro Manila)'
+                      : 'Your Location'
+                  }
+                />
+              )}
 
               {/* Station markers */}
               {stations?.map((station) => (
@@ -171,6 +188,22 @@ export default function MapScreen() {
             </MapView>
           )}
 
+          {/* Location permission banner */}
+          {usingDefaultLocation && (
+            <View style={styles.permissionBanner}>
+              <Text style={styles.permissionText}>
+                Using Metro Manila as default location
+              </Text>
+              <Button
+                title='Enable Location'
+                variant='primary'
+                size='small'
+                onPress={openAppSettings}
+                style={styles.permissionButton}
+              />
+            </View>
+          )}
+
           {/* Map controls */}
           <View style={styles.controlsContainer}>
             <TouchableOpacity
@@ -207,9 +240,31 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  permissionBanner: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 40 : 10,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(231, 111, 81, 0.9)',
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  permissionText: {
+    color: '#fff',
+    fontSize: 14,
+    flex: 1,
+    marginRight: 8,
+  },
+  permissionButton: {
+    paddingHorizontal: 12,
+  },
   controlsContainer: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 20,
+    top: Platform.OS === 'ios' ? 100 : 70,
     right: 20,
   },
   centerButton: {

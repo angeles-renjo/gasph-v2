@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
+  Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -16,6 +18,7 @@ import { BestPriceCard } from '@/components/price/BestPriceCard';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
+import { Button } from '@/components/ui/Button';
 
 const FUEL_TYPES: FuelType[] = [
   'Diesel',
@@ -30,6 +33,7 @@ export default function BestPricesScreen() {
     location,
     loading: locationLoading,
     error: locationError,
+    refreshLocation,
   } = useLocation();
   const [selectedFuelType, setSelectedFuelType] = useState<
     FuelType | undefined
@@ -56,19 +60,47 @@ export default function BestPricesScreen() {
     setMaxDistance(distance);
   };
 
-  if (locationLoading) {
-    return <LoadingIndicator fullScreen message='Getting your location...' />;
-  }
+  const openAppSettings = () => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('app-settings:');
+    } else {
+      Linking.openSettings();
+    }
+  };
 
+  // Location permission denied or error fallback
   if (locationError) {
     return (
-      <ErrorDisplay
-        fullScreen
-        title='Location Error'
-        message="We couldn't determine your location. Please check your location permissions and try again."
-        onRetry={() => window.location.reload()}
-      />
+      <SafeAreaView style={styles.fullScreenContainer}>
+        <View style={styles.fallbackContainer}>
+          <FontAwesome5 name='map-marker-alt' size={60} color='#cccccc' />
+          <Text style={styles.fallbackTitle}>Location Access Required</Text>
+          <Text style={styles.fallbackMessage}>
+            GasPH needs your location to find the best fuel prices near you.
+            Without location access, we can't show you personalized price
+            recommendations.
+          </Text>
+          <View style={styles.fallbackButtonContainer}>
+            <Button
+              title='Enable Location'
+              onPress={openAppSettings}
+              variant='primary'
+              style={styles.fallbackButton}
+            />
+            <Button
+              title='Try Again'
+              onPress={refreshLocation}
+              variant='outline'
+              style={styles.fallbackButton}
+            />
+          </View>
+        </View>
+      </SafeAreaView>
     );
+  }
+
+  if (locationLoading) {
+    return <LoadingIndicator fullScreen message='Getting your location...' />;
   }
 
   if (error) {
@@ -209,6 +241,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  fallbackContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  fallbackTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  fallbackMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 30,
+    lineHeight: 22,
+  },
+  fallbackButtonContainer: {
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  fallbackButton: {
+    marginBottom: 12,
   },
   header: {
     padding: 16,
