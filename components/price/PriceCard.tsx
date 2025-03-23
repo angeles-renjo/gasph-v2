@@ -1,37 +1,71 @@
+// components/price/PriceCard.tsx
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { Card } from '@/components/ui/Card';
+import { FontAwesome5 } from '@expo/vector-icons';
 import {
   formatPrice,
   formatRelativeTime,
   formatConfidenceScore,
   getConfidenceColor,
 } from '@/utils/formatters';
+import { usePriceVoting } from '@/hooks/usePriceVoting';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface PriceCardProps {
+  id?: string; // Report ID for voting
+  stationId?: string; // Station ID for query invalidation
   fuelType: string;
   price: number;
   date: string;
   source: 'community' | 'official';
   username?: string;
+  userId?: string; // User ID of reporter for self-vote prevention
   confidence?: number;
   upvotes?: number;
   downvotes?: number;
+  userVote?: 'up' | 'down' | null; // User's current vote status
+  isOwnReport?: boolean; // Flag to indicate if the current user is the reporter
 }
 
 export function PriceCard({
+  id,
+  stationId,
   fuelType,
   price,
   date,
   source,
   username,
+  userId,
   confidence = 0,
   upvotes = 0,
   downvotes = 0,
+  userVote,
+  isOwnReport = false,
 }: PriceCardProps) {
   const isCommunity = source === 'community';
   const confidenceColor = getConfidenceColor(confidence);
   const relativeTime = formatRelativeTime(date);
+  const { handleVote, isVoting } = usePriceVoting();
+  const { user } = useAuth();
+
+  const handleUpvote = async () => {
+    if (id && stationId && userId) {
+      await handleVote(id, true, stationId, userId);
+    }
+  };
+
+  const handleDownvote = async () => {
+    if (id && stationId && userId) {
+      await handleVote(id, false, stationId, userId);
+    }
+  };
 
   return (
     <Card variant='outline' style={styles.card}>
@@ -71,13 +105,91 @@ export function PriceCard({
               <Text style={styles.username}>{username || 'Anonymous'}</Text>
             </View>
 
+            {/* Votes Section */}
             <View style={styles.votesContainer}>
               <Text style={styles.votesLabel}>Votes</Text>
-              <View style={styles.votesRow}>
-                <Text style={styles.upvotes}>+{upvotes}</Text>
-                <Text style={styles.voteSeparator}>/</Text>
-                <Text style={styles.downvotes}>-{downvotes}</Text>
-              </View>
+              {isVoting ? (
+                <ActivityIndicator size='small' color='#2a9d8f' />
+              ) : (
+                <View style={styles.votesRow}>
+                  {/* Always show vote counts for everyone */}
+                  {id && stationId && userId && user && !isOwnReport ? (
+                    /* Show interactive buttons for authenticated users who aren't the reporter */
+                    <>
+                      <TouchableOpacity
+                        onPress={handleUpvote}
+                        style={styles.voteButton}
+                        disabled={isVoting}
+                      >
+                        <Text
+                          style={[
+                            styles.upvotes,
+                            userVote === 'up' && styles.activeVote,
+                          ]}
+                        >
+                          <FontAwesome5
+                            name='thumbs-up'
+                            solid={userVote === 'up'}
+                            size={12}
+                          />{' '}
+                          {upvotes}
+                        </Text>
+                      </TouchableOpacity>
+                      <Text style={styles.voteSeparator}>/</Text>
+                      <TouchableOpacity
+                        onPress={handleDownvote}
+                        style={styles.voteButton}
+                        disabled={isVoting}
+                      >
+                        <Text
+                          style={[
+                            styles.downvotes,
+                            userVote === 'down' && styles.activeVote,
+                          ]}
+                        >
+                          <FontAwesome5
+                            name='thumbs-down'
+                            solid={userVote === 'down'}
+                            size={12}
+                          />{' '}
+                          {downvotes}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    /* Show non-interactive version for anonymous users or the reporter */
+                    <>
+                      <Text
+                        style={[
+                          styles.upvotes,
+                          isOwnReport && styles.ownReportVote,
+                        ]}
+                      >
+                        <FontAwesome5
+                          name='thumbs-up'
+                          solid={userVote === 'up' || isOwnReport}
+                          size={12}
+                        />{' '}
+                        {upvotes}
+                      </Text>
+                      <Text style={styles.voteSeparator}>/</Text>
+                      <Text style={styles.downvotes}>
+                        <FontAwesome5
+                          name='thumbs-down'
+                          solid={userVote === 'down'}
+                          size={12}
+                        />{' '}
+                        {downvotes}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              )}
+
+              {/* Display info tag for own reports */}
+              {isOwnReport && (
+                <Text style={styles.ownReportTag}>Your report</Text>
+              )}
             </View>
           </View>
         </>
@@ -173,19 +285,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  voteButton: {
+    padding: 5,
+  },
   upvotes: {
     fontSize: 12,
     fontWeight: '500',
     color: '#4caf50',
+  },
+  downvotes: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#f44336',
   },
   voteSeparator: {
     fontSize: 12,
     color: '#999',
     marginHorizontal: 2,
   },
-  downvotes: {
+  activeVote: {
+    fontWeight: 'bold',
+    opacity: 1,
+  },
+  ownReportVote: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#f44336',
+    fontWeight: 'bold',
+    color: '#4caf50',
+  },
+  ownReportTag: {
+    fontSize: 10,
+    color: '#2a9d8f',
+    fontStyle: 'italic',
+    marginTop: 2,
   },
 });

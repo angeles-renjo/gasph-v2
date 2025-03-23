@@ -1,3 +1,4 @@
+// app/station/[id].tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -184,14 +185,19 @@ export default function StationDetailScreen() {
               {prices.map((price) => (
                 <PriceCard
                   key={price.id}
+                  id={price.id}
+                  stationId={id || ''}
                   fuelType={price.fuel_type}
                   price={price.price}
                   date={price.reported_at}
                   source='community'
                   username={price.reporter_username}
+                  userId={price.user_id}
                   confidence={price.confidence_score}
                   upvotes={price.upvotes}
                   downvotes={price.downvotes}
+                  userVote={price.userVote}
+                  isOwnReport={price.isOwnReport}
                 />
               ))}
             </View>
