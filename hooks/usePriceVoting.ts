@@ -5,124 +5,155 @@ import { supabase } from '@/utils/supabase/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 
+// Types to improve clarity
+type VoteType = 'upvote' | 'downvote';
+
 export function usePriceVoting() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isVoting, setIsVoting] = useState(false);
 
+  // Show alert helper function
+  const showAlert = (title: string, message: string) => {
+    Alert.alert(title, message, [{ text: 'OK' }]);
+  };
+
+  // Validate user can vote
+  const validateVote = (reportUserId: string, isUpvote: boolean): boolean => {
+    if (!user) {
+      showAlert(
+        'Login Required',
+        'You need to be logged in to vote on price reports.'
+      );
+      return false;
+    }
+
+    if (user.id === reportUserId && !isUpvote) {
+      showAlert(
+        'Voting Restricted',
+        'You cannot downvote your own price report.'
+      );
+      return false;
+    }
+
+    return true;
+  };
+
+  // Fetch existing vote
+  const fetchExistingVote = async (reportId: string, userId: string) => {
+    const { data, error } = await supabase
+      .from('user_price_votes')
+      .select('*')
+      .eq('report_id', reportId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  };
+
+  // Process same vote type case
+  const handleSameVoteType = (isUpvote: boolean): boolean => {
+    const action = isUpvote ? 'upvoted' : 'downvoted';
+    showAlert(
+      isUpvote ? 'Already Upvoted' : 'Already Downvoted',
+      `You have already ${action} this price report.`
+    );
+    return false;
+  };
+
+  // Update vote counts
+  const updateVoteCounts = async (
+    decrementType: VoteType,
+    incrementType: VoteType,
+    reportId: string
+  ) => {
+    await supabase.rpc(`decrement_${decrementType}`, { report_id: reportId });
+    await supabase.rpc(`increment_${incrementType}`, { report_id: reportId });
+  };
+
+  // Update existing vote
+  const changeExistingVote = async (
+    existingVote: any,
+    reportId: string,
+    isUpvote: boolean
+  ) => {
+    await supabase
+      .from('user_price_votes')
+      .update({ is_upvote: isUpvote })
+      .eq('id', existingVote.id);
+
+    if (existingVote.is_upvote) {
+      await updateVoteCounts('upvote', 'downvote', reportId);
+      showAlert(
+        'Vote Changed',
+        'Your vote has been changed from upvote to downvote.'
+      );
+    } else {
+      await updateVoteCounts('downvote', 'upvote', reportId);
+      showAlert(
+        'Vote Changed',
+        'Your vote has been changed from downvote to upvote.'
+      );
+    }
+  };
+
+  // Insert new vote
+  const insertNewVote = async (
+    reportId: string,
+    userId: string,
+    isUpvote: boolean
+  ) => {
+    await supabase.from('user_price_votes').insert({
+      report_id: reportId,
+      user_id: userId,
+      is_upvote: isUpvote,
+    });
+
+    const voteType: VoteType = isUpvote ? 'upvote' : 'downvote';
+    await supabase.rpc(`increment_${voteType}`, { report_id: reportId });
+
+    showAlert(
+      isUpvote ? 'Upvoted Successfully' : 'Downvoted Successfully',
+      isUpvote
+        ? 'You have upvoted this price report.'
+        : 'You have downvoted this price report.'
+    );
+  };
+
+  // Main voting function - radically simplified
   const handleVote = async (
     reportId: string,
     isUpvote: boolean,
     stationId: string,
     reportUserId: string
-  ) => {
-    if (!user) {
-      Alert.alert(
-        'Login Required',
-        'You need to be logged in to vote on price reports.',
-        [{ text: 'OK' }]
-      );
-      return false;
-    }
-
-    // Prevent users from voting on their own reports (except for the initial auto-upvote)
-    if (user.id === reportUserId && isUpvote === false) {
-      Alert.alert(
-        'Voting Restricted',
-        'You cannot downvote your own price report.',
-        [{ text: 'OK' }]
-      );
+  ): Promise<boolean> => {
+    // Guard: validate user can vote
+    if (!validateVote(reportUserId, isUpvote)) {
       return false;
     }
 
     try {
       setIsVoting(true);
 
-      // First, check if the user has already voted on this report
-      const { data: existingVote, error: checkError } = await supabase
-        .from('user_price_votes')
-        .select('*')
-        .eq('report_id', reportId)
-        .eq('user_id', user.id)
-        .maybeSingle();
+      // Get existing vote (if any)
+      const existingVote = await fetchExistingVote(reportId, user!.id);
 
-      if (checkError) throw checkError;
-
+      // Handle based on vote existence and type
       if (existingVote) {
-        // User has already voted on this report
-
-        // If clicking the same vote type they already cast, show feedback message
+        // Guard: same vote type already cast
         if (existingVote.is_upvote === isUpvote) {
-          Alert.alert(
-            isUpvote ? 'Already Upvoted' : 'Already Downvoted',
-            isUpvote
-              ? 'You have already upvoted this price report.'
-              : 'You have already downvoted this price report.',
-            [{ text: 'OK' }]
-          );
-          return false;
-        } else {
-          // They're changing their vote from up to down or vice versa
-          const { error: updateVoteError } = await supabase
-            .from('user_price_votes')
-            .update({ is_upvote: isUpvote })
-            .eq('id', existingVote.id);
-
-          if (updateVoteError) throw updateVoteError;
-
-          // Decrement the previous vote type and increment the new one
-          if (existingVote.is_upvote) {
-            // Changing from upvote to downvote
-            await supabase.rpc('decrement_upvote', { report_id: reportId });
-            await supabase.rpc('increment_downvote', { report_id: reportId });
-
-            Alert.alert(
-              'Vote Changed',
-              'Your vote has been changed from upvote to downvote.',
-              [{ text: 'OK' }]
-            );
-          } else {
-            // Changing from downvote to upvote
-            await supabase.rpc('decrement_downvote', { report_id: reportId });
-            await supabase.rpc('increment_upvote', { report_id: reportId });
-
-            Alert.alert(
-              'Vote Changed',
-              'Your vote has been changed from downvote to upvote.',
-              [{ text: 'OK' }]
-            );
-          }
+          return handleSameVoteType(isUpvote);
         }
+
+        // Change existing vote
+        await changeExistingVote(existingVote, reportId, isUpvote);
       } else {
-        // User hasn't voted on this report yet, add a new vote
-        const { error: insertError } = await supabase
-          .from('user_price_votes')
-          .insert({
-            report_id: reportId,
-            user_id: user.id,
-            is_upvote: isUpvote,
-          });
-
-        if (insertError) throw insertError;
-
-        // Update the report vote count
-        const { error: updateError } = await supabase.rpc(
-          isUpvote ? 'increment_upvote' : 'increment_downvote',
-          { report_id: reportId }
-        );
-
-        if (updateError) throw updateError;
-
-        Alert.alert(
-          isUpvote ? 'Upvoted Successfully' : 'Downvoted Successfully',
-          isUpvote
-            ? 'You have upvoted this price report.'
-            : 'You have downvoted this price report.',
-          [{ text: 'OK' }]
-        );
+        // Create new vote
+        await insertNewVote(reportId, user!.id, isUpvote);
       }
 
-      // Invalidate queries to refresh the data
+      // Refresh data
       queryClient.invalidateQueries({
         queryKey: ['stationDetails', stationId],
       });
@@ -130,7 +161,7 @@ export function usePriceVoting() {
       return true;
     } catch (error: any) {
       console.error('Error voting on price report:', error);
-      Alert.alert('Error', error.message || 'Failed to vote on price report');
+      showAlert('Error', error.message || 'Failed to vote on price report');
       return false;
     } finally {
       setIsVoting(false);
