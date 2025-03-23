@@ -1,4 +1,3 @@
-// components/admin/GooglePlacesImportScreen.tsx
 import {
   View,
   Text,
@@ -11,7 +10,8 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { useImportStations, ImportStatus } from '@/hooks/useImportStations';
+import { useImportStations } from '@/hooks/useImportStations';
+import { ImportStatus } from '@/constants/gasStations';
 
 function GooglePlacesImportScreen() {
   const {

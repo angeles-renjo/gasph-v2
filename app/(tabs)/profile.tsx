@@ -21,7 +21,7 @@ import { formatRelativeTime } from '@/utils/formatters';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [contributions, setContributions] = useState<any[]>([]);
@@ -206,6 +206,13 @@ export default function ProfileScreen() {
             <Text style={styles.username}>{profile?.username || 'User'}</Text>
             <Text style={styles.email}>{user?.email}</Text>
 
+            {isAdmin && (
+              <View style={styles.adminBadge}>
+                <FontAwesome5 name='shield-alt' size={12} color='#fff' />
+                <Text style={styles.adminText}>Admin</Text>
+              </View>
+            )}
+
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{contributions.length}</Text>
@@ -282,6 +289,7 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -350,7 +358,23 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  adminBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2a9d8f',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  adminText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginLeft: 4,
   },
   statsContainer: {
     flexDirection: 'row',

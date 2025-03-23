@@ -1,24 +1,54 @@
-// app/admin/import-stations.tsx
 import { View, Text, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/utils/supabase/supabase';
 import { Button } from '@/components/ui/Button';
 import GooglePlacesImportScreen from '@/components/admin/GooglePlacesImportScreen';
+import { useEffect, useState } from 'react';
 
 function ImportGasStationsScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // For development: bypass admin check
-  // TODO: Uncomment this check when authentication is implemented
-  // const isAdmin = user?.email === 'admin@gasph.app';
-  const isAdmin = true; // Bypass for development
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) {
+        router.replace('/');
+        return;
+      }
 
-  // For development: always allow access
-  // TODO: Restore this check when authentication is implemented
-  /*
-  if (!user || !isAdmin) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+
+        setIsAdmin(data?.is_admin === true);
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAdmin();
+  }, [user, router]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Checking permissions...</Text>
+      </View>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <View style={styles.unauthorizedContainer}>
         <Text style={styles.unauthorizedTitle}>Access Denied</Text>
@@ -33,7 +63,6 @@ function ImportGasStationsScreen() {
       </View>
     );
   }
-  */
 
   return (
     <>
@@ -47,13 +76,6 @@ function ImportGasStationsScreen() {
         }}
       />
 
-      {/* Development mode notice */}
-      <View style={styles.devNotice}>
-        <Text style={styles.devNoticeText}>
-          Development Mode - Admin check bypassed
-        </Text>
-      </View>
-
       <GooglePlacesImportScreen />
     </>
   );
@@ -65,6 +87,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#f5f5f5',
   },
   unauthorizedTitle: {
@@ -81,16 +109,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     minWidth: 150,
-  },
-  // Development notice styles
-  devNotice: {
-    padding: 8,
-    backgroundColor: '#ffe8cc',
-    alignItems: 'center',
-  },
-  devNoticeText: {
-    color: '#d96c00',
-    fontSize: 12,
   },
 });
 

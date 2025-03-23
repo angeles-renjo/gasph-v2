@@ -1,18 +1,26 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase/supabase';
-import { Session, User, AuthError } from '@supabase/supabase-js';
+import { Session, User } from '@supabase/supabase-js';
+
+interface AuthState {
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  isAdmin: boolean;
+}
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    session: null,
+    loading: true,
+    isAdmin: false,
+  });
 
   useEffect(() => {
     // Get the current session and user
     const getCurrentUser = async () => {
       try {
-        setLoading(true);
-
         // Get current session
         const {
           data: { session: currentSession },
@@ -20,18 +28,39 @@ export function useAuth() {
         } = await supabase.auth.getSession();
 
         if (sessionError) {
-          console.error('Error getting session:', sessionError);
-          return;
+          throw sessionError;
         }
 
         if (currentSession) {
-          setSession(currentSession);
-          setUser(currentSession.user);
+          // Check if user is admin
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', currentSession.user.id)
+            .single();
+
+          setState({
+            session: currentSession,
+            user: currentSession.user,
+            loading: false,
+            isAdmin: profileData?.is_admin === true,
+          });
+        } else {
+          setState({
+            user: null,
+            session: null,
+            loading: false,
+            isAdmin: false,
+          });
         }
       } catch (error) {
         console.error('Error getting current user:', error);
-      } finally {
-        setLoading(false);
+        setState({
+          user: null,
+          session: null,
+          loading: false,
+          isAdmin: false,
+        });
       }
     };
 
@@ -41,9 +70,29 @@ export function useAuth() {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         console.log(`Auth event: ${event}`);
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        setLoading(false);
+
+        if (newSession?.user) {
+          // Check if user is admin
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', newSession.user.id)
+            .single();
+
+          setState({
+            session: newSession,
+            user: newSession.user,
+            loading: false,
+            isAdmin: profileData?.is_admin === true,
+          });
+        } else {
+          setState({
+            session: null,
+            user: null,
+            loading: false,
+            isAdmin: false,
+          });
+        }
       }
     );
 
@@ -63,8 +112,8 @@ export function useAuth() {
 
       if (error) throw error;
       return { data, error: null };
-    } catch (error) {
-      return { data: null, error: error as AuthError };
+    } catch (error: any) {
+      return { data: null, error };
     }
   };
 
@@ -78,8 +127,8 @@ export function useAuth() {
 
       if (error) throw error;
       return { data, error: null };
-    } catch (error) {
-      return { data: null, error: error as AuthError };
+    } catch (error: any) {
+      return { data: null, error };
     }
   };
 
@@ -89,15 +138,16 @@ export function useAuth() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       return { error: null };
-    } catch (error) {
-      return { error: error as AuthError };
+    } catch (error: any) {
+      return { error };
     }
   };
 
   return {
-    user,
-    session,
-    loading,
+    user: state.user,
+    session: state.session,
+    loading: state.loading,
+    isAdmin: state.isAdmin,
     signIn,
     signUp,
     signOut,

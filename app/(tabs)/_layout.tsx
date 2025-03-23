@@ -3,7 +3,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function TabsLayout() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return (
     <Tabs
@@ -57,27 +57,7 @@ export default function TabsLayout() {
             <FontAwesome5 name='user' size={size} color={color} />
           ),
         }}
-        // TODO: Uncomment this line when authentication is implemented
-        // redirect={!user}
       />
-
-      {/* TODO: Uncomment this conditional rendering when authentication is implemented
-        Replace the Admin tab below with this code:
-        
-        {user && user.email === 'admin@gasph.app' && (
-          <Tabs.Screen
-            name='admin'
-            options={{
-              title: 'Admin',
-              tabBarIcon: ({ color, size }) => (
-                <FontAwesome5 name='shield-alt' size={size} color={color} />
-              ),
-            }}
-          />
-        )}
-      */}
-
-      {/* Remove this tab and use the conditional rendering above when authentication is implemented */}
       <Tabs.Screen
         name='admin'
         options={{
@@ -85,6 +65,8 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <FontAwesome5 name='shield-alt' size={size} color={color} />
           ),
+          // Hide the tab from the tab bar if the user is not an admin
+          href: isAdmin ? undefined : null,
         }}
       />
     </Tabs>

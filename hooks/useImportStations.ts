@@ -1,10 +1,5 @@
-// hooks/useImportStations.ts
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
-import {
-  PostgrestResponse,
-  PostgrestSingleResponse,
-} from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase/supabase';
 import { NCR_CITIES, RATE_LIMIT } from '@/constants/gasStations';
 import {
@@ -108,62 +103,42 @@ export function useImportStations() {
         `Fetching details for ${station.name}`
       );
 
-      const existingStationsResponse = await retryOperation<
-        PostgrestSingleResponse<GasStation[]>
-      >(
-        async () =>
-          await supabase
-            .from('gas_stations')
-            .select('id')
-            .eq('name', station.name)
-            .eq(
-              'address',
-              station.formatted_address || details.formatted_address
-            )
-            .limit(1)
-            .single(),
-        0,
-        `Checking existing station: ${station.name}`
-      );
+      // Check if station already exists
+      const { data: existingStation, error: checkError } = await supabase
+        .from('gas_stations')
+        .select('id')
+        .eq('name', station.name)
+        .eq('address', station.formatted_address || details.formatted_address)
+        .limit(1)
+        .single();
 
-      if (
-        existingStationsResponse.error &&
-        existingStationsResponse.error.code !== 'PGRST116'
-      ) {
-        throw existingStationsResponse.error;
+      // If no data but we got PGRST116 (not found), it means station doesn't exist
+      const stationExists = !(checkError && checkError.code === 'PGRST116');
+
+      if (stationExists) {
+        return { processed: true, imported: false };
       }
 
-      if (!existingStationsResponse.data) {
-        const newStation = {
-          name: station.name,
-          brand: normalizeBrand(station.name),
-          address: station.formatted_address || details.formatted_address,
-          city,
-          province: 'Metro Manila',
-          latitude: station.geometry?.location.lat,
-          longitude: station.geometry?.location.lng,
-          amenities: formatAmenities(details),
-          operating_hours: formatOperatingHours(details),
-          status: 'active',
-        } as Omit<GasStation, 'id' | 'created_at' | 'updated_at'>;
+      const newStation = {
+        name: station.name,
+        brand: normalizeBrand(station.name),
+        address: station.formatted_address || details.formatted_address,
+        city,
+        province: 'Metro Manila',
+        latitude: station.geometry?.location.lat,
+        longitude: station.geometry?.location.lng,
+        amenities: formatAmenities(details),
+        operating_hours: formatOperatingHours(details),
+        status: 'active',
+      };
 
-        // Fixed typing for insert operation
-        const { error: insertError } = await retryOperation(
-          async () =>
-            await supabase
-              .from('gas_stations')
-              .insert(newStation)
-              .select()
-              .single(),
-          0,
-          `Inserting station: ${station.name}`
-        );
+      // Insert new station
+      const { error: insertError } = await supabase
+        .from('gas_stations')
+        .insert(newStation);
 
-        if (insertError) throw insertError;
-        return { processed: true, imported: true };
-      }
-
-      return { processed: true, imported: false };
+      if (insertError) throw insertError;
+      return { processed: true, imported: true };
     } catch (error: any) {
       console.error(`Error processing station ${station.name}:`, {
         error,
