@@ -1,3 +1,10 @@
+const openAppSettings = () => {
+  if (Platform.OS === 'ios') {
+    Linking.openURL('app-settings:');
+  } else {
+    Linking.openSettings();
+  }
+};
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,6 +16,7 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -134,7 +142,13 @@ export default function ExploreScreen() {
             </Text>
             <TouchableOpacity
               style={styles.bannerButton}
-              onPress={refreshLocation}
+              onPress={() => {
+                if (Platform.OS === 'ios') {
+                  Linking.openURL('app-settings:');
+                } else {
+                  Linking.openSettings();
+                }
+              }}
             >
               <Text style={styles.bannerButtonText}>Enable</Text>
             </TouchableOpacity>
