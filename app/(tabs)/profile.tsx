@@ -62,8 +62,6 @@ export default function ProfileScreen() {
           fuel_type, 
           price, 
           reported_at, 
-          upvotes, 
-          downvotes,
           gas_stations!inner(id, name, brand, city)
         `
         )
@@ -251,17 +249,6 @@ export default function ProfileScreen() {
                     </Text>
                     <Text style={styles.price}>
                       ₱{contribution.price.toFixed(2)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.votesContainer}>
-                    <Text style={styles.upvotes}>
-                      <FontAwesome5 name='thumbs-up' size={12} />{' '}
-                      {contribution.upvotes}
-                    </Text>
-                    <Text style={styles.downvotes}>
-                      <FontAwesome5 name='thumbs-down' size={12} />{' '}
-                      {contribution.downvotes}
                     </Text>
                   </View>
                 </View>
