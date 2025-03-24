@@ -1,16 +1,18 @@
-// hooks/useStationDetails.ts
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/utils/supabase/supabase';
 import { Database } from '@/utils/supabase/types';
 import { useAuth } from '@/hooks/useAuth';
 
 type GasStation = Database['public']['Tables']['gas_stations']['Row'];
-type PriceReport = Database['public']['Views']['active_price_reports']['Row'];
+type PriceReport = Database['public']['Tables']['user_price_reports']['Row'] & {
+  profiles?: { username: string };
+};
 
-// Enhanced price report type that includes user's vote
+// Enhanced price report type that includes confirmation details
 interface EnhancedPriceReport extends PriceReport {
-  userVote?: 'up' | 'down' | null;
+  reporter_username?: string;
   isOwnReport?: boolean;
+  userHasConfirmed?: boolean;
 }
 
 // Combined type for station with its prices
@@ -48,34 +50,38 @@ export function useStationDetails(stationId: string | null) {
 
       // Get community-reported prices
       const { data: communityPrices, error: communityError } = await supabase
-        .from('active_price_reports')
+        .from('user_price_reports')
         .select('*')
         .eq('station_id', stationId)
-        .order('upvotes', { ascending: false });
+        .order('reported_at', { ascending: false });
 
+      console.log('Simple Query Results:', {
+        communityPrices,
+        error: communityError,
+      });
       if (communityError) {
         throw communityError;
       }
 
-      // Get user's votes if they're logged in
-      let userVotes: Record<string, boolean> = {};
+      // Check user's confirmations if logged in
+      let userConfirmations: Record<string, boolean> = {};
 
       if (user) {
-        const { data: votes, error: votesError } = await supabase
-          .from('user_price_votes')
-          .select('report_id, is_upvote')
+        const { data: confirmations, error: confirmError } = await supabase
+          .from('price_confirmations')
+          .select('report_id')
           .eq('user_id', user.id)
           .in(
             'report_id',
             (communityPrices || []).map((p) => p.id)
           );
 
-        if (votesError) {
-          console.error('Error fetching user votes:', votesError);
-        } else if (votes) {
-          // Create a map of report ID to vote type
-          userVotes = votes.reduce((acc, vote) => {
-            acc[vote.report_id] = vote.is_upvote;
+        if (confirmError) {
+          console.error('Error fetching user confirmations:', confirmError);
+        } else if (confirmations) {
+          // Create a map of report ID to confirmation status
+          userConfirmations = confirmations.reduce((acc, confirmation) => {
+            acc[confirmation.report_id] = true;
             return acc;
           }, {} as Record<string, boolean>);
         }
@@ -94,22 +100,24 @@ export function useStationDetails(stationId: string | null) {
         throw officialError;
       }
 
-      // Add user's vote and check for own reports
+      // Enhance community prices with confirmation details
       const enhancedPrices = (communityPrices || []).map((price) => {
-        const userVote =
-          userVotes[price.id] !== undefined
-            ? userVotes[price.id]
-              ? 'up'
-              : 'down'
-            : null;
-
         // Check if this is the user's own report
         const isOwnReport = user && price.user_id === user.id;
 
+        console.log('Individual Price:', {
+          id: price.id,
+          confirmationsCount: price.confirmations_count,
+          userConfirmation: userConfirmations[price.id],
+          isOwnReport,
+        }); // Detailed debugging log
+
         return {
           ...price,
-          userVote,
+          reporter_username: price.profiles?.username || 'Anonymous',
           isOwnReport,
+          userHasConfirmed: userConfirmations[price.id] || false,
+          confirmationsCount: price.confirmations_count || 0,
         };
       });
 

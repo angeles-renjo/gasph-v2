@@ -44,6 +44,28 @@ export interface Database {
           updated_at?: string;
         };
       };
+
+      price_confirmations: {
+        Row: {
+          id: string;
+          report_id: string;
+          user_id: string;
+          confirmed_at: string;
+        };
+        Insert: {
+          id?: string;
+          report_id: string;
+          user_id: string;
+          confirmed_at?: string;
+        };
+        Update: {
+          id?: string;
+          report_id?: string;
+          user_id?: string;
+          confirmed_at?: string;
+        };
+      };
+
       gas_stations: {
         Row: {
           id: string;
@@ -155,6 +177,7 @@ export interface Database {
           upvotes: number;
           downvotes: number;
           cycle_id: string | null;
+          confirmations_count?: number;
         };
         Insert: {
           id?: string;
@@ -167,6 +190,7 @@ export interface Database {
           upvotes?: number;
           downvotes?: number;
           cycle_id?: string | null;
+          confirmations_count?: number;
         };
         Update: {
           id?: string;
@@ -179,6 +203,7 @@ export interface Database {
           upvotes?: number;
           downvotes?: number;
           cycle_id?: string | null;
+          confirmations_count?: number;
         };
       };
       user_price_votes: {

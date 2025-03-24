@@ -1,4 +1,3 @@
-// components/price/PriceCard.tsx
 import React from 'react';
 import {
   View,
@@ -9,28 +8,21 @@ import {
 } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { FontAwesome5 } from '@expo/vector-icons';
-import {
-  formatPrice,
-  formatRelativeTime,
-  formatConfidenceScore,
-  getConfidenceColor,
-} from '@/utils/formatters';
-import { usePriceVoting } from '@/hooks/usePriceVoting';
+import { formatPrice, formatRelativeTime } from '@/utils/formatters';
+import { usePriceConfirmation } from '@/hooks/usePriceConfirmation';
 import { useAuth } from '@/hooks/useAuth';
 
 export interface PriceCardProps {
-  id?: string; // Report ID for voting
+  id?: string; // Report ID for confirmation
   stationId?: string; // Station ID for query invalidation
   fuelType: string;
   price: number;
   date: string;
   source: 'community' | 'official';
   username?: string;
-  userId?: string; // User ID of reporter for self-vote prevention
-  confidence?: number;
-  upvotes?: number;
-  downvotes?: number;
-  userVote?: 'up' | 'down' | null; // User's current vote status
+  userId?: string; // User ID of reporter
+  confirmationsCount?: number;
+  userHasConfirmed?: boolean;
   isOwnReport?: boolean; // Flag to indicate if the current user is the reporter
 }
 
@@ -43,28 +35,68 @@ export function PriceCard({
   source,
   username,
   userId,
-  confidence = 0,
-  upvotes = 0,
-  downvotes = 0,
-  userVote,
+  confirmationsCount,
+  userHasConfirmed = false,
   isOwnReport = false,
 }: PriceCardProps) {
   const isCommunity = source === 'community';
-  const confidenceColor = getConfidenceColor(confidence);
   const relativeTime = formatRelativeTime(date);
-  const { handleVote, isVoting } = usePriceVoting();
+  const { confirmPrice, isConfirming } = usePriceConfirmation();
   const { user } = useAuth();
 
-  const handleUpvote = async () => {
-    if (id && stationId && userId) {
-      await handleVote(id, true, stationId, userId);
+  const handleConfirmPrice = async () => {
+    if (id && stationId) {
+      await confirmPrice(id, stationId);
     }
   };
 
-  const handleDownvote = async () => {
-    if (id && stationId && userId) {
-      await handleVote(id, false, stationId, userId);
+  const renderConfirmationContent = () => {
+    // If user has already confirmed or it's their own report
+    if (userHasConfirmed || isOwnReport) {
+      return (
+        <View style={styles.confirmationsContainer}>
+          <Text style={styles.confirmationsLabel}>Confirmations</Text>
+          <Text style={styles.confirmationsCount}>
+            {confirmationsCount}{' '}
+            {confirmationsCount === 1 ? 'Confirmation' : 'Confirmations'}
+          </Text>
+          {isOwnReport && <Text style={styles.ownReportTag}>Your report</Text>}
+        </View>
+      );
     }
+
+    // If user hasn't confirmed and is not the report owner
+    if (id && stationId && user && !isOwnReport) {
+      return isConfirming ? (
+        <ActivityIndicator size='small' color='#2a9d8f' />
+      ) : (
+        <View style={styles.confirmationsContainer}>
+          <TouchableOpacity
+            onPress={handleConfirmPrice}
+            style={styles.confirmButton}
+          >
+            <FontAwesome5 name='check-circle' size={16} color='#2a9d8f' />
+            <Text style={styles.confirmButtonText}>Confirm</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.confirmationsCount}>
+            {confirmationsCount}{' '}
+            {confirmationsCount === 1 ? 'Confirmation' : 'Confirmations'}
+          </Text>
+        </View>
+      );
+    }
+
+    // Fallback to just showing confirmation count
+    return (
+      <View style={styles.confirmationsContainer}>
+        <Text style={styles.confirmationsLabel}>Confirmations</Text>
+        <Text style={styles.confirmationsCount}>
+          {confirmationsCount}{' '}
+          {confirmationsCount === 1 ? 'Confirmation' : 'Confirmations'}
+        </Text>
+      </View>
+    );
   };
 
   return (
@@ -86,111 +118,13 @@ export function PriceCard({
           <View style={styles.divider} />
 
           <View style={styles.detailsContainer}>
-            <View style={styles.confidenceContainer}>
-              <Text style={styles.confidenceLabel}>Confidence</Text>
-              <View
-                style={[
-                  styles.confidenceBadge,
-                  { backgroundColor: confidenceColor },
-                ]}
-              >
-                <Text style={styles.confidenceText}>
-                  {formatConfidenceScore(confidence)}
-                </Text>
-              </View>
-            </View>
-
             <View style={styles.userContainer}>
               <Text style={styles.userLabel}>Reported by</Text>
               <Text style={styles.username}>{username || 'Anonymous'}</Text>
             </View>
 
-            {/* Votes Section */}
-            <View style={styles.votesContainer}>
-              <Text style={styles.votesLabel}>Votes</Text>
-              {isVoting ? (
-                <ActivityIndicator size='small' color='#2a9d8f' />
-              ) : (
-                <View style={styles.votesRow}>
-                  {/* Always show vote counts for everyone */}
-                  {id && stationId && userId && user && !isOwnReport ? (
-                    /* Show interactive buttons for authenticated users who aren't the reporter */
-                    <>
-                      <TouchableOpacity
-                        onPress={handleUpvote}
-                        style={styles.voteButton}
-                        disabled={isVoting}
-                      >
-                        <Text
-                          style={[
-                            styles.upvotes,
-                            userVote === 'up' && styles.activeVote,
-                          ]}
-                        >
-                          <FontAwesome5
-                            name='thumbs-up'
-                            solid={userVote === 'up'}
-                            size={12}
-                          />{' '}
-                          {upvotes}
-                        </Text>
-                      </TouchableOpacity>
-                      <Text style={styles.voteSeparator}>/</Text>
-                      <TouchableOpacity
-                        onPress={handleDownvote}
-                        style={styles.voteButton}
-                        disabled={isVoting}
-                      >
-                        <Text
-                          style={[
-                            styles.downvotes,
-                            userVote === 'down' && styles.activeVote,
-                          ]}
-                        >
-                          <FontAwesome5
-                            name='thumbs-down'
-                            solid={userVote === 'down'}
-                            size={12}
-                          />{' '}
-                          {downvotes}
-                        </Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    /* Show non-interactive version for anonymous users or the reporter */
-                    <>
-                      <Text
-                        style={[
-                          styles.upvotes,
-                          isOwnReport && styles.ownReportVote,
-                        ]}
-                      >
-                        <FontAwesome5
-                          name='thumbs-up'
-                          solid={userVote === 'up' || isOwnReport}
-                          size={12}
-                        />{' '}
-                        {upvotes}
-                      </Text>
-                      <Text style={styles.voteSeparator}>/</Text>
-                      <Text style={styles.downvotes}>
-                        <FontAwesome5
-                          name='thumbs-down'
-                          solid={userVote === 'down'}
-                          size={12}
-                        />{' '}
-                        {downvotes}
-                      </Text>
-                    </>
-                  )}
-                </View>
-              )}
-
-              {/* Display info tag for own reports */}
-              {isOwnReport && (
-                <Text style={styles.ownReportTag}>Your report</Text>
-              )}
-            </View>
+            {/* Confirmations Section */}
+            {renderConfirmationContent()}
           </View>
         </>
       )}
@@ -242,24 +176,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  confidenceContainer: {
-    alignItems: 'center',
-  },
-  confidenceLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  confidenceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  confidenceText: {
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '500',
-  },
   userContainer: {
     alignItems: 'center',
   },
@@ -273,44 +189,27 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
-  votesContainer: {
+  confirmationsContainer: {
     alignItems: 'center',
   },
-  votesLabel: {
+  confirmationsLabel: {
     fontSize: 12,
     color: '#666',
     marginBottom: 4,
   },
-  votesRow: {
+  confirmButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 8,
   },
-  voteButton: {
-    padding: 5,
-  },
-  upvotes: {
+  confirmButtonText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#4caf50',
+    color: '#2a9d8f',
+    marginLeft: 4,
   },
-  downvotes: {
+  confirmationsCount: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#f44336',
-  },
-  voteSeparator: {
-    fontSize: 12,
-    color: '#999',
-    marginHorizontal: 2,
-  },
-  activeVote: {
-    fontWeight: 'bold',
-    opacity: 1,
-  },
-  ownReportVote: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#4caf50',
+    color: '#666',
   },
   ownReportTag: {
     fontSize: 10,

@@ -193,10 +193,8 @@ export default function StationDetailScreen() {
                   source='community'
                   username={price.reporter_username}
                   userId={price.user_id}
-                  confidence={price.confidence_score}
-                  upvotes={price.upvotes}
-                  downvotes={price.downvotes}
-                  userVote={price.userVote}
+                  confirmationsCount={price.confirmationsCount}
+                  userHasConfirmed={price.userHasConfirmed}
                   isOwnReport={price.isOwnReport}
                 />
               ))}
