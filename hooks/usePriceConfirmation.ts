@@ -40,7 +40,7 @@ export function usePriceConfirmation() {
             price.id === reportId
               ? {
                   ...price,
-                  confirmationsCount: (price.confirmations_count || 0) + 1,
+                  confirmationsCount: (price.confirmationsCount || 0) + 1,
                   userHasConfirmed: true,
                 }
               : price

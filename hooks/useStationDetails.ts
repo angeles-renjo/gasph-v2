@@ -10,6 +10,7 @@ type PriceReport = Database['public']['Views']['active_price_reports']['Row'];
 interface EnhancedPriceReport extends PriceReport {
   isOwnReport?: boolean;
   userHasConfirmed?: boolean;
+  confirmationsCount?: number;
 }
 
 // Combined type for station with its prices
