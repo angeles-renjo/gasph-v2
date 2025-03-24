@@ -4,13 +4,10 @@ import { Database } from '@/utils/supabase/types';
 import { useAuth } from '@/hooks/useAuth';
 
 type GasStation = Database['public']['Tables']['gas_stations']['Row'];
-type PriceReport = Database['public']['Tables']['user_price_reports']['Row'] & {
-  profiles?: { username: string };
-};
+type PriceReport = Database['public']['Views']['active_price_reports']['Row'];
 
 // Enhanced price report type that includes confirmation details
 interface EnhancedPriceReport extends PriceReport {
-  reporter_username?: string;
   isOwnReport?: boolean;
   userHasConfirmed?: boolean;
 }
@@ -48,17 +45,13 @@ export function useStationDetails(stationId: string | null) {
         return null;
       }
 
-      // Get community-reported prices
+      // Get community-reported prices from the view that includes reporter username
       const { data: communityPrices, error: communityError } = await supabase
-        .from('user_price_reports')
+        .from('active_price_reports')
         .select('*')
         .eq('station_id', stationId)
         .order('reported_at', { ascending: false });
 
-      console.log('Simple Query Results:', {
-        communityPrices,
-        error: communityError,
-      });
       if (communityError) {
         throw communityError;
       }
@@ -105,16 +98,16 @@ export function useStationDetails(stationId: string | null) {
         // Check if this is the user's own report
         const isOwnReport = user && price.user_id === user.id;
 
-        console.log('Individual Price:', {
+        console.log('Individual Price from view:', {
           id: price.id,
+          reporterUsername: price.reporter_username,
           confirmationsCount: price.confirmations_count,
           userConfirmation: userConfirmations[price.id],
           isOwnReport,
-        }); // Detailed debugging log
+        });
 
         return {
           ...price,
-          reporter_username: price.profiles?.username || 'Anonymous',
           isOwnReport,
           userHasConfirmed: userConfirmations[price.id] || false,
           confirmationsCount: price.confirmations_count || 0,
