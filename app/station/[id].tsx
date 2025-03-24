@@ -16,6 +16,7 @@ import { useStationDetails } from '@/hooks/useStationDetails';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/utils/supabase/supabase';
 import { PriceCard } from '@/components/price/PriceCard';
+import { DOEPriceTable } from '@/components/price/DOEPriceTable';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -138,9 +139,6 @@ export default function StationDetailScreen() {
     pricesByFuelType[price.fuel_type].push(price);
   });
 
-  // Official prices
-  const officialPrices = station.officialPrices || [];
-
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -215,20 +213,20 @@ export default function StationDetailScreen() {
           </Card>
         )}
       </View>
-
-      {/* Official Prices */}
-      {officialPrices.length > 0 && (
+      {station.doePrices && station.doePrices.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>DOE Official Prices</Text>
-          {officialPrices.map((price, index) => (
-            <PriceCard
-              key={`${price.fuel_type}-${index}`}
-              fuelType={price.fuel_type}
-              price={price.price}
-              date={price.week_of}
-              source='official'
-            />
-          ))}
+          <DOEPriceTable
+            prices={station.doePrices}
+            latestDate={station.latestDOEDate}
+          />
+        </View>
+      ) : (
+        <View style={styles.section}>
+          <Card style={styles.emptyCard}>
+            <Text style={styles.emptyText}>
+              No DOE reference data available for this station.
+            </Text>
+          </Card>
         </View>
       )}
 
@@ -545,5 +543,8 @@ const styles = StyleSheet.create({
   modalButton: {
     flex: 1,
     marginHorizontal: 4,
+  },
+  debugCard: {
+    padding: 14,
   },
 });
