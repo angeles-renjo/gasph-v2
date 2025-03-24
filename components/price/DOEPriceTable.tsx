@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { formatDate, formatPrice } from '@/utils/formatters';
@@ -17,17 +17,11 @@ interface DOEPriceTableProps {
 }
 
 export function DOEPriceTable({ prices, latestDate }: DOEPriceTableProps) {
-  // Add debug logging
-  useEffect(() => {
-    console.log('DOEPriceTable received prices:', prices);
-    console.log('DOEPriceTable received latestDate:', latestDate);
-  }, [prices, latestDate]);
-
   // Find the most recent date if not provided
   const mostRecentDate =
     latestDate || (prices.length > 0 ? prices[0].week_of : '');
 
-  // If there are no prices, show a message (for debugging)
+  // If there are no prices, show a message
   if (!prices || prices.length === 0) {
     return (
       <Card style={styles.card}>
@@ -43,37 +37,65 @@ export function DOEPriceTable({ prices, latestDate }: DOEPriceTableProps) {
     <Card style={styles.card}>
       <Text style={styles.title}>DOE Reference Data</Text>
 
-      <View style={styles.tableHeader}>
-        <Text style={[styles.headerCell, styles.fuelTypeCell]}></Text>
-        <Text style={[styles.headerCell, styles.valueCell]}>Min</Text>
-        <Text style={[styles.headerCell, styles.valueCell]}>Common</Text>
-        <Text style={[styles.headerCell, styles.valueCell]}>Max</Text>
-      </View>
-
-      <View style={styles.tableDivider} />
-
-      {prices.map((price, index) => (
-        <View
-          key={price.fuel_type}
-          style={[
-            styles.tableRow,
-            index % 2 === 0 ? styles.evenRow : styles.oddRow,
-          ]}
-        >
-          <Text style={[styles.cell, styles.fuelTypeCell]}>
-            {price.fuel_type}:
-          </Text>
-          <Text style={[styles.cell, styles.valueCell, styles.priceText]}>
-            {price.min_price ? formatPrice(price.min_price) : '--'}
-          </Text>
-          <Text style={[styles.cell, styles.valueCell, styles.priceText]}>
-            {price.common_price ? formatPrice(price.common_price) : '--'}
-          </Text>
-          <Text style={[styles.cell, styles.valueCell, styles.priceText]}>
-            {price.max_price ? formatPrice(price.max_price) : '--'}
-          </Text>
+      <View style={styles.tableContainer}>
+        {/* Table Header */}
+        <View style={styles.headerRow}>
+          <View style={styles.fuelTypeCell}>
+            <Text style={styles.headerCellText}></Text>
+          </View>
+          <View style={styles.priceCell}>
+            <Text style={styles.headerCellText}>Min</Text>
+          </View>
+          <View style={styles.priceCell}>
+            <Text style={styles.headerCellText}>Common</Text>
+          </View>
+          <View style={styles.priceCell}>
+            <Text style={styles.headerCellText}>Max</Text>
+          </View>
         </View>
-      ))}
+
+        <View style={styles.divider} />
+
+        {/* Table Rows */}
+        {prices.map((price, index) => (
+          <View
+            key={price.fuel_type}
+            style={[
+              styles.dataRow,
+              index % 2 === 0 ? styles.evenRow : styles.oddRow,
+            ]}
+          >
+            <View style={styles.fuelTypeCell}>
+              <Text style={styles.fuelTypeText}>
+                {price.fuel_type.includes('(') ? (
+                  <>
+                    {price.fuel_type.split('(')[0].trim()}
+                    {'\n'}
+                    {'(' + price.fuel_type.split('(')[1]}
+                  </>
+                ) : (
+                  price.fuel_type
+                )}
+              </Text>
+            </View>
+            <View style={styles.priceCell}>
+              <Text style={styles.priceText}>
+                {price.min_price ? formatPrice(price.min_price) : '--'}
+              </Text>
+            </View>
+            <View style={styles.priceCell}>
+              <Text style={styles.priceText}>
+                {price.common_price ? formatPrice(price.common_price) : '--'}
+              </Text>
+            </View>
+            <View style={styles.priceCell}>
+              <Text style={styles.priceText}>
+                {price.max_price ? formatPrice(price.max_price) : '--'}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
 
       {mostRecentDate && (
         <Text style={styles.dateText}>As of {formatDate(mostRecentDate)}</Text>
@@ -86,62 +108,72 @@ const styles = StyleSheet.create({
   card: {
     padding: 16,
     marginBottom: 16,
+    backgroundColor: '#ffffff',
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  tableHeader: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-  },
-  tableDivider: {
-    height: 1,
-    backgroundColor: '#e0e0e0',
+  tableContainer: {
     marginBottom: 8,
   },
-  tableRow: {
+  headerRow: {
+    flexDirection: 'row',
+    paddingVertical: 6,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#ddd',
+    marginBottom: 2,
+  },
+  dataRow: {
     flexDirection: 'row',
     paddingVertical: 8,
   },
   evenRow: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f5f5f5',
   },
   oddRow: {
     backgroundColor: '#ffffff',
   },
-  headerCell: {
+  fuelTypeCell: {
+    flex: 1.5,
+    paddingRight: 4,
+    justifyContent: 'center',
+    minHeight: 42,
+  },
+  priceCell: {
+    width: 70,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  headerCellText: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#666',
-    fontSize: 14,
+    textAlign: 'center',
   },
-  cell: {
-    fontSize: 14,
+  fuelTypeText: {
+    fontSize: 13,
     color: '#333',
   },
-  fuelTypeCell: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  valueCell: {
-    width: 90,
-    textAlign: 'right',
-  },
   priceText: {
+    fontSize: 13,
     color: '#2a9d8f',
     fontWeight: '500',
   },
   dateText: {
-    marginTop: 12,
+    marginTop: 6,
     fontSize: 12,
     color: '#666',
     fontStyle: 'italic',
     textAlign: 'right',
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
     fontStyle: 'italic',
     textAlign: 'center',
