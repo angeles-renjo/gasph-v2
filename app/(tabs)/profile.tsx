@@ -216,13 +216,6 @@ export default function ProfileScreen() {
                 <Text style={styles.statValue}>{contributions.length}</Text>
                 <Text style={styles.statLabel}>Reports</Text>
               </View>
-
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {profile?.reputation_score || 0}
-                </Text>
-                <Text style={styles.statLabel}>Rep. Score</Text>
-              </View>
             </View>
           </View>
         </View>
