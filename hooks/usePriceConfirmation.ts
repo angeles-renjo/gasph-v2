@@ -27,6 +27,7 @@ export function usePriceConfirmation() {
       const currentData = queryClient.getQueryData<StationWithPrices>([
         'stationDetails',
         stationId,
+        user?.id,
       ]);
 
       // Function to update the data
@@ -48,7 +49,10 @@ export function usePriceConfirmation() {
       };
 
       // Optimistically update the UI
-      queryClient.setQueryData(['stationDetails', stationId], updateData);
+      queryClient.setQueryData(
+        ['stationDetails', stationId, user?.id],
+        updateData
+      );
 
       // Call the Supabase function to confirm the price
       const { data, error } = await supabase.rpc('confirm_price_report', {
@@ -61,7 +65,10 @@ export function usePriceConfirmation() {
       if (error) {
         // Revert optimistic update
         if (currentData) {
-          queryClient.setQueryData(['stationDetails', stationId], currentData);
+          queryClient.setQueryData(
+            ['stationDetails', stationId, user?.id],
+            currentData
+          );
         }
 
         // Handle specific error scenarios
@@ -83,11 +90,20 @@ export function usePriceConfirmation() {
           'Price Confirmed',
           'Thank you for helping keep prices up to date!'
         );
+
+        // Force a refetch of the data to ensure everything is in sync
+        queryClient.invalidateQueries({
+          queryKey: ['stationDetails', stationId],
+        });
+
         return true;
       } else {
         // Revert optimistic update if confirmation fails
         if (currentData) {
-          queryClient.setQueryData(['stationDetails', stationId], currentData);
+          queryClient.setQueryData(
+            ['stationDetails', stationId, user?.id],
+            currentData
+          );
         }
 
         Alert.alert(
@@ -101,11 +117,15 @@ export function usePriceConfirmation() {
       const currentData = queryClient.getQueryData<StationWithPrices>([
         'stationDetails',
         stationId,
+        user?.id,
       ]);
 
       // Revert optimistic update in case of any unexpected error
       if (currentData) {
-        queryClient.setQueryData(['stationDetails', stationId], currentData);
+        queryClient.setQueryData(
+          ['stationDetails', stationId, user?.id],
+          currentData
+        );
       }
 
       console.error('Unexpected Error confirming price:', error);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -35,7 +35,7 @@ export function PriceCard({
   source,
   username,
   userId,
-  confirmationsCount,
+  confirmationsCount = 0,
   userHasConfirmed = false,
   isOwnReport = false,
 }: PriceCardProps) {
@@ -43,22 +43,34 @@ export function PriceCard({
   const relativeTime = formatRelativeTime(date);
   const { confirmPrice, isConfirming } = usePriceConfirmation();
   const { user } = useAuth();
+  const [localConfirmed, setLocalConfirmed] = useState(userHasConfirmed);
+  const [localConfirmCount, setLocalConfirmCount] =
+    useState(confirmationsCount);
+  const [isConfirmingLocal, setIsConfirmingLocal] = useState(false);
 
   const handleConfirmPrice = async () => {
     if (id && stationId) {
-      await confirmPrice(id, stationId);
+      setIsConfirmingLocal(true);
+      const success = await confirmPrice(id, stationId);
+
+      if (success) {
+        setLocalConfirmed(true);
+        setLocalConfirmCount((prevCount) => prevCount + 1);
+      }
+
+      setIsConfirmingLocal(false);
     }
   };
 
   const renderConfirmationContent = () => {
     // If user has already confirmed or it's their own report
-    if (userHasConfirmed || isOwnReport) {
+    if (localConfirmed || isOwnReport) {
       return (
         <View style={styles.confirmationsContainer}>
           <Text style={styles.confirmationsLabel}>Confirmations</Text>
           <Text style={styles.confirmationsCount}>
-            {confirmationsCount}{' '}
-            {confirmationsCount === 1 ? 'Confirmation' : 'Confirmations'}
+            {localConfirmCount}{' '}
+            {localConfirmCount === 1 ? 'Confirmation' : 'Confirmations'}
           </Text>
           {isOwnReport && <Text style={styles.ownReportTag}>Your report</Text>}
         </View>
@@ -67,21 +79,22 @@ export function PriceCard({
 
     // If user hasn't confirmed and is not the report owner
     if (id && stationId && user && !isOwnReport) {
-      return isConfirming ? (
+      return isConfirmingLocal ? (
         <ActivityIndicator size='small' color='#2a9d8f' />
       ) : (
         <View style={styles.confirmationsContainer}>
           <TouchableOpacity
             onPress={handleConfirmPrice}
             style={styles.confirmButton}
+            disabled={isConfirmingLocal}
           >
             <FontAwesome5 name='check-circle' size={16} color='#2a9d8f' />
             <Text style={styles.confirmButtonText}>Confirm</Text>
           </TouchableOpacity>
 
           <Text style={styles.confirmationsCount}>
-            {confirmationsCount}{' '}
-            {confirmationsCount === 1 ? 'Confirmation' : 'Confirmations'}
+            {localConfirmCount}{' '}
+            {localConfirmCount === 1 ? 'Confirmation' : 'Confirmations'}
           </Text>
         </View>
       );
@@ -92,8 +105,8 @@ export function PriceCard({
       <View style={styles.confirmationsContainer}>
         <Text style={styles.confirmationsLabel}>Confirmations</Text>
         <Text style={styles.confirmationsCount}>
-          {confirmationsCount}{' '}
-          {confirmationsCount === 1 ? 'Confirmation' : 'Confirmations'}
+          {localConfirmCount}{' '}
+          {localConfirmCount === 1 ? 'Confirmation' : 'Confirmations'}
         </Text>
       </View>
     );
