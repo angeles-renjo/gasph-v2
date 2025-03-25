@@ -17,12 +17,7 @@ interface EnhancedPriceReport extends PriceReport {
 // Combined type for station with its prices
 export interface StationWithPrices extends GasStation {
   communityPrices: EnhancedPriceReport[];
-  officialPrices: {
-    fuel_type: string;
-    price: number;
-    week_of: string;
-  }[];
-  doePrices: DOEPrice[]; // New field for DOE prices from the view
+  doePrices: DOEPrice[]; // DOE prices from the view
   latestDOEDate?: string; // Latest date for DOE prices
 }
 
@@ -35,6 +30,7 @@ export function useStationDetails(stationId: string | null) {
       if (!stationId) return null;
 
       // First, get the station details
+      console.log(`Fetching station details for ID: ${stationId}`);
       const { data: station, error: stationError } = await supabase
         .from('gas_stations')
         .select('*')
@@ -42,12 +38,21 @@ export function useStationDetails(stationId: string | null) {
         .single();
 
       if (stationError) {
+        console.error('Error fetching station details:', stationError);
         throw stationError;
       }
 
       if (!station) {
+        console.log('No station found with ID:', stationId);
         return null;
       }
+
+      console.log('Station fetched:', {
+        id: station.id,
+        name: station.name,
+        brand: station.brand,
+        city: station.city,
+      });
 
       // Get community-reported prices from the view that includes reporter username
       const { data: communityPrices, error: communityError } = await supabase
@@ -57,6 +62,7 @@ export function useStationDetails(stationId: string | null) {
         .order('reported_at', { ascending: false });
 
       if (communityError) {
+        console.error('Error fetching community prices:', communityError);
         throw communityError;
       }
 
@@ -85,6 +91,7 @@ export function useStationDetails(stationId: string | null) {
       }
 
       // Get DOE prices from the doe_price_view
+      console.log(`Fetching DOE prices for station ID: ${stationId}`);
       const { data: doePrices, error: doeError } = await supabase
         .from('doe_price_view')
         .select('fuel_type, min_price, common_price, max_price, week_of')
@@ -96,14 +103,7 @@ export function useStationDetails(stationId: string | null) {
         // Don't throw, just log the error and continue with empty doe prices
       }
 
-      // For backward compatibility, we'll maintain the old officialPrices format
-      // while also providing the new format
-      const officialPrices =
-        doePrices?.map((p) => ({
-          fuel_type: p.fuel_type,
-          price: p.common_price, // Using common price for backward compatibility
-          week_of: p.week_of,
-        })) || [];
+      console.log('DOE Prices retrieved:', doePrices);
 
       // Find the latest DOE price date
       const latestDOEDate = doePrices?.length
@@ -113,6 +113,8 @@ export function useStationDetails(stationId: string | null) {
             return currentDate > latestDate ? current.week_of : latest;
           }, doePrices[0].week_of)
         : undefined;
+
+      console.log('Latest DOE date calculated:', latestDOEDate);
 
       // Enhance community prices with confirmation details
       const enhancedPrices = (communityPrices || []).map((price) => {
@@ -128,13 +130,21 @@ export function useStationDetails(stationId: string | null) {
       });
 
       // Combine all data
-      return {
+      const result = {
         ...station,
         communityPrices: enhancedPrices || [],
-        officialPrices: officialPrices,
         doePrices: doePrices || [],
         latestDOEDate,
       };
+
+      console.log('Combined station data being returned:', {
+        stationId: result.id,
+        communityPricesCount: result.communityPrices.length,
+        doePricesCount: result.doePrices.length,
+        hasLatestDOEDate: !!result.latestDOEDate,
+      });
+
+      return result;
     },
     enabled: !!stationId,
   });
