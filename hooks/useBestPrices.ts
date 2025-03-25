@@ -4,7 +4,7 @@ import { useLocation, LocationData } from '@/hooks/useLocation';
 import { calculateDistance } from '@/lib/geo';
 import { Database } from '@/utils/supabase/types';
 
-type BestPrice = Database['public']['Views']['best_prices']['Row'] & {
+type BestPrice = Database['public']['Views']['active_price_reports']['Row'] & {
   distance?: number;
 };
 
@@ -14,19 +14,17 @@ interface UseBestPricesParams {
   fuelType?: FuelType;
   maxDistance?: number;
   enabled?: boolean;
-  providedLocation?: LocationData; // Accept an optional location parameter
+  providedLocation?: LocationData;
 }
 
 export function useBestPrices({
   fuelType,
-  maxDistance = 15, // Default to 15 kilometers
+  maxDistance = 15,
   enabled = true,
   providedLocation,
 }: UseBestPricesParams = {}) {
   const { getLocationWithFallback, loading: locationLoading } = useLocation();
 
-  // Use the provided location or get it from the hook
-  // Ensure we always have a valid location by using getLocationWithFallback which never returns null
   const location = providedLocation || getLocationWithFallback();
 
   return useQuery({
@@ -36,8 +34,8 @@ export function useBestPrices({
         throw new Error('Location not available');
       }
 
-      // Query from the best_prices view
-      let query = supabase.from('best_prices').select('*');
+      // Query from the active_price_reports view
+      let query = supabase.from('active_price_reports').select('*');
 
       // Apply fuel type filter if specified
       if (fuelType) {

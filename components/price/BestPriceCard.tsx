@@ -13,6 +13,7 @@ export interface BestPriceCardProps {
   price: number;
   distance: number;
   city: string;
+  username?: string;
 }
 
 export function BestPriceCard({
@@ -23,6 +24,7 @@ export function BestPriceCard({
   price,
   distance,
   city,
+  username,
 }: BestPriceCardProps) {
   const router = useRouter();
 
@@ -36,6 +38,12 @@ export function BestPriceCard({
       variant='elevated'
       onPress={navigateToStation}
     >
+      {username && (
+        <View style={styles.reporterRow}>
+          <Text style={styles.reporterLabel}>Reported by</Text>
+          <Text style={styles.reporterName}>{username}</Text>
+        </View>
+      )}
       <View style={styles.priceRow}>
         <View style={styles.fuelTypeContainer}>
           <Text style={styles.fuelType}>{fuelType}</Text>
@@ -151,5 +159,24 @@ const styles = StyleSheet.create({
     color: '#2a9d8f',
     fontWeight: '500',
     marginLeft: 6,
+  },
+  reporterRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 8,
+  },
+  reporterLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginRight: 4,
+  },
+  reporterName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#333',
   },
 });

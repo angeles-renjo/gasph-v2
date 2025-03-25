@@ -209,7 +209,8 @@ export default function BestPricesScreen() {
               fuelType={item.fuel_type}
               price={item.price}
               distance={item.distance || 0}
-              city={item.city}
+              city={item.station_city}
+              username={item.reporter_username}
             />
           )}
           contentContainerStyle={styles.listContent}
