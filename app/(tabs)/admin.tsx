@@ -6,34 +6,41 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { supabase } from '@/utils/supabase/supabase';
-import { useAuth } from '@/hooks/useAuth';
 import { Card, TouchableCard } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { LoadingIndicator } from '@/components/common/LoadingIndicator';
+import { PriceCycleManagement } from '@/components/admin/PriceCycleManagement';
+import { CreateCycleModal } from '@/components/admin/CreateCycleModal';
+import { supabase } from '@/utils/supabase/supabase';
+import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/utils/formatters';
+import { useRouter } from 'expo-router';
 
 export default function AdminScreen() {
-  const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [currentCycle, setCurrentCycle] = useState<any>(null);
+  const [nextCycleNumber, setNextCycleNumber] = useState(1);
   const [stats, setStats] = useState({
     stationCount: 0,
     userCount: 0,
     priceReportCount: 0,
   });
   const [creatingCycle, setCreatingCycle] = useState(false);
+  const [showCreateCycleModal, setShowCreateCycleModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  const router = useRouter();
 
   useEffect(() => {
     if (user) {
       fetchAdminProfile();
       fetchDashboardData();
+      fetchNextCycleNumber();
     } else {
       // Redirect non-authenticated users
       router.replace('/');
@@ -72,7 +79,7 @@ export default function AdminScreen() {
       const { data: cycleData, error: cycleError } = await supabase
         .from('price_reporting_cycles')
         .select('*')
-        .eq('is_active', true)
+        .eq('status', 'active')
         .single();
 
       if (cycleError && cycleError.code !== 'PGRST116') {
@@ -115,14 +122,28 @@ export default function AdminScreen() {
     }
   };
 
-  const createNewPriceCycle = async () => {
+  const fetchNextCycleNumber = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('price_reporting_cycles')
+        .select('cycle_number')
+        .order('cycle_number', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      setNextCycleNumber((data?.cycle_number || 0) + 1);
+    } catch (error) {
+      console.error('Error fetching next cycle number:', error);
+    }
+  };
+
+  const createNewPriceCycle = async (startDate: Date, endDate: Date) => {
     try {
       setCreatingCycle(true);
-
-      // Set dates for new cycle
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 7); // 1 week cycle
 
       // Create new cycle
       const { data, error } = await supabase
@@ -130,15 +151,22 @@ export default function AdminScreen() {
         .insert({
           start_date: startDate.toISOString(),
           end_date: endDate.toISOString(),
-          is_active: true, // This will automatically deactivate other cycles due to the trigger
+          is_active: true,
+          status: 'active',
+          cycle_number: nextCycleNumber,
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      Alert.alert('Success', 'New price cycle created successfully.');
+      Alert.alert(
+        'Success',
+        `New price cycle #${nextCycleNumber} created successfully.`
+      );
       setCurrentCycle(data);
+      setNextCycleNumber((prev) => prev + 1);
+      setShowCreateCycleModal(false);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create price cycle.');
     } finally {
@@ -149,7 +177,7 @@ export default function AdminScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size='large' color='#2a9d8f' />
+        <LoadingIndicator size='large' color='#2a9d8f' />
         <Text style={styles.loadingText}>Loading dashboard...</Text>
       </SafeAreaView>
     );
@@ -157,117 +185,229 @@ export default function AdminScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView>
-        <View style={styles.header}>
-          <Text style={styles.title}>Admin Dashboard</Text>
-          <Text style={styles.subtitle}>Manage GasPH data and operations</Text>
-        </View>
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'dashboard' && styles.activeTab]}
+          onPress={() => setActiveTab('dashboard')}
+        >
+          <FontAwesome5
+            name='tachometer-alt'
+            size={16}
+            color={activeTab === 'dashboard' ? '#2a9d8f' : '#666'}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'dashboard' && styles.activeTabText,
+            ]}
+          >
+            Dashboard
+          </Text>
+        </TouchableOpacity>
 
-        {/* Price Cycle Management */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Price Cycle Management</Text>
-          <Card style={styles.cycleCard}>
-            {currentCycle ? (
-              <>
-                <Text style={styles.cycleTitle}>Current Active Cycle</Text>
-                <View style={styles.cycleDates}>
-                  <View style={styles.dateItem}>
-                    <Text style={styles.dateLabel}>Start Date</Text>
-                    <Text style={styles.dateValue}>
-                      {formatDate(currentCycle.start_date)}
-                    </Text>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'cycles' && styles.activeTab]}
+          onPress={() => setActiveTab('cycles')}
+        >
+          <FontAwesome5
+            name='calendar-alt'
+            size={16}
+            color={activeTab === 'cycles' ? '#2a9d8f' : '#666'}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'cycles' && styles.activeTabText,
+            ]}
+          >
+            Price Cycles
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'stations' && styles.activeTab]}
+          onPress={() => setActiveTab('stations')}
+        >
+          <FontAwesome5
+            name='gas-pump'
+            size={16}
+            color={activeTab === 'stations' ? '#2a9d8f' : '#666'}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'stations' && styles.activeTabText,
+            ]}
+          >
+            Stations
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'users' && styles.activeTab]}
+          onPress={() => setActiveTab('users')}
+        >
+          <FontAwesome5
+            name='users'
+            size={16}
+            color={activeTab === 'users' ? '#2a9d8f' : '#666'}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === 'users' && styles.activeTabText,
+            ]}
+          >
+            Users
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === 'dashboard' && (
+        <ScrollView>
+          <View style={styles.header}>
+            <Text style={styles.title}>Admin Dashboard</Text>
+            <Text style={styles.subtitle}>
+              Manage GasPH data and operations
+            </Text>
+          </View>
+
+          {/* Price Cycle Management */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Current Price Cycle</Text>
+            <Card style={styles.cycleCard}>
+              {currentCycle ? (
+                <>
+                  <View style={styles.cycleHeader}>
+                    <View>
+                      <Text style={styles.cycleTitle}>
+                        Active Cycle #{currentCycle.cycle_number}
+                      </Text>
+                    </View>
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusText}>ACTIVE</Text>
+                    </View>
                   </View>
-                  <View style={styles.dateItem}>
-                    <Text style={styles.dateLabel}>End Date</Text>
-                    <Text style={styles.dateValue}>
-                      {formatDate(currentCycle.end_date)}
-                    </Text>
+                  <View style={styles.cycleDates}>
+                    <View style={styles.dateItem}>
+                      <Text style={styles.dateLabel}>Start Date</Text>
+                      <Text style={styles.dateValue}>
+                        {formatDate(currentCycle.start_date)}
+                      </Text>
+                    </View>
+                    <View style={styles.dateItem}>
+                      <Text style={styles.dateLabel}>End Date</Text>
+                      <Text style={styles.dateValue}>
+                        {formatDate(currentCycle.end_date)}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              </>
-            ) : (
-              <>
-                <Text style={styles.cycleTitle}>No Active Price Cycle</Text>
-                <Text style={styles.cycleDescription}>
-                  Create a new price cycle to start collecting community price
-                  reports.
-                </Text>
-                <Button
-                  title='Create New Cycle'
-                  onPress={createNewPriceCycle}
-                  loading={creatingCycle}
-                  style={styles.cycleButton}
-                />
-              </>
-            )}
-          </Card>
-        </View>
-
-        {/* System Stats */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>System Statistics</Text>
-          <View style={styles.statsContainer}>
-            <Card style={styles.statCard}>
-              <FontAwesome5
-                name='gas-pump'
-                size={24}
-                color='#2a9d8f'
-                style={styles.statIcon}
-              />
-              <Text style={styles.statValue}>{stats.stationCount}</Text>
-              <Text style={styles.statLabel}>Gas Stations</Text>
-            </Card>
-
-            <Card style={styles.statCard}>
-              <FontAwesome5
-                name='users'
-                size={24}
-                color='#f4a261'
-                style={styles.statIcon}
-              />
-              <Text style={styles.statValue}>{stats.userCount}</Text>
-              <Text style={styles.statLabel}>Users</Text>
-            </Card>
-
-            <Card style={styles.statCard}>
-              <FontAwesome5
-                name='chart-line'
-                size={24}
-                color='#e76f51'
-                style={styles.statIcon}
-              />
-              <Text style={styles.statValue}>{stats.priceReportCount}</Text>
-              <Text style={styles.statLabel}>Price Reports</Text>
+                  <TouchableOpacity
+                    style={styles.viewAllLink}
+                    onPress={() => setActiveTab('cycles')}
+                  >
+                    <Text style={styles.viewAllText}>Manage all cycles</Text>
+                    <FontAwesome5
+                      name='arrow-right'
+                      size={12}
+                      color='#2a9d8f'
+                    />
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.cycleTitle}>No Active Price Cycle</Text>
+                  <Text style={styles.cycleDescription}>
+                    Create a new price cycle to start collecting community price
+                    reports.
+                  </Text>
+                  <Button
+                    title='Create New Cycle'
+                    onPress={() => setShowCreateCycleModal(true)}
+                    style={styles.cycleButton}
+                  />
+                </>
+              )}
             </Card>
           </View>
-        </View>
 
-        {/* Admin Functions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Administrative Functions</Text>
+          {/* System Stats */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>System Statistics</Text>
+            <View style={styles.statsContainer}>
+              <Card style={styles.statCard}>
+                <FontAwesome5
+                  name='gas-pump'
+                  size={24}
+                  color='#2a9d8f'
+                  style={styles.statIcon}
+                />
+                <Text style={styles.statValue}>{stats.stationCount}</Text>
+                <Text style={styles.statLabel}>Gas Stations</Text>
+              </Card>
 
-          <TouchableCard
-            style={styles.functionCard}
-            onPress={() => router.push('/admin/import-stations')}
-          >
-            <View style={styles.functionContent}>
-              <FontAwesome5
-                name='file-import'
-                size={20}
-                color='#2a9d8f'
-                style={styles.functionIcon}
-              />
-              <View style={styles.functionTextContainer}>
-                <Text style={styles.functionTitle}>Import Gas Stations</Text>
-                <Text style={styles.functionDescription}>
-                  Import gas station data from Google Places API
-                </Text>
-              </View>
+              <Card style={styles.statCard}>
+                <FontAwesome5
+                  name='users'
+                  size={24}
+                  color='#f4a261'
+                  style={styles.statIcon}
+                />
+                <Text style={styles.statValue}>{stats.userCount}</Text>
+                <Text style={styles.statLabel}>Users</Text>
+              </Card>
+
+              <Card style={styles.statCard}>
+                <FontAwesome5
+                  name='chart-line'
+                  size={24}
+                  color='#e76f51'
+                  style={styles.statIcon}
+                />
+                <Text style={styles.statValue}>{stats.priceReportCount}</Text>
+                <Text style={styles.statLabel}>Price Reports</Text>
+              </Card>
             </View>
-            <FontAwesome5 name='chevron-right' size={16} color='#999' />
-          </TouchableCard>
-        </View>
-      </ScrollView>
+          </View>
+
+          {/* Admin Functions */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Administrative Functions</Text>
+
+            <TouchableCard
+              style={styles.functionCard}
+              onPress={() => router.push('/admin/import-stations')}
+            >
+              <View style={styles.functionContent}>
+                <FontAwesome5
+                  name='file-import'
+                  size={20}
+                  color='#2a9d8f'
+                  style={styles.functionIcon}
+                />
+                <View style={styles.functionTextContainer}>
+                  <Text style={styles.functionTitle}>Import Gas Stations</Text>
+                  <Text style={styles.functionDescription}>
+                    Import gas station data from Google Places API
+                  </Text>
+                </View>
+              </View>
+              <FontAwesome5 name='chevron-right' size={16} color='#999' />
+            </TouchableCard>
+          </View>
+        </ScrollView>
+      )}
+
+      {activeTab === 'cycles' && <PriceCycleManagement />}
+
+      {/* Create Cycle Modal */}
+      <CreateCycleModal
+        visible={showCreateCycleModal}
+        onClose={() => setShowCreateCycleModal(false)}
+        onSubmit={createNewPriceCycle}
+        loading={creatingCycle}
+        nextCycleNumber={nextCycleNumber}
+      />
     </SafeAreaView>
   );
 }
@@ -287,6 +427,32 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#666',
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#2a9d8f',
+  },
+  tabText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
+  },
+  activeTabText: {
+    color: '#2a9d8f',
+    fontWeight: 'bold',
   },
   header: {
     padding: 20,
@@ -315,6 +481,12 @@ const styles = StyleSheet.create({
   cycleCard: {
     padding: 16,
   },
+  cycleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   cycleTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -325,6 +497,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 16,
+  },
+  statusBadge: {
+    backgroundColor: '#e6f7f5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#2a9d8f',
   },
   cycleDates: {
     flexDirection: 'row',
@@ -345,6 +528,18 @@ const styles = StyleSheet.create({
   },
   cycleButton: {
     marginTop: 8,
+  },
+  viewAllLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    padding: 8,
+  },
+  viewAllText: {
+    color: '#2a9d8f',
+    fontSize: 14,
+    marginRight: 6,
   },
   statsContainer: {
     flexDirection: 'row',

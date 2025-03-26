@@ -35,6 +35,7 @@ export function useBestPrices({
       }
 
       // Query from the active_price_reports view
+      // This view now respects cycle status automatically
       let query = supabase.from('active_price_reports').select('*');
 
       // Apply fuel type filter if specified

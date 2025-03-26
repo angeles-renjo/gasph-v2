@@ -71,6 +71,7 @@ function RootLayoutNav() {
           headerShown: false,
         }}
       />
+      <Stack.Screen name='admin/import-stations' />
     </Stack>
   );
 }

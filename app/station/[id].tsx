@@ -1,5 +1,5 @@
 // app/station/[id].tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,7 @@ import { Card } from '@/components/ui/Card';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { Input } from '@/components/ui/Input';
-import { formatOperatingHours } from '@/utils/formatters';
+import { formatDate, formatOperatingHours } from '@/utils/formatters';
 import { FuelType } from '@/hooks/useBestPrices';
 
 export default function StationDetailScreen() {
@@ -32,6 +32,31 @@ export default function StationDetailScreen() {
   const [selectedFuelType, setSelectedFuelType] = useState<FuelType>('Diesel');
   const [price, setPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [currentCycle, setCurrentCycle] = useState<any>(null);
+
+  useEffect(() => {
+    if (id) {
+      fetchCurrentCycle();
+    }
+  }, [id]);
+
+  const fetchCurrentCycle = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('price_reporting_cycles')
+        .select('*')
+        .eq('status', 'active')
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching current cycle:', error);
+      } else if (data) {
+        setCurrentCycle(data);
+      }
+    } catch (error) {
+      console.error('Error fetching current cycle:', error);
+    }
+  };
 
   const {
     data: station,
@@ -68,7 +93,7 @@ export default function StationDetailScreen() {
       const { data: cycles, error: cycleError } = await supabase
         .from('price_reporting_cycles')
         .select('*')
-        .eq('is_active', true)
+        .eq('status', 'active')
         .single();
 
       if (cycleError) throw cycleError;
@@ -296,6 +321,17 @@ export default function StationDetailScreen() {
 
             <Text style={styles.modalStationName}>{station.name}</Text>
 
+            {/* Add cycle information */}
+            {currentCycle && (
+              <View style={styles.cycleInfoContainer}>
+                <Text style={styles.cycleInfoLabel}>For price cycle:</Text>
+                <Text style={styles.cycleInfoValue}>
+                  #{currentCycle.cycle_number}:{' '}
+                  {formatDate(currentCycle.start_date)} to{' '}
+                  {formatDate(currentCycle.end_date)}
+                </Text>
+              </View>
+            )}
             <Text style={styles.inputLabel}>Fuel Type</Text>
             <View style={styles.fuelTypeSelector}>
               {(
@@ -546,5 +582,22 @@ const styles = StyleSheet.create({
   },
   debugCard: {
     padding: 14,
+  },
+
+  cycleInfoContainer: {
+    marginBottom: 16,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  cycleInfoLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  cycleInfoValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
   },
 });

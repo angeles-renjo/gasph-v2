@@ -18,6 +18,7 @@ import { supabase } from '@/utils/supabase/supabase';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { formatRelativeTime } from '@/utils/formatters';
+import { CycleInfoBadge } from '@/components/admin/CycleInfoBadge';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -244,6 +245,15 @@ export default function ProfileScreen() {
                       ₱{contribution.price.toFixed(2)}
                     </Text>
                   </View>
+
+                  {/* Add cycle badge */}
+                  {contribution.cycle && (
+                    <CycleInfoBadge
+                      cycleNumber={contribution.cycle.cycle_number}
+                      status={contribution.cycle.status}
+                      compact={true}
+                    />
+                  )}
                 </View>
               </Card>
             ))
