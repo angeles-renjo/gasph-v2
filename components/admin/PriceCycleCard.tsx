@@ -1,9 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { formatDate } from '@/utils/formatters';
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { formatDate } from "@/utils/formatters";
 
 interface PriceCycleCardProps {
   cycle: {
@@ -11,40 +10,54 @@ interface PriceCycleCardProps {
     cycle_number: number;
     start_date: string;
     end_date: string;
-    status: 'active' | 'completed' | 'archived';
-    doe_import_date: string | null;
+    status: "active" | "archived";
   };
-  onArchive?: (id: string) => void;
-  onActivate?: (id: string) => void;
+  onArchive?: (id: string) => Promise<void>;
 }
 
-export function PriceCycleCard({
-  cycle,
-  onArchive,
-  onActivate,
-}: PriceCycleCardProps) {
-  const isActive = cycle.status === 'active';
-  const isArchived = cycle.status === 'archived';
+export function PriceCycleCard({ cycle, onArchive }: PriceCycleCardProps) {
+  const handleArchive = async () => {
+    Alert.alert(
+      "Archive Cycle",
+      "Are you sure you want to archive this price cycle?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Archive",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              if (onArchive) {
+                await onArchive(cycle.id);
+              }
+            } catch (error) {
+              Alert.alert("Error", "Failed to archive price cycle");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
-    <Card
-      style={[
-        styles.card,
-        isActive && styles.activeCard,
-        isArchived && styles.archivedCard,
-      ]}
-    >
+    <Card style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.cycleNumberContainer}>
-          <Text style={styles.cycleNumberLabel}>Cycle</Text>
-          <Text style={styles.cycleNumber}>{cycle.cycle_number}</Text>
+        <View>
+          <Text style={styles.title}>Cycle #{cycle.cycle_number}</Text>
         </View>
-        <View style={styles.statusContainer}>
+        <View
+          style={[
+            styles.statusBadge,
+            cycle.status === "archived" && styles.archivedBadge,
+          ]}
+        >
           <Text
             style={[
               styles.statusText,
-              isActive && styles.activeStatusText,
-              isArchived && styles.archivedStatusText,
+              cycle.status === "archived" && styles.archivedText,
             ]}
           >
             {cycle.status.toUpperCase()}
@@ -52,7 +65,7 @@ export function PriceCycleCard({
         </View>
       </View>
 
-      <View style={styles.dateContainer}>
+      <View style={styles.dates}>
         <View style={styles.dateItem}>
           <Text style={styles.dateLabel}>Start Date</Text>
           <Text style={styles.dateValue}>{formatDate(cycle.start_date)}</Text>
@@ -63,32 +76,12 @@ export function PriceCycleCard({
         </View>
       </View>
 
-      {cycle.doe_import_date && (
-        <View style={styles.importInfoContainer}>
-          <FontAwesome5 name='file-import' size={14} color='#666' />
-          <Text style={styles.importText}>
-            DOE Import: {formatDate(cycle.doe_import_date)}
-          </Text>
-        </View>
-      )}
-
-      {!isActive && !isArchived && onActivate && (
+      {cycle.status === "active" && onArchive && (
         <Button
-          title='Set as Active'
-          variant='outline'
-          size='small'
-          onPress={() => onActivate(cycle.id)}
-          style={styles.actionButton}
-        />
-      )}
-
-      {!isActive && !isArchived && onArchive && (
-        <Button
-          title='Archive'
-          variant='danger'
-          size='small'
-          onPress={() => onArchive(cycle.id)}
-          style={styles.actionButton}
+          title="Archive Cycle"
+          onPress={handleArchive}
+          variant="outline"
+          style={styles.archiveButton}
         />
       )}
     </Card>
@@ -96,80 +89,56 @@ export function PriceCycleCard({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginVertical: 8,
+  container: {
+    marginBottom: 16,
     padding: 16,
   },
-  activeCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#2a9d8f',
-  },
-  archivedCard: {
-    opacity: 0.7,
-    borderLeftWidth: 4,
-    borderLeftColor: '#999',
-  },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
   },
-  cycleNumberContainer: {
-    alignItems: 'center',
+  title: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
   },
-  cycleNumberLabel: {
-    fontSize: 12,
-    color: '#666',
-  },
-  cycleNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  statusContainer: {
-    padding: 4,
+  statusBadge: {
+    backgroundColor: "#e6f7f5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 4,
-    justifyContent: 'center',
+  },
+  archivedBadge: {
+    backgroundColor: "#f5f5f5",
   },
   statusText: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#666',
+    fontWeight: "bold",
+    color: "#2a9d8f",
   },
-  activeStatusText: {
-    color: '#2a9d8f',
+  archivedText: {
+    color: "#666",
   },
-  archivedStatusText: {
-    color: '#999',
-  },
-  dateContainer: {
-    flexDirection: 'row',
-    marginBottom: 12,
+  dates: {
+    flexDirection: "row",
+    marginBottom: 16,
   },
   dateItem: {
     flex: 1,
   },
   dateLabel: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
     marginBottom: 4,
   },
   dateValue: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: "500",
+    color: "#333",
   },
-  importInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  archiveButton: {
     marginTop: 8,
-  },
-  importText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 6,
-  },
-  actionButton: {
-    marginTop: 12,
   },
 });

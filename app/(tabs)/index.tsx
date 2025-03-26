@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,23 +9,23 @@ import {
   ScrollView,
   Linking,
   Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome5 } from '@expo/vector-icons';
-import { useBestPrices, FuelType } from '@/hooks/useBestPrices';
-import { useLocation } from '@/hooks/useLocation';
-import { BestPriceCard } from '@/components/price/BestPriceCard';
-import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import { ErrorDisplay } from '@/components/common/ErrorDisplay';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Button } from '@/components/ui/Button';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { FontAwesome5 } from "@expo/vector-icons";
+import { useBestPrices, FuelType } from "@/hooks/useBestPrices";
+import { useLocation } from "@/hooks/useLocation";
+import { BestPriceCard } from "@/components/price/BestPriceCard";
+import { LoadingIndicator } from "@/components/common/LoadingIndicator";
+import { ErrorDisplay } from "@/components/common/ErrorDisplay";
+import { EmptyState } from "@/components/common/EmptyState";
+import { Button } from "@/components/ui/Button";
 
 const FUEL_TYPES: FuelType[] = [
-  'Diesel',
-  'RON 91',
-  'RON 95',
-  'RON 97',
-  'RON 100',
+  "Diesel",
+  "RON 91",
+  "RON 95",
+  "RON 97",
+  "RON 100",
 ];
 
 export default function BestPricesScreen() {
@@ -61,8 +61,8 @@ export default function BestPricesScreen() {
   };
 
   const openAppSettings = () => {
-    if (Platform.OS === 'ios') {
-      Linking.openURL('app-settings:');
+    if (Platform.OS === "ios") {
+      Linking.openURL("app-settings:");
     } else {
       Linking.openSettings();
     }
@@ -73,7 +73,7 @@ export default function BestPricesScreen() {
     return (
       <SafeAreaView style={styles.fullScreenContainer}>
         <View style={styles.fallbackContainer}>
-          <FontAwesome5 name='map-marker-alt' size={60} color='#cccccc' />
+          <FontAwesome5 name="map-marker-alt" size={60} color="#cccccc" />
           <Text style={styles.fallbackTitle}>Location Access Required</Text>
           <Text style={styles.fallbackMessage}>
             GasPH needs your location to find the best fuel prices near you.
@@ -82,15 +82,15 @@ export default function BestPricesScreen() {
           </Text>
           <View style={styles.fallbackButtonContainer}>
             <Button
-              title='Enable Location'
+              title="Enable Location"
               onPress={openAppSettings}
-              variant='primary'
+              variant="primary"
               style={styles.fallbackButton}
             />
             <Button
-              title='Try Again'
+              title="Try Again"
               onPress={refreshLocation}
-              variant='outline'
+              variant="outline"
               style={styles.fallbackButton}
             />
           </View>
@@ -100,26 +100,26 @@ export default function BestPricesScreen() {
   }
 
   if (locationLoading) {
-    return <LoadingIndicator fullScreen message='Getting your location...' />;
+    return <LoadingIndicator fullScreen message="Getting your location..." />;
   }
 
   if (error) {
     return (
       <ErrorDisplay
         fullScreen
-        message='There was an error loading price data. Please try again.'
+        message="There was an error loading price data. Please try again."
         onRetry={refetch}
       />
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <View style={styles.header}>
         <Text style={styles.title}>Best Fuel Prices Near You</Text>
         {location && (
           <View style={styles.locationContainer}>
-            <FontAwesome5 name='map-marker-alt' size={16} color='#2a9d8f' />
+            <FontAwesome5 name="map-marker-alt" size={16} color="#2a9d8f" />
             <Text style={styles.locationText}>Your Area</Text>
           </View>
         )}
@@ -196,7 +196,7 @@ export default function BestPricesScreen() {
       </View>
 
       {isLoading ? (
-        <LoadingIndicator message='Finding best prices...' />
+        <LoadingIndicator message="Finding best prices..." />
       ) : prices && prices.length > 0 ? (
         <FlatList
           data={prices}
@@ -220,14 +220,14 @@ export default function BestPricesScreen() {
         />
       ) : (
         <EmptyState
-          title='No Prices Found'
+          title="No Prices Found"
           message={
             selectedFuelType
               ? `No ${selectedFuelType} prices found within ${maxDistance} km. Try expanding your search or checking another fuel type.`
               : `No fuel prices found within ${maxDistance} km. Try expanding your search distance.`
           }
-          icon='gas-pump'
-          actionLabel='Reset Filters'
+          icon="gas-pump"
+          actionLabel="Reset Filters"
           onAction={() => {
             setSelectedFuelType(undefined);
             setMaxDistance(15);
@@ -241,35 +241,35 @@ export default function BestPricesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   fullScreenContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   fallbackContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 24,
   },
   fallbackTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginTop: 20,
     marginBottom: 10,
-    textAlign: 'center',
+    textAlign: "center",
   },
   fallbackMessage: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     marginBottom: 30,
     lineHeight: 22,
   },
   fallbackButtonContainer: {
-    width: '100%',
+    width: "100%",
     paddingHorizontal: 20,
   },
   fallbackButton: {
@@ -277,30 +277,30 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: "#eee",
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 4,
   },
   locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   locationText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginLeft: 6,
   },
   filterContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: "#eee",
   },
   fuelTypeFilters: {
     paddingHorizontal: 16,
@@ -310,49 +310,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     marginRight: 8,
   },
   activeFilterChip: {
-    backgroundColor: '#2a9d8f',
+    backgroundColor: "#2a9d8f",
   },
   filterChipText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   activeFilterChipText: {
-    color: '#fff',
-    fontWeight: '500',
+    color: "#fff",
+    fontWeight: "500",
   },
   distanceFilterContainer: {
     paddingHorizontal: 16,
   },
   distanceLabel: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: "500",
+    color: "#333",
     marginBottom: 8,
   },
   distanceOptions: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   distanceChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     marginRight: 8,
   },
   activeDistanceChip: {
-    backgroundColor: '#f4a261',
+    backgroundColor: "#f4a261",
   },
   distanceChipText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   activeDistanceChipText: {
-    color: '#fff',
-    fontWeight: '500',
+    color: "#fff",
+    fontWeight: "500",
   },
   listContent: {
     padding: 16,

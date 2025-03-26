@@ -1,94 +1,222 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { Stack } from 'expo-router';
-import { useRouter } from 'expo-router';
-import { useAuth } from '@/hooks/useAuth';
-import GooglePlacesImportScreen from '@/components/admin/GooglePlacesImportScreen';
-import { useEffect, useState } from 'react';
+import React from "react";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { Stack } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { FontAwesome5 } from "@expo/vector-icons";
+import { useImportStations } from "@/hooks/useImportStations";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 
-function ImportGasStationsScreen() {
-  const { user, loading: authLoading, isAdmin } = useAuth();
-  const router = useRouter();
-  const [loading, setLoading] = useState<boolean>(true);
+export default function ImportStationsScreen() {
+  const {
+    apiKey,
+    setApiKey,
+    isImporting,
+    importStatuses,
+    overallProgress,
+    importGasStations,
+  } = useImportStations();
 
-  useEffect(() => {
-    // Wait for auth to complete
-    if (authLoading) {
-      return; // Don't do anything while auth is loading
-    }
-
-    // No authenticated user
-    if (!user) {
-      console.log('No authenticated user, redirecting to home');
-      router.replace('/');
-      return;
-    }
-
-    // User is authenticated but not admin
-    if (!isAdmin) {
-      console.log('User is not an admin, redirecting to home');
-      router.replace('/');
-      return;
-    }
-
-    // User is authenticated and is admin
-    setLoading(false);
-  }, [user, authLoading, isAdmin, router]);
-
-  if (authLoading || loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text>Checking permissions...</Text>
-      </View>
-    );
-  }
-
-  // This will only render if the user is authenticated and is admin
   return (
     <>
       <Stack.Screen
         options={{
-          title: 'Import Gas Stations',
+          title: "Import Gas Stations",
           headerStyle: {
-            backgroundColor: '#2a9d8f',
+            backgroundColor: "#2a9d8f",
           },
-          headerTintColor: '#fff',
+          headerTintColor: "#fff",
         }}
       />
 
-      <GooglePlacesImportScreen />
+      <SafeAreaView style={styles.container} edges={["bottom"]}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Import Gas Stations</Text>
+            <Text style={styles.subtitle}>
+              Import gas station data from Google Places API
+            </Text>
+          </View>
+
+          <Card style={styles.configCard}>
+            <Text style={styles.sectionTitle}>Configuration</Text>
+            <Input
+              label="Google Places API Key"
+              placeholder="Enter your API key"
+              value={apiKey}
+              onChangeText={setApiKey}
+              containerStyle={styles.inputContainer}
+              secureTextEntry
+            />
+            <Button
+              title={isImporting ? "Importing..." : "Start Import"}
+              onPress={importGasStations}
+              loading={isImporting}
+              disabled={isImporting || !apiKey.trim()}
+              style={styles.importButton}
+            />
+          </Card>
+
+          {isImporting && (
+            <Card style={styles.progressCard}>
+              <Text style={styles.sectionTitle}>Overall Progress</Text>
+              <View style={styles.progressBarContainer}>
+                <View
+                  style={[
+                    styles.progressBar,
+                    {
+                      width: `${
+                        overallProgress.total > 0
+                          ? (overallProgress.processed /
+                              overallProgress.total) *
+                            100
+                          : 0
+                      }%`,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.progressText}>
+                {overallProgress.processed} / {overallProgress.total} stations
+                processed
+              </Text>
+              <Text style={styles.progressText}>
+                {overallProgress.imported} new stations imported
+              </Text>
+            </Card>
+          )}
+
+          <Card style={styles.statusCard}>
+            <Text style={styles.sectionTitle}>Import Status by City</Text>
+            {importStatuses.map((status) => (
+              <View key={status.city} style={styles.statusItem}>
+                <View style={styles.statusHeader}>
+                  <Text style={styles.cityName}>{status.city}</Text>
+                  {status.status === "pending" && (
+                    <FontAwesome5 name="clock" size={16} color="#999" />
+                  )}
+                  {status.status === "in-progress" && (
+                    <LoadingIndicator size="small" />
+                  )}
+                  {status.status === "completed" && (
+                    <FontAwesome5
+                      name="check-circle"
+                      size={16}
+                      color="#4caf50"
+                    />
+                  )}
+                  {status.status === "error" && (
+                    <FontAwesome5
+                      name="exclamation-circle"
+                      size={16}
+                      color="#f44336"
+                    />
+                  )}
+                </View>
+                {status.stationsFound !== undefined && (
+                  <Text style={styles.statusText}>
+                    Found: {status.stationsFound}, Imported:{" "}
+                    {status.stationsImported}
+                  </Text>
+                )}
+                {status.error && (
+                  <Text style={styles.errorText}>{status.error}</Text>
+                )}
+              </View>
+            ))}
+          </Card>
+        </ScrollView>
+      </SafeAreaView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  unauthorizedContainer: {
+  container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+  scrollContent: {
+    padding: 16,
   },
-  unauthorizedTitle: {
+  header: {
+    marginBottom: 16,
+  },
+  title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
+    fontWeight: "bold",
+    color: "#333",
   },
-  unauthorizedMessage: {
+  subtitle: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
+    color: "#666",
+    marginTop: 4,
   },
-  backButton: {
+  configCard: {
+    marginBottom: 16,
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 12,
+    color: "#333",
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  importButton: {
     minWidth: 150,
   },
+  progressCard: {
+    marginBottom: 16,
+    padding: 16,
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: "#eee",
+    borderRadius: 4,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: "#2a9d8f",
+  },
+  progressText: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 4,
+  },
+  statusCard: {
+    padding: 16,
+  },
+  statusItem: {
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  statusHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  cityName: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333",
+  },
+  statusText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#f44336",
+    marginTop: 4,
+  },
 });
-
-export default ImportGasStationsScreen;

@@ -1,19 +1,15 @@
-import { useState, useCallback } from 'react';
-import { Alert } from 'react-native';
-import { supabase } from '@/utils/supabase/supabase';
-import { NCR_CITIES, RATE_LIMIT } from '@/constants/gasStations';
-import {
-  GasStation,
-  ImportStatus,
-  OverallProgress,
-} from '@/constants/gasStations';
+import { useState, useCallback } from "react";
+import { Alert } from "react-native";
+import { NCR_CITIES, RATE_LIMIT } from "@/constants/gasStations";
+import { ImportStatus, OverallProgress } from "@/constants/gasStations";
 import {
   normalizeBrand,
   formatAmenities,
   formatOperatingHours,
   fetchPlaceDetails,
   searchGasStations,
-} from '@/utils/placesApi';
+} from "@/utils/placesApi";
+import { useImportStationsMutation } from "./queries/admin/useImportStationsMutation";
 
 // Utilities
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -32,7 +28,7 @@ const withTimeout = async <T>(
 const retryOperation = async <T>(
   operation: () => Promise<T>,
   retryCount = 0,
-  context = ''
+  context = ""
 ): Promise<T> => {
   try {
     return await operation();
@@ -54,16 +50,18 @@ const retryOperation = async <T>(
 };
 
 export function useImportStations() {
-  const [apiKey, setApiKey] = useState<string>('');
+  const [apiKey, setApiKey] = useState<string>("");
   const [isImporting, setIsImporting] = useState<boolean>(false);
   const [importStatuses, setImportStatuses] = useState<ImportStatus[]>(
-    NCR_CITIES.map((city) => ({ city, status: 'pending' }))
+    NCR_CITIES.map((city) => ({ city, status: "pending" }))
   );
   const [overallProgress, setOverallProgress] = useState<OverallProgress>({
     total: 0,
     processed: 0,
     imported: 0,
   });
+
+  const importMutation = useImportStationsMutation();
 
   const updateCityStatus = useCallback(
     (city: string, update: Partial<ImportStatus>) => {
@@ -84,7 +82,7 @@ export function useImportStations() {
   );
 
   const resetImport = useCallback(() => {
-    setImportStatuses(NCR_CITIES.map((city) => ({ city, status: 'pending' })));
+    setImportStatuses(NCR_CITIES.map((city) => ({ city, status: "pending" })));
     setOverallProgress({ total: 0, processed: 0, imported: 0 });
   }, []);
 
@@ -103,70 +101,44 @@ export function useImportStations() {
         `Fetching details for ${station.name}`
       );
 
-      // Check if station already exists
-      const { data: existingStation, error: checkError } = await supabase
-        .from('gas_stations')
-        .select('id')
-        .eq('name', station.name)
-        .eq('address', station.formatted_address || details.formatted_address)
-        .limit(1)
-        .single();
+      const brand = normalizeBrand(station.name);
+      const amenities = formatAmenities(details);
+      const operatingHours = formatOperatingHours(details);
 
-      // If no data but we got PGRST116 (not found), it means station doesn't exist
-      const stationExists = !(checkError && checkError.code === 'PGRST116');
-
-      if (stationExists) {
-        return { processed: true, imported: false };
-      }
-
-      const newStation = {
+      return {
         name: station.name,
-        brand: normalizeBrand(station.name),
-        address: station.formatted_address || details.formatted_address,
+        brand,
+        address: details.formatted_address,
         city,
-        province: 'Metro Manila',
-        latitude: station.geometry?.location.lat,
-        longitude: station.geometry?.location.lng,
-        amenities: formatAmenities(details),
-        operating_hours: formatOperatingHours(details),
-        status: 'active',
+        latitude: details.geometry.location.lat,
+        longitude: details.geometry.location.lng,
+        amenities,
+        operating_hours: operatingHours,
       };
-
-      // Insert new station
-      const { error: insertError } = await supabase
-        .from('gas_stations')
-        .insert(newStation);
-
-      if (insertError) throw insertError;
-      return { processed: true, imported: true };
     } catch (error: any) {
-      console.error(`Error processing station ${station.name}:`, {
-        error,
-        errorMessage: error.message,
-        errorStack: error.stack,
-      });
-      return { processed: true, imported: false };
+      console.error(`Error processing station ${station.name}:`, error);
+      throw error;
     }
   };
 
   const importGasStations = async () => {
     if (!apiKey.trim()) {
-      Alert.alert('Error', 'Please enter a Google Places API key.');
+      Alert.alert("Error", "Please enter a valid API key");
       return;
     }
 
-    let finalProcessed = 0;
-    let finalImported = 0;
+    setIsImporting(true);
+    resetImport();
 
     try {
-      setIsImporting(true);
-      resetImport();
+      let totalStations = 0;
+      let processedCount = 0;
+      let importedStations = 0;
 
       for (const city of NCR_CITIES) {
-        try {
-          console.log(`Starting import for ${city}`);
-          updateCityStatus(city, { status: 'in-progress' });
+        updateCityStatus(city, { status: "in-progress" });
 
+        try {
           const stations = await retryOperation(
             () =>
               withTimeout(
@@ -178,57 +150,58 @@ export function useImportStations() {
             `Searching stations in ${city}`
           );
 
-          console.log(`Found ${stations.length} stations in ${city}`);
+          totalStations += stations.length;
+          updateOverallProgress((prev) => ({ ...prev, total: totalStations }));
 
-          updateCityStatus(city, { stationsFound: stations.length });
-          updateOverallProgress((prev) => ({
-            ...prev,
-            total: prev.total + stations.length,
-          }));
+          const processedResults = await Promise.all(
+            stations.map((station: { place_id: string; name: string }) =>
+              processStation(station, apiKey, city).catch((error) => {
+                console.error(`Error processing station:`, error);
+                return null;
+              })
+            )
+          );
 
-          let cityImportCount = 0;
+          const validStations = processedResults.filter(
+            (station): station is NonNullable<typeof station> =>
+              station !== null
+          );
 
-          for (const station of stations) {
-            console.log(`Processing station: ${station.name}`);
-            const result = await processStation(station, apiKey, city);
-
-            if (result.processed) finalProcessed++;
-            if (result.imported) {
-              finalImported++;
-              cityImportCount++;
-            }
-
-            updateOverallProgress((prev) => ({
-              ...prev,
-              processed: prev.processed + (result.processed ? 1 : 0),
-              imported: prev.imported + (result.imported ? 1 : 0),
-            }));
+          if (validStations.length > 0) {
+            const result = await importMutation.mutateAsync(validStations);
+            importedStations += result.length;
           }
 
-          updateCityStatus(city, {
-            status: 'completed',
-            stationsImported: cityImportCount,
-          });
+          processedCount += stations.length;
+          updateOverallProgress((prev) => ({
+            ...prev,
+            processed: processedCount,
+            imported: importedStations,
+          }));
 
-          await delay(2000);
-        } catch (cityError: any) {
-          console.error(`Error importing stations for ${city}:`, cityError);
           updateCityStatus(city, {
-            status: 'error',
-            error: cityError.message || 'Unknown error',
+            status: "completed",
+            stationsFound: stations.length,
+            stationsImported: validStations.length,
+          });
+        } catch (error: any) {
+          console.error(`Error importing stations for ${city}:`, error);
+          updateCityStatus(city, {
+            status: "error",
+            error: error.message,
           });
         }
       }
+
+      Alert.alert(
+        "Import Complete",
+        `Successfully imported ${importedStations} new stations out of ${totalStations} found.`
+      );
     } catch (error: any) {
-      console.error('Import process error:', error);
-      Alert.alert('Error', 'An error occurred during the import process.');
+      console.error("Import failed:", error);
+      Alert.alert("Error", "Failed to import stations. Please try again.");
     } finally {
       setIsImporting(false);
-      console.log('Final counts:', { finalProcessed, finalImported });
-      Alert.alert(
-        'Import Complete',
-        `Processed ${finalProcessed} stations, imported ${finalImported} new stations.`
-      );
     }
   };
 
