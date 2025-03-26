@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { Card, TouchableCard } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -20,7 +21,7 @@ import { formatDate } from '@/utils/formatters';
 import { useRouter } from 'expo-router';
 
 export default function AdminScreen() {
-  const { user } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [currentCycle, setCurrentCycle] = useState<any>(null);
@@ -33,19 +34,9 @@ export default function AdminScreen() {
   const [creatingCycle, setCreatingCycle] = useState(false);
   const [showCreateCycleModal, setShowCreateCycleModal] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const router = useRouter();
-
-  useEffect(() => {
-    if (user) {
-      fetchAdminProfile();
-      fetchDashboardData();
-      fetchNextCycleNumber();
-    } else {
-      // Redirect non-authenticated users
-      router.replace('/');
-    }
-  }, [user]);
 
   const fetchAdminProfile = async () => {
     try {
@@ -60,14 +51,14 @@ export default function AdminScreen() {
       // Redirect if not an admin
       if (!data.is_admin) {
         Alert.alert('Access Denied', 'You do not have admin privileges.');
-        router.replace('/');
+        setTimeout(() => router.replace('/'), 100);
         return;
       }
 
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
-      router.replace('/');
+      setTimeout(() => router.replace('/'), 100);
     }
   };
 
@@ -174,7 +165,47 @@ export default function AdminScreen() {
     }
   };
 
-  if (loading) {
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const initializeScreen = async () => {
+        if (!user || authLoading) return;
+
+        try {
+          // Only set loading true if we haven't initialized yet
+          if (!hasInitialized) {
+            setLoading(true);
+          }
+
+          await fetchAdminProfile();
+
+          // Only continue fetching if we're still mounted and user is admin
+          if (isActive && profile?.is_admin) {
+            await fetchDashboardData();
+            await fetchNextCycleNumber();
+            if (isActive) {
+              setHasInitialized(true);
+              setLoading(false);
+            }
+          }
+        } catch (error) {
+          console.error('Error initializing admin screen:', error);
+          if (isActive) {
+            setLoading(false);
+          }
+        }
+      };
+
+      initializeScreen();
+
+      return () => {
+        isActive = false;
+      };
+    }, [user, authLoading, hasInitialized, profile?.is_admin])
+  );
+
+  if (authLoading || loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <LoadingIndicator size='large' color='#2a9d8f' />

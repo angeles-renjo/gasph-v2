@@ -40,7 +40,6 @@ export default function TabsLayout() {
           ),
         }}
       />
-
       <Tabs.Screen
         name='profile'
         options={{
@@ -57,8 +56,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <FontAwesome5 name='shield-alt' size={size} color={color} />
           ),
-          // Hide the tab from the tab bar if the user is not an admin
-          href: isAdmin ? undefined : null,
+          tabBarButton: isAdmin ? undefined : () => null,
         }}
       />
     </Tabs>
