@@ -2,45 +2,39 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/utils/supabase/supabase';
-import { Button } from '@/components/ui/Button';
 import GooglePlacesImportScreen from '@/components/admin/GooglePlacesImportScreen';
 import { useEffect, useState } from 'react';
 
 function ImportGasStationsScreen() {
-  const { user } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const checkAdmin = async () => {
-      if (!user) {
-        router.replace('/');
-        return;
-      }
+    // Wait for auth to complete
+    if (authLoading) {
+      return; // Don't do anything while auth is loading
+    }
 
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', user.id)
-          .single();
+    // No authenticated user
+    if (!user) {
+      console.log('No authenticated user, redirecting to home');
+      router.replace('/');
+      return;
+    }
 
-        if (error) throw error;
+    // User is authenticated but not admin
+    if (!isAdmin) {
+      console.log('User is not an admin, redirecting to home');
+      router.replace('/');
+      return;
+    }
 
-        setIsAdmin(data?.is_admin === true);
-      } catch (error) {
-        console.error('Error checking admin status:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // User is authenticated and is admin
+    setLoading(false);
+  }, [user, authLoading, isAdmin, router]);
 
-    checkAdmin();
-  }, [user, router]);
-
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={styles.loadingContainer}>
         <Text>Checking permissions...</Text>
@@ -48,22 +42,7 @@ function ImportGasStationsScreen() {
     );
   }
 
-  if (!isAdmin) {
-    return (
-      <View style={styles.unauthorizedContainer}>
-        <Text style={styles.unauthorizedTitle}>Access Denied</Text>
-        <Text style={styles.unauthorizedMessage}>
-          You need administrator permissions to access this page.
-        </Text>
-        <Button
-          title='Go Back'
-          onPress={() => router.back()}
-          style={styles.backButton}
-        />
-      </View>
-    );
-  }
-
+  // This will only render if the user is authenticated and is admin
   return (
     <>
       <Stack.Screen
