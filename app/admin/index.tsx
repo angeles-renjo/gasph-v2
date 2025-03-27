@@ -1,73 +1,61 @@
-import React from "react";
-import { View, StyleSheet, FlatList, RefreshControl } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Link, useRouter } from "expo-router";
-import { useStations } from "@/hooks/queries/admin/useStations";
-import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { ErrorDisplay } from "@/components/common/ErrorDisplay";
-import { Button } from "@/components/ui/Button";
-import { StationListItem } from "@/components/admin/StationListItem";
+import { View, StyleSheet, ScrollView } from "react-native";
+import { DashboardCard } from "@/components/admin/DashboardCard";
+import { useAdminStats } from "@/hooks/queries/admin/useAdminStats";
+import { formatDate } from "@/utils/formatters";
+import Colors from "@/constants/Colors";
 
-export default function StationsScreen() {
-  const router = useRouter();
-  const {
-    data: stations,
-    isLoading,
-    error,
-    refetch,
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage,
-  } = useStations();
-
-  if (error) {
-    return <ErrorDisplay message="Failed to load stations" onRetry={refetch} />;
-  }
+export default function AdminDashboard() {
+  const { data: stats, isLoading } = useAdminStats();
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <View style={styles.header}>
-        <Button
-          title="Import Stations"
-          onPress={() => router.push("/admin/import-stations")}
-          variant="primary"
-        />
-      </View>
-
-      <FlatList
-        data={stations?.pages.flatMap((page) => page.stations)}
-        renderItem={({ item }) => <StationListItem station={item} />}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={refetch}
-            tintColor="#2a9d8f"
-          />
-        }
-        onEndReached={() => {
-          if (hasNextPage) {
-            fetchNextPage();
-          }
-        }}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={isFetchingNextPage ? <LoadingIndicator /> : null}
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <DashboardCard
+        title="Gas Stations"
+        value={stats?.stationsCount ?? 0}
+        subtitle="Total registered stations"
+        icon="location"
+        href="/admin/stations"
+        isLoading={isLoading}
       />
-    </SafeAreaView>
+
+      <DashboardCard
+        title="Price Cycles"
+        value={stats?.activeCyclesCount ?? 0}
+        subtitle="Active reporting cycles"
+        icon="time"
+        href="/admin/cycles"
+        isLoading={isLoading}
+      />
+
+      <DashboardCard
+        title="Users"
+        value={stats?.usersCount ?? 0}
+        subtitle="Registered users"
+        icon="people"
+        href="/admin/users"
+        isLoading={isLoading}
+      />
+
+      <DashboardCard
+        title="Import Stations"
+        value={
+          stats?.lastImportDate
+            ? `Last import: ${formatDate(stats.lastImportDate)}`
+            : "No imports yet"
+        }
+        subtitle="Update station database"
+        icon="cloud-download"
+        href="/admin/import-stations"
+        isLoading={isLoading}
+      />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    padding: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    backgroundColor: Colors.light.tint,
   },
   content: {
     padding: 16,
