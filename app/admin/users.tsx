@@ -17,6 +17,14 @@ export default function UsersScreen() {
     isFetchingNextPage,
   } = useUsers();
 
+  console.log("Debug info:", {
+    isLoading,
+    error,
+    hasData: !!users,
+    pagesCount: users?.pages?.length,
+    errorDetails: error instanceof Error ? error.message : error,
+  });
+
   if (error) {
     return <ErrorDisplay message="Failed to load users" onRetry={refetch} />;
   }

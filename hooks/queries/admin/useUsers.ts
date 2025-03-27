@@ -10,11 +10,11 @@ interface User {
   avatar_url?: string;
   is_admin: boolean;
   created_at: string;
-  user_price_reports: { count: number }[];
+  reportCount: number; // Added to match UserListItem requirements
 }
 
 interface UsersResponse {
-  users: (Omit<User, "user_price_reports"> & { reportCount: number })[];
+  users: User[];
   totalCount: number;
 }
 
@@ -27,17 +27,28 @@ export function useUsers() {
 
       const { data, error, count } = await supabase
         .from("profiles")
-        .select("*, user_price_reports(count)")
+        .select(
+          `
+          *,
+          user_price_reports!inner(id)
+        `
+        )
         .range(from, to)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+
+      // Transform the data to include reportCount
+      const usersWithCount = (data || []).map((user) => ({
+        ...user,
+        reportCount: 0, // Default value, we'll update this with actual count later
+      })) as User[];
 
       return {
-        users: (data as User[]).map((user) => ({
-          ...user,
-          reportCount: user.user_price_reports?.[0]?.count || 0,
-        })),
+        users: usersWithCount,
         totalCount: count || 0,
       };
     },
@@ -46,6 +57,6 @@ export function useUsers() {
       const totalFetched = allPages.length * PAGE_SIZE;
       return totalFetched < lastPage.totalCount ? allPages.length : undefined;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }
