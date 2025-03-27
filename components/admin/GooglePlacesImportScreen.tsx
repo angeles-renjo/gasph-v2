@@ -1,220 +1,159 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome5 } from '@expo/vector-icons';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { useImportStations } from '@/hooks/useImportStations';
-import { ImportStatus } from '@/constants/gasStations';
+import React from "react";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { FontAwesome5 } from "@expo/vector-icons";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { useImportStations } from "@/hooks/queries/stations/useImportStations";
+import Colors from "@/constants/Colors";
+import type { ImportStatus } from "@/constants/gasStations";
 
-function GooglePlacesImportScreen() {
+interface StatusIconProps {
+  status: ImportStatus["status"];
+}
+
+function StatusIcon({ status }: StatusIconProps) {
+  let icon: string;
+  let color: string;
+
+  switch (status) {
+    case "completed":
+      icon = "check-circle";
+      color = Colors.success;
+      break;
+    case "error":
+      icon = "times-circle";
+      color = Colors.error;
+      break;
+    case "in-progress":
+      icon = "spinner";
+      color = Colors.warning;
+      break;
+    default:
+      icon = "circle";
+      color = Colors.tabIconDefault;
+  }
+
+  return (
+    <FontAwesome5
+      name={icon}
+      size={16}
+      color={color}
+      style={status === "in-progress" && styles.spinning}
+    />
+  );
+}
+
+export function GooglePlacesImportScreen() {
   const {
     apiKey,
     setApiKey,
-    isImporting,
+    isPending,
     importStatuses,
     overallProgress,
     importGasStations,
   } = useImportStations();
 
-  const getStatusIcon = (status: ImportStatus['status']) => {
-    switch (status) {
-      case 'pending':
-        return <FontAwesome5 name='clock' size={16} color='#999' />;
-      case 'in-progress':
-        return <ActivityIndicator size='small' color='#2a9d8f' />;
-      case 'completed':
-        return <FontAwesome5 name='check-circle' size={16} color='#4caf50' />;
-      case 'error':
-        return (
-          <FontAwesome5 name='exclamation-circle' size={16} color='#f44336' />
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Import Gas Stations</Text>
-          <Text style={styles.subtitle}>
-            Import gas station data from Google Places API
-          </Text>
-        </View>
-
-        <Card style={styles.configCard}>
-          <Text style={styles.sectionTitle}>Configuration</Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
+        <Card style={styles.inputCard}>
+          <Text style={styles.label}>Google Places API Key</Text>
           <Input
-            label='Google Places API Key'
-            placeholder='Enter your API key'
             value={apiKey}
             onChangeText={setApiKey}
-            containerStyle={styles.inputContainer}
+            placeholder="Enter your API key"
             secureTextEntry
+            editable={!isPending} // Changed from isImporting
           />
           <Button
-            title={isImporting ? 'Importing...' : 'Start Import'}
+            title={isPending ? "Importing..." : "Start Import"} // Changed from isImporting
             onPress={importGasStations}
-            loading={isImporting}
-            disabled={isImporting || !apiKey.trim()}
+            disabled={!apiKey.trim() || isPending} // Changed from isImporting
+            loading={isPending} // Changed from isImporting
             style={styles.importButton}
           />
         </Card>
 
-        {isImporting && (
-          <Card style={styles.progressCard}>
-            <Text style={styles.sectionTitle}>Overall Progress</Text>
-            <View style={styles.progressBarContainer}>
-              <View
-                style={[
-                  styles.progressBar,
-                  {
-                    width: `${
-                      overallProgress.total > 0
-                        ? (overallProgress.processed / overallProgress.total) *
-                          100
-                        : 0
-                    }%`,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={styles.progressText}>
-              {overallProgress.processed} / {overallProgress.total} stations
-              processed
-            </Text>
-            <Text style={styles.progressText}>
-              {overallProgress.imported} new stations imported
-            </Text>
-          </Card>
-        )}
+        <Card style={styles.progressCard}>
+          <Text style={styles.sectionTitle}>Overall Progress</Text>
+          <View style={styles.progressRow}>
+            <Text>Total Stations Found: {overallProgress.total}</Text>
+            <Text>Processed: {overallProgress.processed}</Text>
+            <Text>Imported: {overallProgress.imported}</Text>
+          </View>
+        </Card>
 
-        <View style={styles.section}>
+        <Card style={styles.statusCard}>
           <Text style={styles.sectionTitle}>Import Status by City</Text>
           {importStatuses.map((cityStatus) => (
-            <Card key={cityStatus.city} style={styles.cityCard}>
-              <View style={styles.cityHeader}>
-                <Text style={styles.cityName}>{cityStatus.city}</Text>
-                {getStatusIcon(cityStatus.status)}
-              </View>
-              <View style={styles.cityContent}>
-                {cityStatus.status === 'completed' && (
-                  <Text style={styles.cityStats}>
-                    Found: {cityStatus.stationsFound}, Imported:{' '}
-                    {cityStatus.stationsImported}
-                  </Text>
-                )}
-                {cityStatus.status === 'in-progress' && (
-                  <Text style={styles.cityStats}>
-                    Found: {cityStatus.stationsFound || 'Searching...'}
-                  </Text>
-                )}
-                {cityStatus.status === 'error' && (
-                  <Text style={styles.cityError}>{cityStatus.error}</Text>
-                )}
-              </View>
-            </Card>
+            <View key={cityStatus.city} style={styles.statusRow}>
+              <StatusIcon status={cityStatus.status} />
+              <Text style={styles.cityName}>{cityStatus.city}</Text>
+              <Text style={styles.statusText}>
+                {cityStatus.status === "completed" && cityStatus.stationsFound
+                  ? `${cityStatus.stationsImported}/${cityStatus.stationsFound} imported`
+                  : cityStatus.status === "error"
+                  ? cityStatus.error
+                  : cityStatus.status}
+              </Text>
+            </View>
           ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </Card>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.light.background,
   },
-  scrollContent: {
+  content: {
     padding: 16,
   },
-  header: {
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 4,
-  },
-  configCard: {
-    padding: 16,
-    marginBottom: 20,
-  },
-  inputContainer: {
+  inputCard: {
     marginBottom: 16,
+    padding: 16,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
   },
   importButton: {
-    marginTop: 8,
+    marginTop: 16,
   },
   progressCard: {
+    marginBottom: 16,
     padding: 16,
-    marginBottom: 20,
   },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    marginVertical: 12,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#2a9d8f',
-  },
-  progressText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  section: {
-    marginBottom: 20,
+  statusCard: {
+    padding: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
+    fontWeight: "600",
+    marginBottom: 16,
   },
-  cityCard: {
-    padding: 12,
-    marginBottom: 8,
+  progressRow: {
+    gap: 8,
   },
-  cityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    gap: 12,
   },
   cityName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    flex: 1,
+    fontWeight: "500",
   },
-  cityContent: {
-    marginTop: 4,
+  statusText: {
+    color: Colors.tabIconDefault,
   },
-  cityStats: {
-    fontSize: 14,
-    color: '#666',
-  },
-  cityError: {
-    fontSize: 14,
-    color: '#f44336',
+  spinning: {
+    transform: [{ rotate: "45deg" }],
   },
 });
-
-export default GooglePlacesImportScreen;

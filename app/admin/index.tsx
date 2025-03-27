@@ -2,10 +2,24 @@ import { View, StyleSheet, ScrollView, Text } from "react-native";
 import { DashboardCard } from "@/components/admin/DashboardCard";
 import { useAdminStats } from "@/hooks/queries/admin/useAdminStats";
 import { formatDate } from "@/utils/formatters";
+import { Button } from "@/components/ui/Button";
 import Colors from "@/constants/Colors";
 
 export default function AdminDashboard() {
-  const { data: stats, isLoading } = useAdminStats();
+  const { data: stats, isLoading, error, refetch } = useAdminStats();
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>
+          Failed to load dashboard stats. Please try again.
+        </Text>
+        <Button title="Retry" onPress={() => refetch()} variant="secondary">
+          Retry
+        </Button>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -16,6 +30,7 @@ export default function AdminDashboard() {
             Manage your GasPH application
           </Text>
         </View>
+
         <DashboardCard
           title="Gas Stations"
           value={stats?.stationsCount ?? 0}
@@ -59,7 +74,6 @@ export default function AdminDashboard() {
     </ScrollView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -83,5 +97,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#6B7280",
     fontWeight: "400",
+  },
+  errorText: {
+    color: "red",
+    textAlign: "center",
+    marginVertical: 16,
   },
 });

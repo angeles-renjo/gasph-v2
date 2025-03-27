@@ -7,11 +7,33 @@ import { ErrorDisplay } from "@/components/common/ErrorDisplay";
 import { Button } from "@/components/ui/Button";
 import { StationListItem } from "@/components/admin/StationListItem";
 import Colors from "@/constants/Colors";
+import type { InfiniteData } from "@tanstack/react-query";
+
+interface GasStation {
+  id: string;
+  name: string;
+  brand: string;
+  address: string;
+  city: string;
+  province: string;
+  latitude: number;
+  longitude: number;
+  amenities: Record<string, boolean>;
+  operating_hours: Record<string, string>;
+  status: "active" | "inactive";
+  created_at: string;
+  updated_at: string;
+}
+
+interface StationsResponse {
+  stations: GasStation[];
+  totalCount: number;
+}
 
 export default function StationsScreen() {
   const router = useRouter();
   const {
-    data: stations,
+    data,
     isLoading,
     error,
     refetch,
@@ -20,14 +42,26 @@ export default function StationsScreen() {
     isFetchingNextPage,
   } = useStations();
 
+  const stations = React.useMemo(() => {
+    if (!data) return [];
+    return (data as InfiniteData<StationsResponse>).pages.reduce<GasStation[]>(
+      (acc, page) => [...acc, ...page.stations],
+      []
+    );
+  }, [data]);
+
+  if (isLoading && !data) {
+    return <LoadingIndicator />;
+  }
+
   if (error) {
     return <ErrorDisplay message="Failed to load stations" onRetry={refetch} />;
   }
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={stations?.pages.flatMap((page) => page.stations)}
+      <FlatList<GasStation>
+        data={stations}
         renderItem={({ item }) => <StationListItem station={item} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
@@ -39,7 +73,7 @@ export default function StationsScreen() {
           />
         }
         onEndReached={() => {
-          if (hasNextPage) {
+          if (hasNextPage && !isFetchingNextPage) {
             fetchNextPage();
           }
         }}
@@ -64,14 +98,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.background,
   },
-  header: {
-    padding: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    marginBottom: 16,
-  },
   content: {
-    paddingHorizontal: 16,
+    padding: 16,
+    gap: 8,
+  },
+  header: {
+    marginBottom: 16,
   },
 });

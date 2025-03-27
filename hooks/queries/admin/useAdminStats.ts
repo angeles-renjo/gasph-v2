@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/utils/supabase/supabase";
+import { queryKeys } from "../utils/queryKeys";
+import { defaultQueryOptions } from "../utils/queryOptions";
 
 interface AdminStats {
   stationsCount: number;
@@ -9,8 +11,8 @@ interface AdminStats {
 }
 
 export function useAdminStats() {
-  return useQuery({
-    queryKey: ["adminStats"],
+  return useQuery<AdminStats, Error>({
+    queryKey: queryKeys.admin.stats.all(),
     queryFn: async (): Promise<AdminStats> => {
       // Get stations count
       const { count: stationsCount, error: stationsError } = await supabase
@@ -51,6 +53,6 @@ export function useAdminStats() {
         lastImportDate: lastImport?.created_at || null,
       };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    ...defaultQueryOptions.admin.stats,
   });
 }

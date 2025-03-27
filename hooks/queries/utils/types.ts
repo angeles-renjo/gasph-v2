@@ -30,3 +30,58 @@ export interface PriceCycle {
 }
 
 // ... other existing types
+
+export interface GooglePlacesStation {
+  place_id: string;
+  name: string;
+  geometry?: {
+    location: {
+      lat: number;
+      lng: number;
+    };
+  };
+  formatted_address?: string;
+  opening_hours?: {
+    periods: Array<{
+      open: { day: number; time: string };
+      close: { day: number; time: string };
+    }>;
+    weekday_text: string[];
+  };
+  types?: string[];
+}
+
+export interface Station {
+  name: string;
+  brand: string;
+  address: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  amenities: Record<string, boolean>;
+  operating_hours: Record<string, string>;
+  status: "active";
+}
+
+export interface PlaceDetails {
+  formatted_address: string;
+  geometry: {
+    location: {
+      lat: number;
+      lng: number;
+    };
+  };
+  opening_hours?: {
+    periods: Array<{
+      open: { day: number; time: string };
+      close: { day: number; time: string };
+    }>;
+    weekday_text: string[];
+  };
+  types?: string[];
+}
+
+export interface ImportResult {
+  importedStations: Station[];
+  errors: Array<{ city: string; error: string }>;
+}

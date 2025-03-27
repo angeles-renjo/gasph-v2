@@ -43,10 +43,23 @@ export const queryKeys = {
     all: ["stations"] as const,
     list: () => [...queryKeys.stations.all, "list"] as const,
     detail: (id: string) => [...queryKeys.stations.all, "detail", id] as const,
+    nearby: (params: { location: LocationData | null; radiusKm: number }) =>
+      [...queryKeys.stations.all, "nearby", params] as const,
   },
   users: {
     all: ["users"] as const,
     profile: () => [...queryKeys.users.all, "profile"] as const,
     preferences: () => [...queryKeys.users.all, "preferences"] as const,
+  },
+  admin: {
+    all: ["admin"] as const,
+    stations: {
+      all: () => [...queryKeys.admin.all, "stations"] as const,
+      list: () => [...queryKeys.admin.stations.all(), "list"] as const,
+      import: () => [...queryKeys.admin.stations.all(), "import"] as const,
+    },
+    stats: {
+      all: () => [...queryKeys.admin.all, "stats"] as const,
+    },
   },
 } as const;

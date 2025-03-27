@@ -38,6 +38,13 @@ export const defaultQueryOptions = {
       cacheTime: 2 * 60 * 60 * 1000, // 2 hours
       refetchOnMount: true,
     },
+    nearby: {
+      staleTime: 5 * 60 * 1000, // 5 minutes - more frequent updates for location-based data
+      gcTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    },
   },
   users: {
     profile: {
@@ -50,6 +57,21 @@ export const defaultQueryOptions = {
       staleTime: 30 * 60 * 1000, // 30 minutes
       cacheTime: 60 * 60 * 1000, // 1 hour
       refetchOnMount: true,
+    },
+  },
+  admin: {
+    stations: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+    },
+    stats: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: false,
     },
   },
 } as const;
@@ -70,5 +92,15 @@ export const defaultMutationOptions = {
       retryDelay: 1000,
     },
   },
+  stations: {
+    nearby: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    },
+  },
+
   // Add other mutation options as needed
 } as const;
