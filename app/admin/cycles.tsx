@@ -7,36 +7,46 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  usePriceCycles,
-  useCreatePriceCycle,
-} from "@/hooks/queries/admin/usePriceCycles";
+import { usePriceCycles } from "@/hooks/queries/prices/usePriceCycles";
 import { ErrorDisplay } from "@/components/common/ErrorDisplay";
 import { Button } from "@/components/ui/Button";
 import { CreateCycleModal } from "@/components/admin/CreateCycleModal";
 import { PriceCycleCard } from "@/components/admin/PriceCycleCard";
+import type { PriceCycle } from "@/hooks/queries/prices/usePriceCycles";
 
 export default function CyclesScreen() {
   const [showCreateModal, setShowCreateModal] = React.useState(false);
 
-  const { data: cycles, isLoading, error, refetch } = usePriceCycles();
+  const {
+    cycles,
+    isLoading,
+    error,
+    refetch,
+    createCycle,
+    isCreating,
+    archiveCycle,
+    isArchiving,
+  } = usePriceCycles(true); // true to include archived cycles
 
-  const createCycleMutation = useCreatePriceCycle();
-
-  const handleCreateCycle = async (startDate: Date, endDate: Date) => {
+  const handleCreateCycle = async (
+    startDate: Date,
+    endDate: Date
+  ): Promise<PriceCycle> => {
     try {
-      const nextCycleNumber =
-        Math.max(...(cycles?.map((c) => c.cycle_number) || [0])) + 1;
-
-      await createCycleMutation.mutateAsync({
-        startDate,
-        endDate,
-        cycleNumber: nextCycleNumber,
-      });
-
+      const result = await createCycle({ startDate, endDate });
       setShowCreateModal(false);
+      return result;
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to create price cycle");
+      throw error;
+    }
+  };
+
+  const handleArchiveCycle = async (cycleId: string) => {
+    try {
+      await archiveCycle(cycleId);
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to archive cycle");
     }
   };
 
@@ -70,9 +80,8 @@ export default function CyclesScreen() {
           <PriceCycleCard
             key={cycle.id}
             cycle={cycle}
-            onArchive={async () => {
-              // Implement archive functionality
-            }}
+            onArchive={() => handleArchiveCycle(cycle.id)}
+            isArchiving={isArchiving}
           />
         ))}
       </ScrollView>
@@ -81,7 +90,7 @@ export default function CyclesScreen() {
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreateCycle}
-        loading={createCycleMutation.isPending}
+        loading={isCreating}
         nextCycleNumber={
           Math.max(...(cycles?.map((c) => c.cycle_number) || [0])) + 1
         }

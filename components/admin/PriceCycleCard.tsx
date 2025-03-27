@@ -3,19 +3,19 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatDate } from "@/utils/formatters";
+import type { PriceCycle } from "@/hooks/queries/prices/usePriceCycles";
 
 interface PriceCycleCardProps {
-  cycle: {
-    id: string;
-    cycle_number: number;
-    start_date: string;
-    end_date: string;
-    status: "active" | "archived";
-  };
+  cycle: PriceCycle;
   onArchive?: (id: string) => Promise<void>;
+  isArchiving?: boolean;
 }
 
-export function PriceCycleCard({ cycle, onArchive }: PriceCycleCardProps) {
+export function PriceCycleCard({
+  cycle,
+  onArchive,
+  isArchiving,
+}: PriceCycleCardProps) {
   const handleArchive = async () => {
     Alert.alert(
       "Archive Cycle",
@@ -47,17 +47,24 @@ export function PriceCycleCard({ cycle, onArchive }: PriceCycleCardProps) {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Cycle #{cycle.cycle_number}</Text>
+          {cycle.doe_import_date && (
+            <Text style={styles.importDate}>
+              Imported: {formatDate(cycle.doe_import_date)}
+            </Text>
+          )}
         </View>
         <View
           style={[
             styles.statusBadge,
             cycle.status === "archived" && styles.archivedBadge,
+            cycle.status === "completed" && styles.completedBadge,
           ]}
         >
           <Text
             style={[
               styles.statusText,
               cycle.status === "archived" && styles.archivedText,
+              cycle.status === "completed" && styles.completedText,
             ]}
           >
             {cycle.status.toUpperCase()}
@@ -82,6 +89,8 @@ export function PriceCycleCard({ cycle, onArchive }: PriceCycleCardProps) {
           onPress={handleArchive}
           variant="outline"
           style={styles.archiveButton}
+          loading={isArchiving}
+          disabled={isArchiving}
         />
       )}
     </Card>
@@ -96,13 +105,18 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 16,
   },
   title: {
     fontSize: 18,
     fontWeight: "600",
     color: "#333",
+  },
+  importDate: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 4,
   },
   statusBadge: {
     backgroundColor: "#e6f7f5",
@@ -113,6 +127,9 @@ const styles = StyleSheet.create({
   archivedBadge: {
     backgroundColor: "#f5f5f5",
   },
+  completedBadge: {
+    backgroundColor: "#fff3e0",
+  },
   statusText: {
     fontSize: 12,
     fontWeight: "bold",
@@ -120,6 +137,9 @@ const styles = StyleSheet.create({
   },
   archivedText: {
     color: "#666",
+  },
+  completedText: {
+    color: "#f57c00",
   },
   dates: {
     flexDirection: "row",
