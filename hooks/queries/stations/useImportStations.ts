@@ -11,7 +11,6 @@ import {
   searchGasStations,
 } from "@/utils/placesApi";
 import { queryKeys } from "../utils/queryKeys";
-import { defaultMutationOptions } from "../utils/queryOptions";
 import { supabase } from "@/utils/supabase/supabase";
 import type {
   Station,

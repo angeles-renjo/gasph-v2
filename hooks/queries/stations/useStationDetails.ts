@@ -3,6 +3,8 @@ import { supabase } from "@/utils/supabase/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { queryKeys } from "../utils/queryKeys";
 import { defaultQueryOptions } from "../utils/queryOptions";
+import { DOEPrice } from "@/components/price/DOEPriceTable";
+import { PriceCardProps } from "@/components/price/PriceCard";
 
 interface GasStation {
   id: string;
@@ -39,18 +41,9 @@ interface ActivePriceReport {
   confidence_score: number;
 }
 
-interface EnhancedPriceReport extends ActivePriceReport {
-  isOwnReport: boolean;
-  userHasConfirmed: boolean;
-}
-
 interface StationWithPrices extends GasStation {
-  communityPrices: EnhancedPriceReport[];
-  doePrices: Array<{
-    fuel_type: string;
-    price: number;
-    week_of: string;
-  }>;
+  communityPrices: PriceCardProps[];
+  doePrices: DOEPrice[];
   latestDOEDate?: string;
 }
 
@@ -81,35 +74,27 @@ export function useStationDetails(stationId: string | null) {
 
       if (communityError) throw communityError;
 
-      // Get user confirmations if logged in
-      let userConfirmations: Record<string, boolean> = {};
-      if (user) {
-        const { data: confirmations } = await supabase
-          .from("price_confirmations")
-          .select("report_id")
-          .eq("user_id", user.id)
-          .in(
-            "report_id",
-            (communityPrices || []).map((p) => p.id)
-          );
-
-        userConfirmations = (confirmations || []).reduce(
-          (acc, { report_id }) => ({ ...acc, [report_id]: true }),
-          {}
-        );
-      }
-
-      // Enhance price reports with user-specific data
-      const enhancedPrices = (communityPrices || []).map((price) => ({
-        ...price,
-        isOwnReport: user && price.user_id === user.id,
-        userHasConfirmed: userConfirmations[price.id] || false,
-      }));
+      // Map the community prices to match PriceCardProps
+      const enhancedPrices = (communityPrices || []).map(
+        (price): PriceCardProps => ({
+          id: price.id,
+          station_id: price.station_id,
+          fuel_type: price.fuel_type,
+          price: price.price,
+          reported_at: price.reported_at,
+          confirmations_count: price.confirmations_count,
+          cycle_id: price.cycle_id,
+          source: "community",
+          username: price.reporter_username,
+          user_id: price.user_id,
+          isOwnReport: user ? price.user_id === user.id : false,
+        })
+      );
 
       return {
         ...station,
         communityPrices: enhancedPrices,
-        doePrices: [], // We'll implement DOE prices in a separate PR
+        doePrices: [], // Will be implemented with proper DOE price handling
         latestDOEDate: undefined,
       };
     },

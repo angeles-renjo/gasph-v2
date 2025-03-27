@@ -13,7 +13,7 @@ export default function ImportStationsScreen() {
   const {
     apiKey,
     setApiKey,
-    isImporting,
+    isPending,
     importStatuses,
     overallProgress,
     importGasStations,
@@ -51,15 +51,15 @@ export default function ImportStationsScreen() {
               secureTextEntry
             />
             <Button
-              title={isImporting ? "Importing..." : "Start Import"}
+              title={isPending ? "Importing..." : "Start Import"}
               onPress={importGasStations}
-              loading={isImporting}
-              disabled={isImporting || !apiKey.trim()}
+              loading={isPending}
+              disabled={isPending || !apiKey.trim()}
               style={styles.importButton}
             />
           </Card>
 
-          {isImporting && (
+          {isPending && (
             <Card style={styles.progressCard}>
               <Text style={styles.sectionTitle}>Overall Progress</Text>
               <View style={styles.progressBarContainer}>

@@ -1,11 +1,11 @@
 const openAppSettings = () => {
-  if (Platform.OS === 'ios') {
-    Linking.openURL('app-settings:');
+  if (Platform.OS === "ios") {
+    Linking.openURL("app-settings:");
   } else {
     Linking.openSettings();
   }
 };
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,29 +17,29 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome5 } from '@expo/vector-icons';
-import { useNearbyStations } from '@/hooks/useNearbyStations';
-import { useLocation } from '@/hooks/useLocation';
-import { StationCard } from '@/components/station/StationCard';
-import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import { ErrorDisplay } from '@/components/common/ErrorDisplay';
-import { EmptyState } from '@/components/common/EmptyState';
-import { Database } from '@/utils/supabase/types';
-import { Button } from '@/components/ui/Button';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { FontAwesome5 } from "@expo/vector-icons";
+import { useNearbyStations } from "@/hooks/queries/stations/useNearbyStations";
+import { useLocation } from "@/hooks/useLocation";
+import { StationCard } from "@/components/station/StationCard";
+import { LoadingIndicator } from "@/components/common/LoadingIndicator";
+import { ErrorDisplay } from "@/components/common/ErrorDisplay";
+import { EmptyState } from "@/components/common/EmptyState";
+import { Database } from "@/utils/supabase/types";
+import { Button } from "@/components/ui/Button";
 
-type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
+type GasStation = Database["public"]["Tables"]["gas_stations"]["Row"] & {
   distance?: number;
 };
 
 const POPULAR_BRANDS = [
-  'Shell',
-  'Petron',
-  'Caltex',
-  'Phoenix',
-  'Seaoil',
-  'CleanFuel',
+  "Shell",
+  "Petron",
+  "Caltex",
+  "Phoenix",
+  "Seaoil",
+  "CleanFuel",
 ];
 
 export default function ExploreScreen() {
@@ -52,7 +52,7 @@ export default function ExploreScreen() {
   } = useLocation();
 
   const locationData = getLocationWithFallback();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [filteredStations, setFilteredStations] = useState<GasStation[]>([]);
   const [usingDefaultLocation, setUsingDefaultLocation] = useState(false);
@@ -63,7 +63,11 @@ export default function ExploreScreen() {
     error,
     refetch,
     isRefetching,
-  } = useNearbyStations(15, true, locationData); // Always enabled, using location or fallback
+  } = useNearbyStations({
+    radiusKm: 15,
+    enabled: true,
+    providedLocation: locationData,
+  });
 
   // Update notification banner when using default location
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function ExploreScreen() {
 
   if (locationLoading) {
     return (
-      <LoadingIndicator fullScreen message='Getting location information...' />
+      <LoadingIndicator fullScreen message="Getting location information..." />
     );
   }
 
@@ -115,25 +119,25 @@ export default function ExploreScreen() {
     return (
       <ErrorDisplay
         fullScreen
-        message='There was an error loading station data. Please try again.'
+        message="There was an error loading station data. Please try again."
         onRetry={refetch}
       />
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
       >
         {usingDefaultLocation && (
           <View style={styles.defaultLocationBanner}>
             <FontAwesome5
-              name='info-circle'
+              name="info-circle"
               size={16}
-              color='#fff'
+              color="#fff"
               style={styles.bannerIcon}
             />
             <Text style={styles.bannerText}>
@@ -143,8 +147,8 @@ export default function ExploreScreen() {
             <TouchableOpacity
               style={styles.bannerButton}
               onPress={() => {
-                if (Platform.OS === 'ios') {
-                  Linking.openURL('app-settings:');
+                if (Platform.OS === "ios") {
+                  Linking.openURL("app-settings:");
                 } else {
                   Linking.openSettings();
                 }
@@ -158,21 +162,21 @@ export default function ExploreScreen() {
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
             <FontAwesome5
-              name='search'
+              name="search"
               size={16}
-              color='#999'
+              color="#999"
               style={styles.searchIcon}
             />
             <TextInput
               style={styles.searchInput}
-              placeholder='Search stations, brands, or addresses'
+              placeholder="Search stations, brands, or addresses"
               value={searchQuery}
               onChangeText={setSearchQuery}
-              clearButtonMode='while-editing'
+              clearButtonMode="while-editing"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <FontAwesome5 name='times-circle' size={16} color='#999' />
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <FontAwesome5 name="times-circle" size={16} color="#999" />
               </TouchableOpacity>
             )}
           </View>
@@ -207,7 +211,7 @@ export default function ExploreScreen() {
         </View>
 
         {isLoading ? (
-          <LoadingIndicator message='Finding stations near you...' />
+          <LoadingIndicator message="Finding stations near you..." />
         ) : filteredStations.length > 0 ? (
           <FlatList
             data={filteredStations}
@@ -220,20 +224,20 @@ export default function ExploreScreen() {
           />
         ) : (
           <EmptyState
-            title='No Stations Found'
+            title="No Stations Found"
             message={
               searchQuery || selectedBrand
                 ? "We couldn't find any stations matching your filters. Try a different search or clear your filters."
                 : "We couldn't find any gas stations near you. Try increasing the search radius."
             }
-            icon='gas-pump'
+            icon="gas-pump"
             actionLabel={
-              searchQuery || selectedBrand ? 'Clear Filters' : undefined
+              searchQuery || selectedBrand ? "Clear Filters" : undefined
             }
             onAction={
               searchQuery || selectedBrand
                 ? () => {
-                    setSearchQuery('');
+                    setSearchQuery("");
                     setSelectedBrand(null);
                   }
                 : undefined
@@ -248,12 +252,12 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   defaultLocationBanner: {
-    backgroundColor: '#e76f51',
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#e76f51",
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
@@ -262,31 +266,31 @@ const styles = StyleSheet.create({
   },
   bannerText: {
     flex: 1,
-    color: '#fff',
+    color: "#fff",
     fontSize: 12,
   },
   bannerButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 4,
     marginLeft: 8,
   },
   bannerButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   searchContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: "#eee",
   },
   searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
     paddingHorizontal: 12,
     borderRadius: 8,
   },
@@ -297,13 +301,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     fontSize: 16,
-    color: '#333',
+    color: "#333",
   },
   brandFilterContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: "#eee",
   },
   brandList: {
     paddingHorizontal: 16,
@@ -312,19 +316,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
     marginRight: 8,
   },
   selectedBrandChip: {
-    backgroundColor: '#2a9d8f',
+    backgroundColor: "#2a9d8f",
   },
   brandChipText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   selectedBrandChipText: {
-    color: '#fff',
-    fontWeight: '500',
+    color: "#fff",
+    fontWeight: "500",
   },
   stationList: {
     padding: 16,

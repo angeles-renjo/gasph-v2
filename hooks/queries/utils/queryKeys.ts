@@ -17,6 +17,8 @@ export const queryKeys = {
       detail: (id: string) =>
         [...queryKeys.prices.cycles.all(), "detail", id] as const,
       active: () => [...queryKeys.prices.cycles.all(), "active"] as const,
+      nextNumber: () =>
+        [...queryKeys.prices.cycles.all(), "nextNumber"] as const,
     },
     best: {
       all: () => [...queryKeys.prices.all, "best"] as const,
@@ -53,6 +55,10 @@ export const queryKeys = {
   },
   admin: {
     all: ["admin"] as const,
+    users: {
+      all: () => [...queryKeys.admin.all, "users"] as const,
+      list: () => [...queryKeys.admin.users.all(), "list"] as const,
+    },
     stations: {
       all: () => [...queryKeys.admin.all, "stations"] as const,
       list: () => [...queryKeys.admin.stations.all(), "list"] as const,

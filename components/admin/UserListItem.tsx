@@ -3,14 +3,14 @@ import { View, Text, StyleSheet, Image } from "react-native";
 import { Card } from "@/components/ui/Card";
 import { FontAwesome5 } from "@expo/vector-icons";
 
-interface UserListItemProps {
+export interface UserListItemProps {
   user: {
     id: string;
     username: string;
-    email: string;
+    email?: string;
     avatar_url?: string;
     is_admin: boolean;
-    reportCount: number;
+    reportCount?: number;
     created_at: string;
   };
 }

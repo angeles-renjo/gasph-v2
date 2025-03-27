@@ -8,13 +8,17 @@ import type { PriceCycle } from "@/hooks/queries/prices/usePriceCycles";
 interface PriceCycleCardProps {
   cycle: PriceCycle;
   onArchive?: (id: string) => Promise<void>;
+  onActivate?: (id: string) => Promise<void>;
   isArchiving?: boolean;
+  isActivating?: boolean;
 }
 
 export function PriceCycleCard({
   cycle,
   onArchive,
+  onActivate,
   isArchiving,
+  isActivating,
 }: PriceCycleCardProps) {
   const handleArchive = async () => {
     Alert.alert(
@@ -35,6 +39,31 @@ export function PriceCycleCard({
               }
             } catch (error) {
               Alert.alert("Error", "Failed to archive price cycle");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleActivate = async () => {
+    Alert.alert(
+      "Activate Cycle",
+      "Are you sure you want to activate this price cycle? This will deactivate the current active cycle.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Activate",
+          onPress: async () => {
+            try {
+              if (onActivate) {
+                await onActivate(cycle.id);
+              }
+            } catch (error) {
+              Alert.alert("Error", "Failed to activate price cycle");
             }
           },
         },
@@ -83,16 +112,28 @@ export function PriceCycleCard({
         </View>
       </View>
 
-      {cycle.status === "active" && onArchive && (
-        <Button
-          title="Archive Cycle"
-          onPress={handleArchive}
-          variant="outline"
-          style={styles.archiveButton}
-          loading={isArchiving}
-          disabled={isArchiving}
-        />
-      )}
+      <View style={styles.actions}>
+        {cycle.status === "completed" && onActivate && (
+          <Button
+            title="Activate Cycle"
+            onPress={handleActivate}
+            variant="primary"
+            style={styles.actionButton}
+            loading={isActivating}
+            disabled={isActivating}
+          />
+        )}
+        {cycle.status === "active" && onArchive && (
+          <Button
+            title="Archive Cycle"
+            onPress={handleArchive}
+            variant="outline"
+            style={styles.actionButton}
+            loading={isArchiving}
+            disabled={isArchiving}
+          />
+        )}
+      </View>
     </Card>
   );
 }
@@ -158,7 +199,12 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#333",
   },
-  archiveButton: {
+  actions: {
     marginTop: 8,
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionButton: {
+    flex: 1,
   },
 });

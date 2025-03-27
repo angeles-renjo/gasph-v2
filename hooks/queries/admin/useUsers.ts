@@ -1,62 +1,38 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/utils/supabase/supabase";
+import { queryKeys } from "@/hooks/queries/utils/queryKeys";
+import type { UserListItemProps } from "@/components/admin/UserListItem";
 
-const PAGE_SIZE = 20;
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  avatar_url?: string;
-  is_admin: boolean;
-  created_at: string;
-  reportCount: number; // Added to match UserListItem requirements
-}
-
-interface UsersResponse {
-  users: User[];
-  totalCount: number;
-}
+type User = UserListItemProps["user"];
 
 export function useUsers() {
-  return useInfiniteQuery({
-    queryKey: ["adminUsers"],
-    queryFn: async ({ pageParam }) => {
-      const from = pageParam * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      const { data, error, count } = await supabase
+  return useQuery({
+    queryKey: queryKeys.admin.users.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("profiles")
         .select(
           `
-          *,
-          user_price_reports!inner(id)
+          id,
+          username,
+          avatar_url,
+          reputation_score,
+          is_admin,
+          created_at
         `
         )
-        .range(from, to)
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      // Transform the data to include reportCount
-      const usersWithCount = (data || []).map((user) => ({
-        ...user,
-        reportCount: 0, // Default value, we'll update this with actual count later
-      })) as User[];
-
-      return {
-        users: usersWithCount,
-        totalCount: count || 0,
-      };
+      return data.map((user) => ({
+        id: user.id,
+        username: user.username,
+        avatar_url: user.avatar_url || undefined,
+        reputation_score: user.reputation_score || 0,
+        is_admin: user.is_admin || false,
+        created_at: user.created_at,
+      }));
     },
-    initialPageParam: 0,
-    getNextPageParam: (lastPage: UsersResponse, allPages) => {
-      const totalFetched = allPages.length * PAGE_SIZE;
-      return totalFetched < lastPage.totalCount ? allPages.length : undefined;
-    },
-    staleTime: 5 * 60 * 1000,
   });
 }

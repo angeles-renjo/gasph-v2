@@ -1,4 +1,3 @@
-// app/station/[id].tsx
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -12,7 +11,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { FontAwesome5 } from "@expo/vector-icons";
-import { useStationDetails } from "@/hooks/useStationDetails";
+import { useStationDetails } from "@/hooks/queries/stations/useStationDetails";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/utils/supabase/supabase";
 import { PriceCard } from "@/components/price/PriceCard";
@@ -205,19 +204,20 @@ export default function StationDetailScreen() {
           Object.entries(pricesByFuelType).map(([fuelType, prices]) => (
             <View key={fuelType} style={styles.fuelTypeSection}>
               <Text style={styles.fuelTypeTitle}>{fuelType}</Text>
+
               {prices.map((price) => (
                 <PriceCard
                   key={price.id}
-                  id={price.id}
-                  stationId={id || ""}
-                  fuelType={price.fuel_type}
+                  id={price.id} // Add this
+                  station_id={id || ""}
+                  fuel_type={price.fuel_type}
                   price={price.price}
-                  date={price.reported_at}
+                  reported_at={price.reported_at}
                   source="community"
-                  username={price.reporter_username}
-                  userId={price.user_id}
-                  confirmationsCount={price.confirmationsCount}
-                  userHasConfirmed={price.userHasConfirmed}
+                  username={price.username} // Changed from reporter_username
+                  user_id={price.user_id}
+                  confirmations_count={price.confirmations_count}
+                  cycle_id={price.cycle_id} // Add this
                   isOwnReport={price.isOwnReport}
                 />
               ))}
@@ -238,10 +238,18 @@ export default function StationDetailScreen() {
           </Card>
         )}
       </View>
+
+      {/* DOE Prices */}
       {station.doePrices && station.doePrices.length > 0 ? (
         <View style={styles.section}>
           <DOEPriceTable
-            prices={station.doePrices}
+            prices={station.doePrices.map((price) => ({
+              fuel_type: price.fuel_type,
+              min_price: price.min_price, // Changed from price.price
+              max_price: price.max_price, // Changed from price.price
+              common_price: price.common_price, // Changed from price.price
+              week_of: price.week_of,
+            }))}
             latestDate={station.latestDOEDate}
           />
         </View>
@@ -332,6 +340,7 @@ export default function StationDetailScreen() {
                 </Text>
               </View>
             )}
+
             <Text style={styles.inputLabel}>Fuel Type</Text>
             <View style={styles.fuelTypeSelector}>
               {(

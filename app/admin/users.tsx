@@ -1,38 +1,39 @@
 import React from "react";
-import { View, StyleSheet, FlatList, RefreshControl } from "react-native";
+import { StyleSheet, FlatList, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useUsers } from "@/hooks/queries/admin/useUsers";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ErrorDisplay } from "@/components/common/ErrorDisplay";
 import { UserListItem } from "@/components/admin/UserListItem";
+import { EmptyState } from "@/components/common/EmptyState";
+import { useUsers } from "@/hooks/queries/admin/useUsers";
 
 export default function UsersScreen() {
-  const {
-    data: users,
-    isLoading,
-    error,
-    refetch,
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage,
-  } = useUsers();
+  const { data: users, isLoading, isError, refetch } = useUsers();
 
-  console.log("Debug info:", {
-    isLoading,
-    error,
-    hasData: !!users,
-    pagesCount: users?.pages?.length,
-    errorDetails: error instanceof Error ? error.message : error,
-  });
+  if (isLoading) {
+    return <LoadingIndicator message="Loading users..." />;
+  }
 
-  if (error) {
+  if (isError) {
     return <ErrorDisplay message="Failed to load users" onRetry={refetch} />;
+  }
+
+  if (!users?.length) {
+    return (
+      <EmptyState
+        message="No users found"
+        onAction={{
+          label: "Refresh",
+          onPress: refetch,
+        }}
+      />
+    );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <FlatList
-        data={users?.pages.flatMap((page) => page.users)}
+        data={users}
         renderItem={({ item }) => <UserListItem user={item} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
@@ -43,13 +44,6 @@ export default function UsersScreen() {
             tintColor="#2a9d8f"
           />
         }
-        onEndReached={() => {
-          if (hasNextPage) {
-            fetchNextPage();
-          }
-        }}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={isFetchingNextPage ? <LoadingIndicator /> : null}
       />
     </SafeAreaView>
   );
@@ -62,5 +56,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    flexGrow: 1,
   },
 });
