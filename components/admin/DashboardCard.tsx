@@ -28,7 +28,10 @@ export function DashboardCard({
 }: DashboardCardProps) {
   return (
     <Link href={href} asChild>
-      <Pressable style={styles.card}>
+      <Pressable
+        style={styles.card}
+        android_ripple={{ color: Colors.light.tint + "20" }}
+      >
         <View style={styles.iconContainer}>
           <Ionicons name={icon} size={24} color={Colors.light.tint} />
         </View>
@@ -44,7 +47,8 @@ export function DashboardCard({
         <Ionicons
           name="chevron-forward"
           size={20}
-          color="#9CA3AF" // Using a literal color for the chevron
+          color="#9CA3AF"
+          style={styles.chevron}
         />
       </Pressable>
     </Link>
@@ -54,49 +58,54 @@ export function DashboardCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "white",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.tint + "10", // Adding transparency to the tint color
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.light.tint + "12",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 16,
   },
   content: {
     flex: 1,
   },
   title: {
     fontSize: 16,
-    fontWeight: "500",
-    color: Colors.light.text,
-    marginBottom: 4,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 6,
   },
   value: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 22,
+    fontWeight: "700",
     color: Colors.light.tint,
   },
   subtitle: {
     fontSize: 14,
-    color: "#6B7280", // Using a literal color for subtitle
-    marginTop: 2,
+    color: "#6B7280",
+    marginTop: 4,
   },
   loadingValue: {
     height: 24,
     width: 80,
-    backgroundColor: "#E5E7EB", // Using a literal color for loading state
-    borderRadius: 4,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 6,
+  },
+  chevron: {
+    marginLeft: 8,
   },
 });
