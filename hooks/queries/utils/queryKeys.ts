@@ -68,4 +68,11 @@ export const queryKeys = {
       all: () => [...queryKeys.admin.all, "stats"] as const,
     },
   },
+
+  auth: {
+    all: ["auth"] as const,
+    session: () => [...queryKeys.auth.all, "session"] as const,
+    profile: (userId: string) =>
+      [...queryKeys.auth.all, "profile", userId] as const,
+  },
 } as const;

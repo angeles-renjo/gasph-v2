@@ -9,10 +9,12 @@ interface EmptyStateProps {
   icon?: string;
   iconColor?: string;
   actionLabel?: string;
-  onAction?: {
-    label: string;
-    onPress: () => void;
-  };
+  onAction?:
+    | {
+        label: string;
+        onPress: () => void;
+      }
+    | (() => void);
   fullScreen?: boolean;
   containerStyle?: ViewStyle;
   titleStyle?: TextStyle;
@@ -31,11 +33,12 @@ export function EmptyState({
   titleStyle,
   messageStyle,
 }: EmptyStateProps) {
-  console.log("EmptyState props:", {
-    title,
-    message,
-    onAction,
-  });
+  // Normalize onAction to ensure it's in the correct format
+  const actionProps =
+    typeof onAction === "function"
+      ? { label: actionLabel || "Action", onPress: onAction }
+      : onAction;
+
   return (
     <View
       style={[
@@ -48,11 +51,11 @@ export function EmptyState({
       <Text style={[styles.title, titleStyle]}>{title}</Text>
       <Text style={[styles.message, messageStyle]}>{message}</Text>
 
-      {onAction && (
+      {actionProps && (
         <View style={styles.buttonContainer}>
           <Button
-            title={onAction.label}
-            onPress={onAction.onPress}
+            title={actionProps.label}
+            onPress={actionProps.onPress}
             variant="outline"
           />
         </View>

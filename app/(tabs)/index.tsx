@@ -188,10 +188,12 @@ export default function BestPricesScreen() {
               : `No fuel prices found within ${maxDistance} km. Try expanding your search distance.`
           }
           icon="gas-pump"
-          actionLabel="Reset Filters"
-          onAction={() => {
-            setSelectedFuelType(undefined);
-            setMaxDistance(15);
+          onAction={{
+            label: "Reset Filters",
+            onPress: () => {
+              setSelectedFuelType(undefined);
+              setMaxDistance(15);
+            },
           }}
         />
       );

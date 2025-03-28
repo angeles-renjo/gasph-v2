@@ -1,18 +1,20 @@
-import 'expo-dev-client';
-import { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { QueryClientProvider } from '@tanstack/react-query';
-import * as SplashScreen from 'expo-splash-screen';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { queryClient } from '@/lib/query-client';
-import { useAuth } from '@/hooks/useAuth';
+import "expo-dev-client";
+import { useEffect } from "react";
+import { Stack, useRouter, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import * as SplashScreen from "expo-splash-screen";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { queryClient } from "@/lib/query-client";
+import { useAuth } from "@/hooks/useAuth";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
-// This function will wrap our app and handle auth redirection
-function RootLayoutNav() {
+// Separate auth-aware navigation component
+function AuthenticatedNavigator() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -20,54 +22,57 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading) return;
 
-    // Check if the user is authenticated
-    // If not, redirect to the sign-in page
-    // We only want to do this for protected routes (tabs)
-    const inAuthGroup = segments[0] === '(tabs)';
-    const inAuthScreens = segments[0] === 'auth';
+    const inAuthGroup = segments[0] === "(tabs)";
+    const inAuthScreens = segments[0] === "auth";
+
+    console.log("Navigation check:", {
+      user,
+      inAuthGroup,
+      inAuthScreens,
+      segments,
+    });
 
     if (!user && inAuthGroup) {
-      // Redirect to sign-in if accessing protected routes without auth
-      router.replace('/auth/sign-in');
+      console.log("Should redirect to sign-in");
+      router.replace("/auth/sign-in");
     } else if (user && inAuthScreens) {
-      // Redirect to home if accessing auth screens while logged in
-      router.replace('/');
+      console.log("Should redirect to home");
+      router.replace("/");
     }
   }, [user, loading, segments]);
-
   return (
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#2a9d8f',
+          backgroundColor: "#2a9d8f",
         },
-        headerTintColor: '#fff',
+        headerTintColor: "#fff",
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: "bold",
         },
       }}
     >
-      <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
-        name='station/[id]'
+        name="station/[id]"
         options={{
-          title: 'Station Details',
-          presentation: 'card',
+          title: "Station Details",
+          presentation: "card",
         }}
       />
       <Stack.Screen
-        name='auth/sign-in'
+        name="auth/sign-in"
         options={{
-          title: 'Sign In',
-          presentation: 'modal',
+          title: "Sign In",
+          presentation: "modal",
           headerShown: false,
         }}
       />
       <Stack.Screen
-        name='auth/sign-up'
+        name="auth/sign-up"
         options={{
-          title: 'Sign Up',
-          presentation: 'modal',
+          title: "Sign Up",
+          presentation: "modal",
           headerShown: false,
         }}
       />
@@ -75,27 +80,50 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+// Splash screen handler component
+function SplashScreenHandler({ children }: { children: React.ReactNode }) {
   const { loading } = useAuth();
 
   useEffect(() => {
-    // Hide splash screen once authentication state is determined
     if (!loading) {
       SplashScreen.hideAsync();
     }
   }, [loading]);
 
-  // While authentication is loading, don't render anything
   if (loading) {
     return null;
   }
 
+  return children;
+}
+
+// Main app layout
+export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: createAsyncStoragePersister({
+          storage: AsyncStorage,
+          key: "GASPH_QUERY_CACHE",
+          throttleTime: 1000,
+        }),
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) => {
+            const queryKey = query.queryKey as string[];
+            return (
+              !queryKey.includes("realtime") && !queryKey.includes("session")
+            );
+          },
+        },
+      }}
+    >
       <SafeAreaProvider>
-        <StatusBar style='auto' />
-        <RootLayoutNav />
+        <StatusBar style="auto" />
+        <SplashScreenHandler>
+          <AuthenticatedNavigator />
+        </SplashScreenHandler>
       </SafeAreaProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }
