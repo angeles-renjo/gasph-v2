@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { formatDate } from "@/utils/formatters";
 import type { PriceCycle } from "@/hooks/queries/prices/usePriceCycles";
+import { Alert } from "react-native";
 
 interface CreateCycleModalProps {
   visible: boolean;
@@ -63,21 +64,17 @@ export function CreateCycleModal({
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      const newCycle = await onSubmit(startDate, endDate);
+      await onSubmit(startDate, endDate);
       // Reset form state after successful submission
       setStartDate(new Date());
       const newEndDate = new Date();
       newEndDate.setDate(newEndDate.getDate() + 7);
       setEndDate(newEndDate);
-      return newCycle;
     } catch (error) {
-      // Error handling is done in the parent component
-      throw error;
     } finally {
       setIsSubmitting(false);
     }
   };
-
   const isDisabled = endDate < startDate || loading || isSubmitting;
 
   return (

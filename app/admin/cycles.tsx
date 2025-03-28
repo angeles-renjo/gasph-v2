@@ -26,6 +26,8 @@ export default function CyclesScreen() {
     isCreating,
     archiveCycle,
     isArchiving,
+    activateCycle,
+    isActivating,
   } = usePriceCycles(true); // true to include archived cycles
 
   const handleCreateCycle = async (
@@ -37,7 +39,8 @@ export default function CyclesScreen() {
       setShowCreateModal(false);
       return result;
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to create price cycle");
+      // Don't show an alert here - let the hook handle it
+      // Just rethrow to complete the Promise rejection
       throw error;
     }
   };
@@ -55,6 +58,13 @@ export default function CyclesScreen() {
       <ErrorDisplay message="Failed to load price cycles" onRetry={refetch} />
     );
   }
+  const handleActivateCycle = async (cycleId: string) => {
+    try {
+      await activateCycle(cycleId);
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to activate cycle");
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
@@ -80,7 +90,17 @@ export default function CyclesScreen() {
           <PriceCycleCard
             key={cycle.id}
             cycle={cycle}
-            onArchive={() => handleArchiveCycle(cycle.id)}
+            onArchive={
+              cycle.status === "completed"
+                ? () => handleArchiveCycle(cycle.id)
+                : undefined
+            }
+            onActivate={
+              cycle.status === "completed"
+                ? () => handleActivateCycle(cycle.id)
+                : undefined
+            }
+            isActivating={isActivating}
             isArchiving={isArchiving}
           />
         ))}
