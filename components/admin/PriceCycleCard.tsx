@@ -123,7 +123,7 @@ export function PriceCycleCard({
             disabled={isActivating}
           />
         )}
-        {cycle.status === "active" && onArchive && (
+        {cycle.status === "completed" && onArchive && (
           <Button
             title="Archive Cycle"
             onPress={handleArchive}
