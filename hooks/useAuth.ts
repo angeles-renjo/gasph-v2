@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/utils/supabase/supabase';
-import { Session, User } from '@supabase/supabase-js';
+// hooks/useAuth.ts
+import { useState, useEffect } from "react";
+import { supabase } from "@/utils/supabase/supabase";
+import { Session, User } from "@supabase/supabase-js";
 
 interface AuthState {
   user: User | null;
@@ -32,11 +33,11 @@ export function useAuth() {
         }
 
         if (currentSession) {
-          // Check if user is admin
+          // Check if user is admin - only once when getting the session
           const { data: profileData } = await supabase
-            .from('profiles')
-            .select('is_admin')
-            .eq('id', currentSession.user.id)
+            .from("profiles")
+            .select("is_admin")
+            .eq("id", currentSession.user.id)
             .single();
 
           setState({
@@ -54,7 +55,7 @@ export function useAuth() {
           });
         }
       } catch (error) {
-        console.error('Error getting current user:', error);
+        console.error("Error getting current user:", error);
         setState({
           user: null,
           session: null,
@@ -71,12 +72,16 @@ export function useAuth() {
       async (event, newSession) => {
         console.log(`Auth event: ${event}`);
 
-        if (newSession?.user) {
+        // Only check admin status on sign-in events
+        if (
+          newSession?.user &&
+          (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")
+        ) {
           // Check if user is admin
           const { data: profileData } = await supabase
-            .from('profiles')
-            .select('is_admin')
-            .eq('id', newSession.user.id)
+            .from("profiles")
+            .select("is_admin")
+            .eq("id", newSession.user.id)
             .single();
 
           setState({
@@ -85,13 +90,21 @@ export function useAuth() {
             loading: false,
             isAdmin: profileData?.is_admin === true,
           });
-        } else {
+        } else if (!newSession) {
           setState({
             session: null,
             user: null,
             loading: false,
             isAdmin: false,
           });
+        } else {
+          // For other auth events, just update session and user, keep isAdmin state
+          setState((prevState) => ({
+            session: newSession,
+            user: newSession.user,
+            loading: false,
+            isAdmin: prevState.isAdmin, // Keep existing admin status
+          }));
         }
       }
     );
