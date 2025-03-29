@@ -56,7 +56,7 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      signOut();
     } catch (error: any) {
       Alert.alert(
         "Sign Out Failed",
@@ -227,11 +227,17 @@ export default function ProfileScreen() {
     );
   }
 
-  // If not loading and no error, profileData should exist due to enabled flag in useUserProfile
+  // Handle the case where loading is done, no error, but data isn't ready OR user just signed out
   if (!profileData) {
+    // Check if the user is actually null (signing out) - if so, don't warn, just return null silently.
+    if (!user) {
+      return null;
+    }
+    // Otherwise, log the warning for potentially unexpected state transitions
     console.warn(
-      "Profile data is unexpectedly null/undefined after loading state."
+      "Profile data is null/undefined after loading and without error while user is still present. Component might be rendering during state transition."
     );
+    // Render error display
     return (
       <ErrorDisplay
         fullScreen
@@ -240,7 +246,6 @@ export default function ProfileScreen() {
       />
     );
   }
-
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>

@@ -9,6 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { queryClient } from "@/lib/query-client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/hooks/stores/useAuthStore";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -25,21 +26,13 @@ function AuthenticatedNavigator() {
     const inAuthGroup = segments[0] === "(tabs)";
     const inAuthScreens = segments[0] === "auth";
 
-    console.log("Navigation check:", {
-      user,
-      inAuthGroup,
-      inAuthScreens,
-      segments,
-    });
-
     if (!user && inAuthGroup) {
-      console.log("Should redirect to sign-in");
       router.replace("/auth/sign-in");
     } else if (user && inAuthScreens) {
-      console.log("Should redirect to home");
       router.replace("/");
     }
   }, [user, loading, segments]);
+
   return (
     <Stack
       screenOptions={{
@@ -82,15 +75,19 @@ function AuthenticatedNavigator() {
 
 // Splash screen handler component
 function SplashScreenHandler({ children }: { children: React.ReactNode }) {
-  const { loading } = useAuth();
+  const { loading, initialized, initialize } = useAuthStore();
 
   useEffect(() => {
-    if (!loading) {
+    if (!initialized) {
+      initialize();
+    }
+
+    if (!loading && initialized) {
       SplashScreen.hideAsync();
     }
-  }, [loading]);
+  }, [loading, initialized]);
 
-  if (loading) {
+  if (loading || !initialized) {
     return null;
   }
 

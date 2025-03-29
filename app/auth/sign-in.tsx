@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -28,8 +28,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function SignInScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { signIn, loading } = useAuth();
 
   const {
     control,
@@ -45,20 +44,13 @@ export default function SignInScreen() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      setLoading(true);
-      // TanStack mutations throw errors, so we just need the data
-      const response = await signIn(data);
-
-      // Success - navigate back to the app
+      await signIn(data);
       router.replace("/");
     } catch (error: any) {
-      // This will catch both Supabase and other errors
       Alert.alert(
         "Sign In Failed",
         error?.message || "An unexpected error occurred"
       );
-    } finally {
-      setLoading(false);
     }
   };
 
