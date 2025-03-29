@@ -56,23 +56,28 @@ export function usePriceConfirmation() {
       return data;
     },
 
+    // Note: We still keep the optimistic update for better UX
     onMutate: async ({ reportId, stationId }) => {
+      // Cancel any outgoing refetches to avoid them overwriting our optimistic update
       await queryClient.cancelQueries({
         queryKey: queryKeys.prices.best.all(),
+      });
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.stations.detail(stationId),
       });
       await queryClient.cancelQueries({
         queryKey: queryKeys.prices.confirmations.detail(reportId, user?.id),
       });
 
+      // Save the previous values for rollback if needed
       const previousBestPrices = queryClient.getQueryData(
         queryKeys.prices.best.all()
       );
-      const previousStationDetails = queryClient.getQueryData([
-        "stationDetails",
-        stationId,
-      ]);
+      const previousStationDetails = queryClient.getQueryData(
+        queryKeys.stations.detail(stationId)
+      );
 
-      // Simplified update focusing only on confirmations_count
+      // Optimistically update the best prices list if it exists in cache
       queryClient.setQueriesData(
         { queryKey: queryKeys.prices.best.all() },
         (old: any) => {
@@ -91,6 +96,26 @@ export function usePriceConfirmation() {
         }
       );
 
+      // Optimistically update the station details if it exists in cache
+      queryClient.setQueryData(
+        queryKeys.stations.detail(stationId),
+        (old: any) => {
+          if (!old || !old.communityPrices) return old;
+          return {
+            ...old,
+            communityPrices: old.communityPrices.map((price: any) =>
+              price.id === reportId
+                ? {
+                    ...price,
+                    confirmations_count: price.confirmations_count + 1,
+                  }
+                : price
+            ),
+          };
+        }
+      );
+
+      // Optimistically update the user's confirmation status
       queryClient.setQueryData(
         queryKeys.prices.confirmations.detail(reportId, user?.id),
         true
@@ -102,13 +127,41 @@ export function usePriceConfirmation() {
       } as ConfirmPriceContext;
     },
 
-    onError: (err, { reportId }, context) => {
+    // Handle successful mutation
+    onSuccess: (_, { reportId, stationId }) => {
+      // Explicitly set the user's confirmation status to true
+      queryClient.setQueryData(
+        queryKeys.prices.confirmations.detail(reportId, user?.id),
+        true
+      );
+
+      // Invalidate queries to ensure all UI components update properly
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.stations.detail(stationId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.prices.best.all(),
+      });
+    },
+
+    // Handle errors
+    onError: (err, { reportId, stationId }, context) => {
+      // Revert optimistic updates
       if (context?.previousBestPrices) {
         queryClient.setQueryData(
           queryKeys.prices.best.all(),
           context.previousBestPrices
         );
       }
+
+      if (context?.previousStationDetails) {
+        queryClient.setQueryData(
+          queryKeys.stations.detail(stationId),
+          context.previousStationDetails
+        );
+      }
+
+      // Reset confirmation status
       queryClient.setQueryData(
         queryKeys.prices.confirmations.detail(reportId, user?.id),
         false
@@ -120,6 +173,7 @@ export function usePriceConfirmation() {
       );
     },
 
+    // Regardless of success or error, make sure all queries have fresh data
     onSettled: (_, __, { reportId, stationId }) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.prices.best.all(),
@@ -128,7 +182,7 @@ export function usePriceConfirmation() {
         queryKey: queryKeys.prices.confirmations.detail(reportId, user?.id),
       });
       queryClient.invalidateQueries({
-        queryKey: ["stationDetails", stationId],
+        queryKey: queryKeys.stations.detail(stationId),
       });
     },
 
@@ -159,6 +213,8 @@ export function useHasConfirmedPrice(reportId: string) {
       return !!data;
     },
     ...defaultQueryOptions.prices.confirmations,
+    // Ensure this query doesn't cache results for too long
+    staleTime: 0,
     enabled: !!user && !!reportId,
   });
 }

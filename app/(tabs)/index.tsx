@@ -200,10 +200,12 @@ export default function BestPricesScreen() {
     }
 
     return (
-      // Update the FlatList renderItem
+      // Update the FlatList with a fix for the duplicate keys issue
       <FlatList
         data={data.prices}
-        keyExtractor={(item) => `${item.station_id}-${item.fuel_type}`}
+        keyExtractor={(item) =>
+          `${item.id || `${item.station_id}-${item.fuel_type}-${item.price}`}`
+        }
         renderItem={({ item }) => (
           <BestPriceCard
             station_id={item.station_id}
