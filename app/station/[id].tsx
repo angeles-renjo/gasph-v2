@@ -8,9 +8,11 @@ import {
   Modal,
   Alert,
   Linking,
+  Platform,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { FontAwesome5 } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query"; // Import useQueryClient
 import { useStationDetails } from "@/hooks/queries/stations/useStationDetails";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/utils/supabase/supabase";
@@ -23,51 +25,84 @@ import { ErrorDisplay } from "@/components/common/ErrorDisplay";
 import { Input } from "@/components/ui/Input";
 import { formatDate, formatOperatingHours } from "@/utils/formatters";
 import { FuelType } from "@/hooks/queries/prices/useBestPrices";
+import { queryKeys } from "@/hooks/queries/utils/queryKeys"; // Import queryKeys
 
 export default function StationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const queryClient = useQueryClient(); // Get query client instance
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [selectedFuelType, setSelectedFuelType] = useState<FuelType>("Diesel");
   const [price, setPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [currentCycle, setCurrentCycle] = useState<any>(null);
+  const [currentCycle, setCurrentCycle] = useState<any>(null); // Consider typing this better
 
+  // Fetch station details using TanStack Query
+  const {
+    data: station,
+    isLoading,
+    isError, // Renamed from error for clarity with query error object
+    error: stationError, // Use the error object from the query
+    refetch,
+  } = useStationDetails(id || null);
+
+  // Fetch current price cycle
   useEffect(() => {
     if (id) {
+      // Only fetch if id is available
       fetchCurrentCycle();
     }
-  }, [id]);
+  }, [id]); // Depend only on id
 
   const fetchCurrentCycle = async () => {
     try {
       const { data, error } = await supabase
         .from("price_reporting_cycles")
-        .select("*")
+        .select("id, cycle_number, start_date, end_date") // Select only needed fields
         .eq("status", "active")
-        .single();
+        .maybeSingle(); // Use maybeSingle to handle 0 or 1 result gracefully
 
-      if (error && error.code !== "PGRST116") {
-        console.error("Error fetching current cycle:", error);
+      if (error) {
+        // Don't throw, just log, as it might not be critical path
+        console.error("Error fetching current cycle:", error.message);
       } else if (data) {
         setCurrentCycle(data);
+      } else {
+        // No active cycle found
+        console.log("No active price reporting cycle found.");
+        setCurrentCycle(null);
       }
-    } catch (error) {
-      console.error("Error fetching current cycle:", error);
+    } catch (err) {
+      // Catch potential non-Supabase errors
+      if (err instanceof Error) {
+        console.error("Unexpected error fetching current cycle:", err.message);
+      } else {
+        console.error("Unexpected error fetching current cycle:", err);
+      }
     }
   };
 
-  const {
-    data: station,
-    isLoading,
-    error,
-    refetch,
-  } = useStationDetails(id || null);
-
   const openMapsApp = () => {
-    if (station) {
-      const url = `https://maps.google.com/?q=${station.latitude},${station.longitude}`;
-      Linking.openURL(url);
+    if (station?.latitude && station?.longitude) {
+      const scheme = Platform.OS === "ios" ? "maps://0,0?q=" : "geo:0,0?q=";
+      const latLng = `${station.latitude},${station.longitude}`;
+      const label = station.name;
+      const url =
+        Platform.OS === "ios"
+          ? `${scheme}${label}@${latLng}`
+          : `${scheme}${latLng}(${label})`;
+
+      Linking.canOpenURL(url)
+        .then((supported) => {
+          if (supported) {
+            return Linking.openURL(url);
+          } else {
+            Alert.alert("Error", "Could not open map application.");
+          }
+        })
+        .catch((err) => console.error("An error occurred opening map", err));
+    } else {
+      Alert.alert("Error", "Station location not available.");
     }
   };
 
@@ -80,33 +115,29 @@ export default function StationDetailScreen() {
       return;
     }
 
-    if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
-      Alert.alert("Invalid Price", "Please enter a valid price.");
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      Alert.alert("Invalid Price", "Please enter a valid positive price.");
+      return;
+    }
+
+    // Re-fetch or ensure currentCycle is available
+    if (!currentCycle) {
+      Alert.alert(
+        "Price Cycle Unavailable",
+        "Could not find an active price reporting cycle. Please try again shortly."
+      );
+      // Optionally try fetching it again
+      // await fetchCurrentCycle();
+      // if (!currentCycle) return; // Check again after fetch attempt
       return;
     }
 
     try {
       setSubmitting(true);
 
-      // Get current price cycle
-      const { data: cycles, error: cycleError } = await supabase
-        .from("price_reporting_cycles")
-        .select("*")
-        .eq("status", "active")
-        .single();
-
-      if (cycleError) throw cycleError;
-
-      if (!cycles) {
-        Alert.alert(
-          "Error",
-          "No active price cycle found. Please try again later."
-        );
-        return;
-      }
-
       // Set expiration date to the end of the current cycle
-      const expiresAt = new Date(cycles.end_date);
+      const expiresAt = new Date(currentCycle.end_date);
 
       // Submit the price report
       const { error: reportError } = await supabase
@@ -114,25 +145,40 @@ export default function StationDetailScreen() {
         .insert({
           station_id: id,
           fuel_type: selectedFuelType,
-          price: parseFloat(price),
+          price: parsedPrice, // Use parsed price
           user_id: user.id,
           expires_at: expiresAt.toISOString(),
-          cycle_id: cycles.id,
+          cycle_id: currentCycle.id,
         });
 
       if (reportError) throw reportError;
 
-      // Success
+      // --- Invalidate Queries ---
+      // Invalidate the user contributions query so ProfileScreen updates
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.users.contributions(user.id), // user is guaranteed here
+      });
+      // Invalidate the station details for the *current* screen to show new report/confirmation state
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.stations.detail(id),
+      });
+      // Invalidate best prices query as new data might affect it
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.prices.best.all(),
+      });
+
+      // Success feedback
       setReportModalVisible(false);
-      setPrice("");
+      setPrice(""); // Reset price input
       Alert.alert(
         "Success",
         "Your price report has been submitted. Thank you for contributing!"
       );
-      refetch();
+      // No need to call refetch() manually, invalidateQueries handles it for stationDetails
     } catch (error: any) {
+      console.error("Error submitting price report:", error);
       Alert.alert(
-        "Error",
+        "Submission Error",
         error.message || "Failed to submit price report. Please try again."
       );
     } finally {
@@ -140,23 +186,26 @@ export default function StationDetailScreen() {
     }
   };
 
+  // --- Render Logic ---
+
   if (isLoading) {
     return <LoadingIndicator fullScreen message="Loading station details..." />;
   }
 
-  if (error || !station) {
+  if (isError || !station) {
     return (
       <ErrorDisplay
         fullScreen
-        message="Failed to load station details. Please try again."
+        message={stationError?.message || "Failed to load station details."}
         onRetry={refetch}
       />
     );
   }
 
-  // Group price reports by fuel type
+  // Group price reports by fuel type (remains the same)
   const pricesByFuelType: Record<string, any[]> = {};
-  station.communityPrices.forEach((price) => {
+  station.communityPrices?.forEach((price) => {
+    // Add optional chaining
     if (!pricesByFuelType[price.fuel_type]) {
       pricesByFuelType[price.fuel_type] = [];
     }
@@ -208,16 +257,16 @@ export default function StationDetailScreen() {
               {prices.map((price) => (
                 <PriceCard
                   key={price.id}
-                  id={price.id} // Add this
+                  id={price.id}
                   station_id={id || ""}
                   fuel_type={price.fuel_type}
                   price={price.price}
                   reported_at={price.reported_at}
                   source="community"
-                  username={price.username} // Changed from reporter_username
+                  username={price.username}
                   user_id={price.user_id}
                   confirmations_count={price.confirmations_count}
-                  cycle_id={price.cycle_id} // Add this
+                  cycle_id={price.cycle_id}
                   isOwnReport={price.isOwnReport}
                 />
               ))}
@@ -245,9 +294,9 @@ export default function StationDetailScreen() {
           <DOEPriceTable
             prices={station.doePrices.map((price) => ({
               fuel_type: price.fuel_type,
-              min_price: price.min_price, // Changed from price.price
-              max_price: price.max_price, // Changed from price.price
-              common_price: price.common_price, // Changed from price.price
+              min_price: price.min_price,
+              max_price: price.max_price,
+              common_price: price.common_price,
               week_of: price.week_of,
             }))}
             latestDate={station.latestDOEDate}
@@ -297,7 +346,8 @@ export default function StationDetailScreen() {
                     .map(([key]) => (
                       <View key={key} style={styles.amenityBadge}>
                         <Text style={styles.amenityText}>
-                          {key.charAt(0).toUpperCase() + key.slice(1)}
+                          {key.charAt(0).toUpperCase() +
+                            key.slice(1).replace(/_/g, " ")}
                         </Text>
                       </View>
                     ))}
@@ -322,6 +372,7 @@ export default function StationDetailScreen() {
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setReportModalVisible(false)}
+                disabled={submitting} // Disable close while submitting
               >
                 <FontAwesome5 name="times" size={20} color="#666" />
               </TouchableOpacity>
@@ -330,13 +381,20 @@ export default function StationDetailScreen() {
             <Text style={styles.modalStationName}>{station.name}</Text>
 
             {/* Add cycle information */}
-            {currentCycle && (
+            {currentCycle ? (
               <View style={styles.cycleInfoContainer}>
                 <Text style={styles.cycleInfoLabel}>For price cycle:</Text>
                 <Text style={styles.cycleInfoValue}>
                   #{currentCycle.cycle_number}:{" "}
                   {formatDate(currentCycle.start_date)} to{" "}
                   {formatDate(currentCycle.end_date)}
+                </Text>
+              </View>
+            ) : (
+              // Optionally show loading or message if cycle is still loading/null
+              <View style={styles.cycleInfoContainer}>
+                <Text style={styles.cycleInfoLabel}>
+                  Checking active price cycle...
                 </Text>
               </View>
             )}
@@ -359,6 +417,7 @@ export default function StationDetailScreen() {
                     selectedFuelType === type && styles.selectedFuelType,
                   ]}
                   onPress={() => setSelectedFuelType(type)}
+                  disabled={submitting} // Disable selection while submitting
                 >
                   <Text
                     style={[
@@ -381,6 +440,7 @@ export default function StationDetailScreen() {
               leftIcon={
                 <FontAwesome5 name="dollar-sign" size={16} color="#777" />
               }
+              editable={!submitting} // Disable input while submitting
             />
 
             <View style={styles.modalFooter}>
@@ -389,12 +449,14 @@ export default function StationDetailScreen() {
                 variant="outline"
                 onPress={() => setReportModalVisible(false)}
                 style={styles.modalButton}
+                disabled={submitting} // Disable cancel while submitting
               />
               <Button
-                title="Submit"
+                title={submitting ? "Submitting..." : "Submit"}
                 onPress={handleReportPrice}
                 loading={submitting}
                 style={styles.modalButton}
+                disabled={submitting || !currentCycle} // Disable if submitting or no cycle
               />
             </View>
           </View>
@@ -404,6 +466,7 @@ export default function StationDetailScreen() {
   );
 }
 
+// --- Styles ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -447,6 +510,8 @@ const styles = StyleSheet.create({
   section: {
     padding: 16,
     marginBottom: 8,
+    backgroundColor: "#fff", // Add background to sections for better visual separation
+    borderRadius: 8, // Optional: round corners
   },
   sectionTitle: {
     fontSize: 18,
@@ -462,6 +527,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#666",
     marginBottom: 8,
+    paddingLeft: 4, // Align with cards
   },
   emptyCard: {
     padding: 16,
@@ -477,16 +543,18 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   infoCard: {
-    padding: 16,
+    padding: 12, // Reduce padding slightly
   },
   infoRow: {
     flexDirection: "row",
-    marginBottom: 16,
+    marginBottom: 12, // Reduce margin slightly
+    alignItems: "flex-start", // Align items at the top
   },
   infoIcon: {
-    width: 30,
+    width: 24, // Slightly smaller icon width
     alignItems: "center",
-    marginRight: 10,
+    marginRight: 12,
+    marginTop: 2, // Align icon better with text
   },
   infoContent: {
     flex: 1,
@@ -495,21 +563,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#333",
-    marginBottom: 4,
+    marginBottom: 2, // Reduce margin
   },
   infoValue: {
     fontSize: 14,
     color: "#666",
+    lineHeight: 20, // Improve readability
   },
   amenitiesContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
+    marginTop: 4,
   },
   amenityBadge: {
     backgroundColor: "#e6f7f5",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingHorizontal: 10, // Slightly more padding
+    paddingVertical: 5,
+    borderRadius: 15, // More rounded
     marginRight: 6,
     marginBottom: 6,
   },
@@ -518,95 +588,100 @@ const styles = StyleSheet.create({
     color: "#2a9d8f",
     fontWeight: "500",
   },
+  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)", // Darker overlay
     justifyContent: "flex-end",
   },
   modalContainer: {
     backgroundColor: "#fff",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: "80%",
+    padding: 24, // More padding
+    paddingBottom: 30, // More padding at bottom
+    maxHeight: "85%", // Allow slightly more height
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20, // More margin
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22, // Larger title
     fontWeight: "bold",
     color: "#333",
   },
   closeButton: {
-    padding: 4,
+    padding: 8, // Larger touch target
   },
   modalStationName: {
     fontSize: 16,
     fontWeight: "600",
     color: "#666",
-    marginBottom: 20,
+    marginBottom: 16, // Reduced margin
+    textAlign: "center",
+  },
+  cycleInfoContainer: {
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#f0f0f0", // Lighter background
+  },
+  cycleInfoLabel: {
+    fontSize: 14,
+    color: "#555", // Darker label
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  cycleInfoValue: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+    textAlign: "center",
   },
   inputLabel: {
     fontSize: 16,
     fontWeight: "500",
     color: "#333",
     marginBottom: 8,
+    marginTop: 8, // Add margin top
   },
   fuelTypeSelector: {
     flexDirection: "row",
     flexWrap: "wrap",
     marginBottom: 16,
+    justifyContent: "center", // Center fuel types
   },
   fuelTypeOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14, // More padding
+    paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: "#f0f0f0",
-    marginRight: 8,
-    marginBottom: 8,
+    backgroundColor: "#e9e9e9", // Lighter inactive background
+    margin: 4, // Use margin for spacing
   },
   selectedFuelType: {
     backgroundColor: "#2a9d8f",
   },
   fuelTypeOptionText: {
     fontSize: 14,
-    color: "#666",
+    color: "#555",
   },
   selectedFuelTypeText: {
     color: "#fff",
-    fontWeight: "500",
+    fontWeight: "bold", // Bold selected
   },
   modalFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 20,
+    marginTop: 24, // More margin top
+    paddingTop: 16, // Add padding top
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
   },
   modalButton: {
     flex: 1,
-    marginHorizontal: 4,
-  },
-  debugCard: {
-    padding: 14,
-  },
-
-  cycleInfoContainer: {
-    marginBottom: 16,
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: "#f5f5f5",
-  },
-  cycleInfoLabel: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
-  },
-  cycleInfoValue: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#333",
+    marginHorizontal: 6, // Adjust spacing
   },
 });

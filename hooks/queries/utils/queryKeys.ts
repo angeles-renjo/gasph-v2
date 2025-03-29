@@ -49,9 +49,14 @@ export const queryKeys = {
       [...queryKeys.stations.all, "nearby", params] as const,
   },
   users: {
-    all: ["users"] as const,
-    profile: () => [...queryKeys.users.all, "profile"] as const,
-    preferences: () => [...queryKeys.users.all, "preferences"] as const,
+    all: ["users"] as const, // Keep this as an array
+    // Reference queryKeys.users.all directly
+    profile: (userId: string | undefined) =>
+      [...queryKeys.users.all, "profile", userId] as const,
+    preferences: () => [...queryKeys.users.all, "preferences"] as const, // This was already correct
+    // Reference queryKeys.users.all directly
+    contributions: (userId: string | undefined) =>
+      [...queryKeys.users.all, "contributions", userId] as const,
   },
   admin: {
     all: ["admin"] as const,
@@ -68,11 +73,8 @@ export const queryKeys = {
       all: () => [...queryKeys.admin.all, "stats"] as const,
     },
   },
-
   auth: {
     all: ["auth"] as const,
     session: () => [...queryKeys.auth.all, "session"] as const,
-    profile: (userId: string) =>
-      [...queryKeys.auth.all, "profile", userId] as const,
   },
 } as const;

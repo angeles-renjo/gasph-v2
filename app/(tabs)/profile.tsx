@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -13,75 +13,50 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { FontAwesome5 } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/utils/supabase/supabase";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatRelativeTime } from "@/utils/formatters";
-import { CycleInfoBadge } from "@/components/admin/CycleInfoBadge";
+// import { CycleInfoBadge } from "@/components/admin/CycleInfoBadge"; // Uncomment if using cycles
+import { useUserProfile } from "@/hooks/queries/users/useUserProfile";
+import { useUserContributions } from "@/hooks/queries/users/useUserContributions";
+import { LoadingIndicator } from "@/components/common/LoadingIndicator";
+import { ErrorDisplay } from "@/components/common/ErrorDisplay";
+import { queryKeys } from "@/hooks/queries/utils/queryKeys";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut, isAdmin } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
-  const [contributions, setContributions] = useState<any[]>([]);
+  const queryClient = useQueryClient();
+
+  // State only for UI actions, not data fetching
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-      fetchContributions();
-    }
-  }, [user]);
+  // Fetch user profile data using TanStack Query
+  const {
+    data: profileData,
+    isLoading: isProfileLoading,
+    isError: isProfileError,
+    error: profileError,
+    refetch: refetchProfile,
+  } = useUserProfile();
 
-  const fetchProfile = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user?.id)
-        .single();
+  // Fetch user contributions data using TanStack Query
+  const {
+    data: contributionsData,
+    isLoading: areContributionsLoading,
+    isError: areContributionsError,
+    error: contributionsError,
+    refetch: refetchContributions, // Can use this for pull-to-refresh etc.
+  } = useUserContributions();
 
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchContributions = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("user_price_reports")
-        .select(
-          `
-          id, 
-          fuel_type, 
-          price, 
-          reported_at, 
-          gas_stations!inner(id, name, brand, city)
-        `
-        )
-        .eq("user_id", user?.id)
-        .order("reported_at", { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      setContributions(data || []);
-    } catch (error) {
-      console.error("Error fetching contributions:", error);
-    }
-  };
+  // --- Event Handlers ---
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      // No need to handle navigation here as it will be handled by
-      // the auth state change listener in useAuth
     } catch (error: any) {
       Alert.alert(
         "Sign Out Failed",
@@ -92,10 +67,8 @@ export default function ProfileScreen() {
 
   const handleUploadAvatar = async () => {
     try {
-      // Request permissions
       const permissionResult =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
-
       if (permissionResult.granted === false) {
         Alert.alert(
           "Permission Required",
@@ -104,7 +77,6 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -114,28 +86,30 @@ export default function ProfileScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const imageUri = result.assets[0].uri;
-        await uploadImage(imageUri);
+        if (user?.id) {
+          await uploadImage(imageUri, user.id);
+        } else {
+          Alert.alert("Error", "User ID not found. Cannot upload image.");
+        }
       }
     } catch (error) {
-      console.error("Error uploading avatar:", error);
+      console.error("Error handling avatar upload:", error);
       Alert.alert(
         "Upload Failed",
-        "There was a problem uploading your avatar. Please try again."
+        "There was a problem selecting or uploading your avatar. Please try again."
       );
     }
   };
 
-  const uploadImage = async (uri: string) => {
+  // Uploads image and invalidates profile query on success
+  const uploadImage = async (uri: string, userId: string) => {
     try {
       setUploadingImage(true);
-
-      // Convert image to blob
       const response = await fetch(uri);
-      const blob = await response.blob();
+      const blob: Blob = await response.blob();
 
-      // Upload to Supabase Storage
       const fileExt = uri.split(".").pop();
-      const fileName = `avatar-${user?.id}-${Date.now()}.${fileExt}`;
+      const fileName = `avatar-${userId}-${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -144,23 +118,25 @@ export default function ProfileScreen() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from("profiles")
         .getPublicUrl(filePath);
 
-      // Update profile with new avatar URL
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ avatar_url: urlData.publicUrl })
-        .eq("id", user?.id);
+        .eq("id", userId);
 
       if (updateError) throw updateError;
 
-      // Refresh profile
-      fetchProfile();
+      // Invalidate query to refresh profile data automatically
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.users.profile(userId),
+      });
+
       Alert.alert("Success", "Your avatar has been updated.");
     } catch (error: any) {
+      console.error("Error during image upload/update:", error);
       Alert.alert(
         "Upload Failed",
         error.message || "There was a problem uploading your avatar"
@@ -170,18 +146,105 @@ export default function ProfileScreen() {
     }
   };
 
-  if (loading) {
+  // --- Render Helpers ---
+
+  // Helper function to render the contributions section content
+  const renderContributions = () => {
+    // 1. Handle Loading
+    if (areContributionsLoading) {
+      return (
+        <ActivityIndicator color="#2a9d8f" style={{ marginVertical: 20 }} />
+      );
+    }
+    // 2. Handle Error (only if not loading)
+    if (areContributionsError) {
+      console.error("Contributions Error:", contributionsError);
+      return (
+        <Card style={styles.emptyCard}>
+          <Text style={styles.errorText}>Could not load contributions.</Text>
+          <Button
+            title="Retry"
+            onPress={() => refetchContributions()}
+            size="small"
+            style={{ marginTop: 10 }}
+          />
+        </Card>
+      );
+    }
+    // 3. Handle Data (only if not loading and no error)
+    if (contributionsData && contributionsData.length > 0) {
+      return contributionsData.map((contribution) => (
+        <Card key={contribution.id} style={styles.contributionCard}>
+          <View style={styles.contributionHeader}>
+            <Text style={styles.stationName}>
+              {contribution.gas_stations?.[0]?.name ?? "Unknown Station"}
+            </Text>
+            <Text style={styles.contributionDate} numberOfLines={1}>
+              {formatRelativeTime(contribution.reported_at)}
+            </Text>
+          </View>
+          <View style={styles.contributionDetails}>
+            <View style={styles.priceContainer}>
+              <Text style={styles.fuelType}>{contribution.fuel_type}</Text>
+              <Text style={styles.price}>₱{contribution.price.toFixed(2)}</Text>
+            </View>
+            {/* Add cycle badge if needed */}
+            {/* {contribution.cycle && (
+                <CycleInfoBadge
+                  cycleNumber={contribution.cycle.cycle_number}
+                  status={contribution.cycle.status}
+                  compact={true}
+                />
+              )} */}
+          </View>
+        </Card>
+      ));
+    }
+    // 4. Handle Empty State (if not loading, no error, and no data)
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2a9d8f" />
-        <Text style={styles.loadingText}>Loading your profile...</Text>
-      </SafeAreaView>
+      <Card style={styles.emptyCard}>
+        <Text style={styles.emptyText}>
+          You haven't submitted any price reports yet. Start contributing by
+          reporting fuel prices at gas stations.
+        </Text>
+      </Card>
+    );
+  };
+
+  // --- Main Render Logic ---
+
+  if (isProfileLoading) {
+    return <LoadingIndicator fullScreen message="Loading your profile..." />;
+  }
+
+  if (isProfileError) {
+    return (
+      <ErrorDisplay
+        fullScreen
+        message={profileError?.message || "Failed to load profile."}
+        onRetry={refetchProfile}
+      />
+    );
+  }
+
+  // If not loading and no error, profileData should exist due to enabled flag in useUserProfile
+  if (!profileData) {
+    console.warn(
+      "Profile data is unexpectedly null/undefined after loading state."
+    );
+    return (
+      <ErrorDisplay
+        fullScreen
+        message="Profile data unavailable."
+        onRetry={refetchProfile}
+      />
     );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Profile Header Section */}
         <View style={styles.profileHeader}>
           <TouchableOpacity
             style={styles.avatarContainer}
@@ -189,12 +252,12 @@ export default function ProfileScreen() {
             disabled={uploadingImage}
           >
             {uploadingImage ? (
-              <View style={styles.avatar}>
+              <View style={[styles.avatar, styles.avatarLoading]}>
                 <ActivityIndicator color="#fff" />
               </View>
-            ) : profile?.avatar_url ? (
+            ) : profileData.avatar_url ? (
               <Image
-                source={{ uri: profile.avatar_url }}
+                source={{ uri: profileData.avatar_url }}
                 style={styles.avatar}
               />
             ) : (
@@ -208,7 +271,9 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <View style={styles.userInfo}>
-            <Text style={styles.username}>{profile?.username || "User"}</Text>
+            <Text style={styles.username}>
+              {profileData.username || "User"}
+            </Text>
             <Text style={styles.email}>{user?.email}</Text>
 
             {isAdmin && (
@@ -220,59 +285,25 @@ export default function ProfileScreen() {
 
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{contributions.length}</Text>
+                <Text style={styles.statValue}>
+                  {areContributionsLoading
+                    ? "..."
+                    : contributionsData?.length ?? 0}
+                </Text>
                 <Text style={styles.statLabel}>Reports</Text>
               </View>
+              {/* Add more stats here if needed */}
             </View>
           </View>
         </View>
 
+        {/* Contributions Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Recent Contributions</Text>
-
-          {contributions.length > 0 ? (
-            contributions.map((contribution) => (
-              <Card key={contribution.id} style={styles.contributionCard}>
-                <View style={styles.contributionHeader}>
-                  <Text style={styles.stationName}>
-                    {contribution.gas_stations.name}
-                  </Text>
-                  <Text style={styles.contributionDate}>
-                    {formatRelativeTime(contribution.reported_at)}
-                  </Text>
-                </View>
-
-                <View style={styles.contributionDetails}>
-                  <View style={styles.priceContainer}>
-                    <Text style={styles.fuelType}>
-                      {contribution.fuel_type}
-                    </Text>
-                    <Text style={styles.price}>
-                      ₱{contribution.price.toFixed(2)}
-                    </Text>
-                  </View>
-
-                  {/* Add cycle badge */}
-                  {contribution.cycle && (
-                    <CycleInfoBadge
-                      cycleNumber={contribution.cycle.cycle_number}
-                      status={contribution.cycle.status}
-                      compact={true}
-                    />
-                  )}
-                </View>
-              </Card>
-            ))
-          ) : (
-            <Card style={styles.emptyCard}>
-              <Text style={styles.emptyText}>
-                You haven't submitted any price reports yet. Start contributing
-                by reporting fuel prices at gas stations.
-              </Text>
-            </Card>
-          )}
+          {renderContributions()}
         </View>
 
+        {/* Action Buttons Section */}
         <View style={styles.buttonSection}>
           <Button
             title="Sign Out"
@@ -280,30 +311,22 @@ export default function ProfileScreen() {
             onPress={handleSignOut}
             fullWidth
           />
+          {/* Add other action buttons if needed */}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// --- Styles ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#666",
-  },
   scrollContent: {
     padding: 16,
+    paddingBottom: 30, // Ensure space at the bottom
   },
   profileHeader: {
     flexDirection: "row",
@@ -326,9 +349,13 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#2a9d8f",
+    backgroundColor: "#ccc", // Default background
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden", // Ensure image stays within bounds
+  },
+  avatarLoading: {
+    backgroundColor: "#2a9d8f", // Indicate loading state
   },
   editIconContainer: {
     position: "absolute",
@@ -377,6 +404,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statItem: {
+    alignItems: "center", // Center stat items
     marginRight: 16,
   },
   statValue: {
@@ -411,11 +439,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
-    flex: 1,
+    flex: 1, // Allow station name to take space
+    marginRight: 8, // Add spacing
   },
   contributionDate: {
     fontSize: 12,
     color: "#999",
+    textAlign: "right", // Align text to the right if needed
   },
   contributionDetails: {
     flexDirection: "row",
@@ -436,28 +466,22 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#2a9d8f",
   },
-  votesContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  upvotes: {
-    fontSize: 14,
-    color: "#4caf50",
-    marginRight: 8,
-  },
-  downvotes: {
-    fontSize: 14,
-    color: "#f44336",
-  },
   emptyCard: {
     padding: 16,
+    alignItems: "center", // Center content in empty card
   },
   emptyText: {
     fontSize: 14,
     color: "#666",
     textAlign: "center",
   },
+  errorText: {
+    color: "red",
+    textAlign: "center",
+    fontSize: 14,
+    marginBottom: 8, // Add space before retry button
+  },
   buttonSection: {
-    marginBottom: 30,
+    marginTop: 10,
   },
 });

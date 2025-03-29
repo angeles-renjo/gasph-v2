@@ -113,14 +113,14 @@ export function useAuth() {
       async (event, session) => {
         console.log("Auth state changed:", event);
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          // Invalidate queries using the stable queryClient reference from the hook's scope
           queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
           if (session?.user) {
             queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
           }
         } else if (event === "SIGNED_OUT") {
-          // First invalidate auth session
+          // Invalidate queries using the stable queryClient reference
           queryClient.invalidateQueries({ queryKey: queryKeys.auth.session() });
-          // Then remove other queries
           queryClient.removeQueries({
             predicate: (query) => !query.queryKey.includes("auth"),
           });
@@ -131,7 +131,7 @@ export function useAuth() {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [queryClient]);
+  }, []);
 
   return {
     user: authState?.user ?? null,
