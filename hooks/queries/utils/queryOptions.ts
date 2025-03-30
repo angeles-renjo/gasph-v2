@@ -58,6 +58,12 @@ export const defaultQueryOptions = {
       gcTime: 60 * 60 * 1000, // 1 hour
       refetchOnMount: true,
     },
+    contributions: {
+      staleTime: 2 * 60 * 1000, // 2 minutes - contributions need frequent updates
+      gcTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
+    },
   },
   admin: {
     users: {

@@ -19,7 +19,6 @@ import { supabase } from "@/utils/supabase/supabase";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatRelativeTime } from "@/utils/formatters";
-// import { CycleInfoBadge } from "@/components/admin/CycleInfoBadge"; // Uncomment if using cycles
 import { useUserProfile } from "@/hooks/queries/users/useUserProfile";
 import { useUserContributions } from "@/hooks/queries/users/useUserContributions";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
@@ -49,7 +48,7 @@ export default function ProfileScreen() {
     isLoading: areContributionsLoading,
     isError: areContributionsError,
     error: contributionsError,
-    refetch: refetchContributions, // Can use this for pull-to-refresh etc.
+    refetch: refetchContributions,
   } = useUserContributions();
 
   // --- Event Handlers ---
@@ -101,7 +100,6 @@ export default function ProfileScreen() {
     }
   };
 
-  // Uploads image and invalidates profile query on success
   const uploadImage = async (uri: string, userId: string) => {
     try {
       setUploadingImage(true);
@@ -129,7 +127,6 @@ export default function ProfileScreen() {
 
       if (updateError) throw updateError;
 
-      // Invalidate query to refresh profile data automatically
       await queryClient.invalidateQueries({
         queryKey: queryKeys.users.profile(userId),
       });
@@ -148,15 +145,13 @@ export default function ProfileScreen() {
 
   // --- Render Helpers ---
 
-  // Helper function to render the contributions section content
   const renderContributions = () => {
-    // 1. Handle Loading
     if (areContributionsLoading) {
       return (
         <ActivityIndicator color="#2a9d8f" style={{ marginVertical: 20 }} />
       );
     }
-    // 2. Handle Error (only if not loading)
+
     if (areContributionsError) {
       console.error("Contributions Error:", contributionsError);
       return (
@@ -171,13 +166,13 @@ export default function ProfileScreen() {
         </Card>
       );
     }
-    // 3. Handle Data (only if not loading and no error)
+
     if (contributionsData && contributionsData.length > 0) {
       return contributionsData.map((contribution) => (
         <Card key={contribution.id} style={styles.contributionCard}>
           <View style={styles.contributionHeader}>
             <Text style={styles.stationName}>
-              {contribution.gas_stations?.[0]?.name ?? "Unknown Station"}
+              {contribution.station?.name ?? "Unknown Station"}
             </Text>
             <Text style={styles.contributionDate} numberOfLines={1}>
               {formatRelativeTime(contribution.reported_at)}
@@ -188,19 +183,14 @@ export default function ProfileScreen() {
               <Text style={styles.fuelType}>{contribution.fuel_type}</Text>
               <Text style={styles.price}>₱{contribution.price.toFixed(2)}</Text>
             </View>
-            {/* Add cycle badge if needed */}
-            {/* {contribution.cycle && (
-                <CycleInfoBadge
-                  cycleNumber={contribution.cycle.cycle_number}
-                  status={contribution.cycle.status}
-                  compact={true}
-                />
-              )} */}
+            <Text style={styles.confirmations}>
+              {contribution.confirmations_count} confirmations
+            </Text>
           </View>
         </Card>
       ));
     }
-    // 4. Handle Empty State (if not loading, no error, and no data)
+
     return (
       <Card style={styles.emptyCard}>
         <Text style={styles.emptyText}>
@@ -227,17 +217,13 @@ export default function ProfileScreen() {
     );
   }
 
-  // Handle the case where loading is done, no error, but data isn't ready OR user just signed out
   if (!profileData) {
-    // Check if the user is actually null (signing out) - if so, don't warn, just return null silently.
     if (!user) {
       return null;
     }
-    // Otherwise, log the warning for potentially unexpected state transitions
     console.warn(
       "Profile data is null/undefined after loading and without error while user is still present. Component might be rendering during state transition."
     );
-    // Render error display
     return (
       <ErrorDisplay
         fullScreen
@@ -246,6 +232,7 @@ export default function ProfileScreen() {
       />
     );
   }
+
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -297,7 +284,6 @@ export default function ProfileScreen() {
                 </Text>
                 <Text style={styles.statLabel}>Reports</Text>
               </View>
-              {/* Add more stats here if needed */}
             </View>
           </View>
         </View>
@@ -316,13 +302,11 @@ export default function ProfileScreen() {
             onPress={handleSignOut}
             fullWidth
           />
-          {/* Add other action buttons if needed */}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
 // --- Styles ---
 const styles = StyleSheet.create({
   container: {
@@ -488,5 +472,10 @@ const styles = StyleSheet.create({
   },
   buttonSection: {
     marginTop: 10,
+  },
+  confirmations: {
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 8,
   },
 });
