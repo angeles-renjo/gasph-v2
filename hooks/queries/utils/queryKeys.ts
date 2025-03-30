@@ -4,7 +4,6 @@ import { BestPricesParams } from "./types";
 
 export interface PriceCycleParams {
   id?: string;
-  isActive?: boolean;
 }
 
 export const queryKeys = {

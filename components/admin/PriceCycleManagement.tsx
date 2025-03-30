@@ -58,6 +58,7 @@ export function PriceCycleManagement() {
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + 7);
 
+      // Get the next cycle number
       const { data: maxCycleData, error: maxCycleError } = await supabase
         .from("price_reporting_cycles")
         .select("cycle_number")
@@ -76,7 +77,6 @@ export function PriceCycleManagement() {
         .insert({
           start_date: startDate.toISOString(),
           end_date: endDate.toISOString(),
-          is_active: true,
           status: "active",
           cycle_number: nextCycleNumber,
         })
@@ -120,18 +120,19 @@ export function PriceCycleManagement() {
     try {
       setActivatingCycleId(cycleId);
 
-      // First, deactivate all cycles
+      // First, set all other cycles to completed
       const { error: deactivateError } = await supabase
         .from("price_reporting_cycles")
-        .update({ is_active: false, status: "completed" })
-        .neq("id", cycleId);
+        .update({ status: "completed" })
+        .neq("id", cycleId)
+        .eq("status", "active");
 
       if (deactivateError) throw deactivateError;
 
       // Then activate the selected cycle
       const { error: activateError } = await supabase
         .from("price_reporting_cycles")
-        .update({ is_active: true, status: "active" })
+        .update({ status: "active" })
         .eq("id", cycleId);
 
       if (activateError) throw activateError;

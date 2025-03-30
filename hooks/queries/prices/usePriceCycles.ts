@@ -9,9 +9,8 @@ export interface PriceCycle {
   cycle_number: number;
   start_date: string;
   end_date: string;
-  is_active: boolean;
   status: "active" | "completed" | "archived";
-  doe_import_date: string | null;
+  doe_import_date?: string;
   created_at: string;
 }
 
@@ -89,7 +88,6 @@ export function usePriceCycles(includeArchived = false) {
         .insert({
           start_date: startDate.toISOString(),
           end_date: endDate.toISOString(),
-          is_active: true,
           status: "active",
           cycle_number: nextCycleNumber,
         })
@@ -135,7 +133,7 @@ export function usePriceCycles(includeArchived = false) {
     mutationFn: async (cycleId: string): Promise<string> => {
       const { error } = await supabase
         .from("price_reporting_cycles")
-        .update({ status: "active", is_active: true })
+        .update({ status: "active" })
         .eq("id", cycleId);
 
       if (error) throw error;

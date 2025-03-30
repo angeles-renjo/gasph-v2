@@ -116,25 +116,28 @@ export interface Database {
       price_reporting_cycles: {
         Row: {
           id: string;
+          cycle_number: number;
           start_date: string;
           end_date: string;
-          is_active: boolean;
+          status: "active" | "completed" | "archived";
           doe_import_date: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
+          cycle_number?: number;
           start_date: string;
           end_date: string;
-          is_active?: boolean;
+          status?: "active" | "completed" | "archived";
           doe_import_date?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
+          cycle_number?: number;
           start_date?: string;
           end_date?: string;
-          is_active?: boolean;
+          status?: "active" | "completed" | "archived";
           doe_import_date?: string | null;
           created_at?: string;
         };
@@ -269,9 +272,10 @@ export interface Database {
       current_price_cycle: {
         Row: {
           id: string;
+          cycle_number: number;
           start_date: string;
           end_date: string;
-          is_active: boolean;
+          status: "active" | "completed" | "archived";
           doe_import_date: string | null;
           created_at: string;
         };

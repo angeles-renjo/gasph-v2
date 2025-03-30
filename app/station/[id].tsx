@@ -58,22 +58,19 @@ export default function StationDetailScreen() {
     try {
       const { data, error } = await supabase
         .from("price_reporting_cycles")
-        .select("id, cycle_number, start_date, end_date") // Select only needed fields
+        .select("id, cycle_number, start_date, end_date")
         .eq("status", "active")
-        .maybeSingle(); // Use maybeSingle to handle 0 or 1 result gracefully
+        .maybeSingle();
 
       if (error) {
-        // Don't throw, just log, as it might not be critical path
         console.error("Error fetching current cycle:", error.message);
       } else if (data) {
         setCurrentCycle(data);
       } else {
-        // No active cycle found
         console.log("No active price reporting cycle found.");
         setCurrentCycle(null);
       }
     } catch (err) {
-      // Catch potential non-Supabase errors
       if (err instanceof Error) {
         console.error("Unexpected error fetching current cycle:", err.message);
       } else {

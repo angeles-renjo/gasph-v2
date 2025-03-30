@@ -1,12 +1,12 @@
 // components/admin/CycleInfoBadge.tsx
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
-import { formatDate } from '@/utils/formatters';
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { FontAwesome5 } from "@expo/vector-icons";
+import { formatDate } from "@/utils/formatters";
 
 interface CycleInfoBadgeProps {
   cycleNumber: number;
-  status: 'active' | 'completed' | 'archived';
+  status: "active" | "completed" | "archived";
   compact?: boolean;
   showDates?: boolean;
   startDate?: string;
@@ -24,29 +24,29 @@ export function CycleInfoBadge({
   // Get appropriate icon and colors based on status
   const getStatusInfo = () => {
     switch (status) {
-      case 'active':
+      case "active":
         return {
-          icon: 'play-circle',
-          color: '#2a9d8f',
-          bgColor: '#e6f7f5',
+          icon: "play-circle",
+          color: "#2a9d8f",
+          bgColor: "#e6f7f5",
         };
-      case 'completed':
+      case "completed":
         return {
-          icon: 'check-circle',
-          color: '#4caf50',
-          bgColor: '#e8f5e9',
+          icon: "check-circle",
+          color: "#4caf50",
+          bgColor: "#e8f5e9",
         };
-      case 'archived':
+      case "archived":
         return {
-          icon: 'archive',
-          color: '#9e9e9e',
-          bgColor: '#f5f5f5',
+          icon: "archive",
+          color: "#9e9e9e",
+          bgColor: "#f5f5f5",
         };
       default:
         return {
-          icon: 'circle',
-          color: '#666',
-          bgColor: '#f0f0f0',
+          icon: "circle",
+          color: "#666",
+          bgColor: "#f0f0f0",
         };
     }
   };
@@ -94,26 +94,26 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   compactBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 12,
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
   compactText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   icon: {
     marginRight: 6,
   },
   cycleNumber: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     flex: 1,
   },
   statusBadge: {
@@ -122,15 +122,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   statusText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   dateContainer: {
     marginTop: 6,
   },
   dateText: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
 });
