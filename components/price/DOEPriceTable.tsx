@@ -5,10 +5,11 @@ import { formatDate, formatPrice } from '@/utils/formatters';
 
 export interface DOEPrice {
   fuel_type: string;
-  min_price: number;
-  common_price: number;
-  max_price: number;
+  min_price: number | null; // Allow null
+  common_price: number | null; // Allow null
+  max_price: number | null; // Allow null
   week_of: string;
+  source: string; // Add source field
 }
 
 interface DOEPriceTableProps {
@@ -77,6 +78,8 @@ export function DOEPriceTable({ prices, latestDate }: DOEPriceTableProps) {
                   price.fuel_type
                 )}
               </Text>
+              {/* Display the source */}
+              <Text style={styles.sourceText}>({price.source})</Text>
             </View>
             <View style={styles.priceCell}>
               <Text style={styles.priceText}>
@@ -164,6 +167,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#2a9d8f',
     fontWeight: '500',
+  },
+  sourceText: {
+    fontSize: 11,
+    color: '#777',
+    marginTop: 2,
   },
   dateText: {
     marginTop: 6,

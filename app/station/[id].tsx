@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,31 +9,31 @@ import {
   Alert,
   Linking,
   Platform,
-} from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { FontAwesome5 } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query"; // Import useQueryClient
-import { useStationDetails } from "@/hooks/queries/stations/useStationDetails";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/utils/supabase/supabase";
-import { PriceCard } from "@/components/price/PriceCard";
-import { DOEPriceTable } from "@/components/price/DOEPriceTable";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { ErrorDisplay } from "@/components/common/ErrorDisplay";
-import { Input } from "@/components/ui/Input";
-import { formatDate, formatOperatingHours } from "@/utils/formatters";
-import { FuelType } from "@/hooks/queries/prices/useBestPrices";
-import { queryKeys } from "@/hooks/queries/utils/queryKeys"; // Import queryKeys
+} from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
+import { useStationDetails } from '@/hooks/queries/stations/useStationDetails';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/utils/supabase/supabase';
+import { PriceCard } from '@/components/price/PriceCard';
+import { DOEPriceTable } from '@/components/price/DOEPriceTable';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { LoadingIndicator } from '@/components/common/LoadingIndicator';
+import { ErrorDisplay } from '@/components/common/ErrorDisplay';
+import { Input } from '@/components/ui/Input';
+import { formatDate, formatOperatingHours } from '@/utils/formatters';
+import { FuelType } from '@/hooks/queries/prices/useBestPrices';
+import { queryKeys } from '@/hooks/queries/utils/queryKeys'; // Import queryKeys
 
 export default function StationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const queryClient = useQueryClient(); // Get query client instance
   const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [selectedFuelType, setSelectedFuelType] = useState<FuelType>("Diesel");
-  const [price, setPrice] = useState("");
+  const [selectedFuelType, setSelectedFuelType] = useState<FuelType>('Diesel');
+  const [price, setPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [currentCycle, setCurrentCycle] = useState<any>(null); // Consider typing this better
 
@@ -57,35 +57,35 @@ export default function StationDetailScreen() {
   const fetchCurrentCycle = async () => {
     try {
       const { data, error } = await supabase
-        .from("price_reporting_cycles")
-        .select("id, cycle_number, start_date, end_date")
-        .eq("status", "active")
+        .from('price_reporting_cycles')
+        .select('id, cycle_number, start_date, end_date')
+        .eq('status', 'active')
         .maybeSingle();
 
       if (error) {
-        console.error("Error fetching current cycle:", error.message);
+        console.error('Error fetching current cycle:', error.message);
       } else if (data) {
         setCurrentCycle(data);
       } else {
-        console.log("No active price reporting cycle found.");
+        console.log('No active price reporting cycle found.');
         setCurrentCycle(null);
       }
     } catch (err) {
       if (err instanceof Error) {
-        console.error("Unexpected error fetching current cycle:", err.message);
+        console.error('Unexpected error fetching current cycle:', err.message);
       } else {
-        console.error("Unexpected error fetching current cycle:", err);
+        console.error('Unexpected error fetching current cycle:', err);
       }
     }
   };
 
   const openMapsApp = () => {
     if (station?.latitude && station?.longitude) {
-      const scheme = Platform.OS === "ios" ? "maps://0,0?q=" : "geo:0,0?q=";
+      const scheme = Platform.OS === 'ios' ? 'maps://0,0?q=' : 'geo:0,0?q=';
       const latLng = `${station.latitude},${station.longitude}`;
       const label = station.name;
       const url =
-        Platform.OS === "ios"
+        Platform.OS === 'ios'
           ? `${scheme}${label}@${latLng}`
           : `${scheme}${latLng}(${label})`;
 
@@ -94,35 +94,35 @@ export default function StationDetailScreen() {
           if (supported) {
             return Linking.openURL(url);
           } else {
-            Alert.alert("Error", "Could not open map application.");
+            Alert.alert('Error', 'Could not open map application.');
           }
         })
-        .catch((err) => console.error("An error occurred opening map", err));
+        .catch((err) => console.error('An error occurred opening map', err));
     } else {
-      Alert.alert("Error", "Station location not available.");
+      Alert.alert('Error', 'Station location not available.');
     }
   };
 
   const handleReportPrice = async () => {
     if (!user) {
       Alert.alert(
-        "Login Required",
-        "You need to be logged in to report prices."
+        'Login Required',
+        'You need to be logged in to report prices.'
       );
       return;
     }
 
     const parsedPrice = parseFloat(price);
     if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      Alert.alert("Invalid Price", "Please enter a valid positive price.");
+      Alert.alert('Invalid Price', 'Please enter a valid positive price.');
       return;
     }
 
     // Re-fetch or ensure currentCycle is available
     if (!currentCycle) {
       Alert.alert(
-        "Price Cycle Unavailable",
-        "Could not find an active price reporting cycle. Please try again shortly."
+        'Price Cycle Unavailable',
+        'Could not find an active price reporting cycle. Please try again shortly.'
       );
       // Optionally try fetching it again
       // await fetchCurrentCycle();
@@ -138,7 +138,7 @@ export default function StationDetailScreen() {
 
       // Submit the price report
       const { error: reportError } = await supabase
-        .from("user_price_reports")
+        .from('user_price_reports')
         .insert({
           station_id: id,
           fuel_type: selectedFuelType,
@@ -166,17 +166,17 @@ export default function StationDetailScreen() {
 
       // Success feedback
       setReportModalVisible(false);
-      setPrice(""); // Reset price input
+      setPrice(''); // Reset price input
       Alert.alert(
-        "Success",
-        "Your price report has been submitted. Thank you for contributing!"
+        'Success',
+        'Your price report has been submitted. Thank you for contributing!'
       );
       // No need to call refetch() manually, invalidateQueries handles it for stationDetails
     } catch (error: any) {
-      console.error("Error submitting price report:", error);
+      console.error('Error submitting price report:', error);
       Alert.alert(
-        "Submission Error",
-        error.message || "Failed to submit price report. Please try again."
+        'Submission Error',
+        error.message || 'Failed to submit price report. Please try again.'
       );
     } finally {
       setSubmitting(false);
@@ -186,14 +186,14 @@ export default function StationDetailScreen() {
   // --- Render Logic ---
 
   if (isLoading) {
-    return <LoadingIndicator fullScreen message="Loading station details..." />;
+    return <LoadingIndicator fullScreen message='Loading station details...' />;
   }
 
   if (isError || !station) {
     return (
       <ErrorDisplay
         fullScreen
-        message={stationError?.message || "Failed to load station details."}
+        message={stationError?.message || 'Failed to load station details.'}
         onRetry={refetch}
       />
     );
@@ -225,19 +225,19 @@ export default function StationDetailScreen() {
       {/* Action Buttons */}
       <View style={styles.actionButtonsContainer}>
         <Button
-          title="Report Price"
+          title='Report Price'
           onPress={() => setReportModalVisible(true)}
           style={styles.actionButton}
-          variant="primary"
-          leftIcon={<FontAwesome5 name="dollar-sign" size={16} color="#fff" />}
+          variant='primary'
+          leftIcon={<FontAwesome5 name='dollar-sign' size={16} color='#fff' />}
         />
         <Button
-          title="Directions"
+          title='Directions'
           onPress={openMapsApp}
           style={styles.actionButton}
-          variant="outline"
+          variant='outline'
           leftIcon={
-            <FontAwesome5 name="directions" size={16} color="#2a9d8f" />
+            <FontAwesome5 name='directions' size={16} color='#2a9d8f' />
           }
         />
       </View>
@@ -255,11 +255,11 @@ export default function StationDetailScreen() {
                 <PriceCard
                   key={price.id}
                   id={price.id}
-                  station_id={id || ""}
+                  station_id={id || ''}
                   fuel_type={price.fuel_type}
                   price={price.price}
                   reported_at={price.reported_at}
-                  source="community"
+                  source='community'
                   username={price.username}
                   user_id={price.user_id}
                   confirmations_count={price.confirmations_count}
@@ -275,10 +275,10 @@ export default function StationDetailScreen() {
               No community price reports yet. Be the first to report a price!
             </Text>
             <Button
-              title="Report Price"
+              title='Report Price'
               onPress={() => setReportModalVisible(true)}
-              variant="outline"
-              size="small"
+              variant='outline'
+              size='small'
               style={styles.emptyCardButton}
             />
           </Card>
@@ -290,11 +290,14 @@ export default function StationDetailScreen() {
         <View style={styles.section}>
           <DOEPriceTable
             prices={station.doePrices.map((price) => ({
-              fuel_type: price.fuel_type,
-              min_price: price.min_price,
-              max_price: price.max_price,
-              common_price: price.common_price,
-              week_of: price.week_of,
+              // Provide defaults for potentially null fields from the view
+              fuel_type: price.fuel_type ?? 'Unknown Fuel',
+              min_price: price.min_price, // Already nullable in DOEPriceTable
+              max_price: price.max_price, // Already nullable in DOEPriceTable
+              common_price: price.common_price, // Already nullable in DOEPriceTable
+              week_of: price.week_of ?? 'N/A', // Provide default if week_of is null
+              // Map source_type from the view to the source prop, provide default
+              source: price.source_type ?? 'Unknown Source',
             }))}
             latestDate={station.latestDOEDate}
           />
@@ -318,7 +321,7 @@ export default function StationDetailScreen() {
             Object.keys(station.operating_hours).length > 0 && (
               <View style={styles.infoRow}>
                 <View style={styles.infoIcon}>
-                  <FontAwesome5 name="clock" size={16} color="#2a9d8f" />
+                  <FontAwesome5 name='clock' size={16} color='#2a9d8f' />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Operating Hours</Text>
@@ -333,7 +336,7 @@ export default function StationDetailScreen() {
           {station.amenities && Object.keys(station.amenities).length > 0 && (
             <View style={styles.infoRow}>
               <View style={styles.infoIcon}>
-                <FontAwesome5 name="store" size={16} color="#2a9d8f" />
+                <FontAwesome5 name='store' size={16} color='#2a9d8f' />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Amenities</Text>
@@ -344,7 +347,7 @@ export default function StationDetailScreen() {
                       <View key={key} style={styles.amenityBadge}>
                         <Text style={styles.amenityText}>
                           {key.charAt(0).toUpperCase() +
-                            key.slice(1).replace(/_/g, " ")}
+                            key.slice(1).replace(/_/g, ' ')}
                         </Text>
                       </View>
                     ))}
@@ -359,7 +362,7 @@ export default function StationDetailScreen() {
       <Modal
         visible={reportModalVisible}
         transparent
-        animationType="slide"
+        animationType='slide'
         onRequestClose={() => setReportModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
@@ -371,7 +374,7 @@ export default function StationDetailScreen() {
                 onPress={() => setReportModalVisible(false)}
                 disabled={submitting} // Disable close while submitting
               >
-                <FontAwesome5 name="times" size={20} color="#666" />
+                <FontAwesome5 name='times' size={20} color='#666' />
               </TouchableOpacity>
             </View>
 
@@ -382,8 +385,8 @@ export default function StationDetailScreen() {
               <View style={styles.cycleInfoContainer}>
                 <Text style={styles.cycleInfoLabel}>For price cycle:</Text>
                 <Text style={styles.cycleInfoValue}>
-                  #{currentCycle.cycle_number}:{" "}
-                  {formatDate(currentCycle.start_date)} to{" "}
+                  #{currentCycle.cycle_number}:{' '}
+                  {formatDate(currentCycle.start_date)} to{' '}
                   {formatDate(currentCycle.end_date)}
                 </Text>
               </View>
@@ -400,11 +403,11 @@ export default function StationDetailScreen() {
             <View style={styles.fuelTypeSelector}>
               {(
                 [
-                  "Diesel",
-                  "RON 91",
-                  "RON 95",
-                  "RON 97",
-                  "RON 100",
+                  'Diesel',
+                  'RON 91',
+                  'RON 95',
+                  'RON 97',
+                  'RON 100',
                 ] as FuelType[]
               ).map((type) => (
                 <TouchableOpacity
@@ -430,26 +433,26 @@ export default function StationDetailScreen() {
 
             <Text style={styles.inputLabel}>Price (PHP)</Text>
             <Input
-              placeholder="Enter current price"
-              keyboardType="decimal-pad"
+              placeholder='Enter current price'
+              keyboardType='decimal-pad'
               value={price}
               onChangeText={setPrice}
               leftIcon={
-                <FontAwesome5 name="dollar-sign" size={16} color="#777" />
+                <FontAwesome5 name='dollar-sign' size={16} color='#777' />
               }
               editable={!submitting} // Disable input while submitting
             />
 
             <View style={styles.modalFooter}>
               <Button
-                title="Cancel"
-                variant="outline"
+                title='Cancel'
+                variant='outline'
                 onPress={() => setReportModalVisible(false)}
                 style={styles.modalButton}
                 disabled={submitting} // Disable cancel while submitting
               />
               <Button
-                title={submitting ? "Submitting..." : "Submit"}
+                title={submitting ? 'Submitting...' : 'Submit'}
                 onPress={handleReportPrice}
                 loading={submitting}
                 style={styles.modalButton}
@@ -467,10 +470,10 @@ export default function StationDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: "#2a9d8f",
+    backgroundColor: '#2a9d8f',
     padding: 20,
     paddingTop: 30,
     paddingBottom: 30,
@@ -480,25 +483,25 @@ const styles = StyleSheet.create({
   },
   stationName: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: 'bold',
+    color: '#fff',
     marginBottom: 4,
   },
   stationBrand: {
     fontSize: 16,
-    color: "#e6f7f5",
+    color: '#e6f7f5',
     marginBottom: 8,
   },
   stationAddress: {
     fontSize: 14,
-    color: "#e6f7f5",
+    color: '#e6f7f5',
   },
   actionButtonsContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     padding: 16,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: '#eee',
   },
   actionButton: {
     flex: 1,
@@ -507,13 +510,13 @@ const styles = StyleSheet.create({
   section: {
     padding: 16,
     marginBottom: 8,
-    backgroundColor: "#fff", // Add background to sections for better visual separation
+    backgroundColor: '#fff', // Add background to sections for better visual separation
     borderRadius: 8, // Optional: round corners
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 12,
   },
   fuelTypeSection: {
@@ -521,19 +524,19 @@ const styles = StyleSheet.create({
   },
   fuelTypeTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#666",
+    fontWeight: '600',
+    color: '#666',
     marginBottom: 8,
     paddingLeft: 4, // Align with cards
   },
   emptyCard: {
     padding: 16,
-    alignItems: "center",
+    alignItems: 'center',
   },
   emptyText: {
     fontSize: 14,
-    color: "#666",
-    textAlign: "center",
+    color: '#666',
+    textAlign: 'center',
     marginBottom: 12,
   },
   emptyCardButton: {
@@ -543,13 +546,13 @@ const styles = StyleSheet.create({
     padding: 12, // Reduce padding slightly
   },
   infoRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     marginBottom: 12, // Reduce margin slightly
-    alignItems: "flex-start", // Align items at the top
+    alignItems: 'flex-start', // Align items at the top
   },
   infoIcon: {
     width: 24, // Slightly smaller icon width
-    alignItems: "center",
+    alignItems: 'center',
     marginRight: 12,
     marginTop: 2, // Align icon better with text
   },
@@ -558,22 +561,22 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 2, // Reduce margin
   },
   infoValue: {
     fontSize: 14,
-    color: "#666",
+    color: '#666',
     lineHeight: 20, // Improve readability
   },
   amenitiesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: 4,
   },
   amenityBadge: {
-    backgroundColor: "#e6f7f5",
+    backgroundColor: '#e6f7f5',
     paddingHorizontal: 10, // Slightly more padding
     paddingVertical: 5,
     borderRadius: 15, // More rounded
@@ -582,100 +585,100 @@ const styles = StyleSheet.create({
   },
   amenityText: {
     fontSize: 12,
-    color: "#2a9d8f",
-    fontWeight: "500",
+    color: '#2a9d8f',
+    fontWeight: '500',
   },
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)", // Darker overlay
-    justifyContent: "flex-end",
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Darker overlay
+    justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24, // More padding
     paddingBottom: 30, // More padding at bottom
-    maxHeight: "85%", // Allow slightly more height
+    maxHeight: '85%', // Allow slightly more height
   },
   modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20, // More margin
   },
   modalTitle: {
     fontSize: 22, // Larger title
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: 'bold',
+    color: '#333',
   },
   closeButton: {
     padding: 8, // Larger touch target
   },
   modalStationName: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#666",
+    fontWeight: '600',
+    color: '#666',
     marginBottom: 16, // Reduced margin
-    textAlign: "center",
+    textAlign: 'center',
   },
   cycleInfoContainer: {
     marginBottom: 16,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: "#f0f0f0", // Lighter background
+    backgroundColor: '#f0f0f0', // Lighter background
   },
   cycleInfoLabel: {
     fontSize: 14,
-    color: "#555", // Darker label
+    color: '#555', // Darker label
     marginBottom: 4,
-    textAlign: "center",
+    textAlign: 'center',
   },
   cycleInfoValue: {
     fontSize: 14,
-    fontWeight: "500",
-    color: "#333",
-    textAlign: "center",
+    fontWeight: '500',
+    color: '#333',
+    textAlign: 'center',
   },
   inputLabel: {
     fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
+    fontWeight: '500',
+    color: '#333',
     marginBottom: 8,
     marginTop: 8, // Add margin top
   },
   fuelTypeSelector: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     marginBottom: 16,
-    justifyContent: "center", // Center fuel types
+    justifyContent: 'center', // Center fuel types
   },
   fuelTypeOption: {
     paddingHorizontal: 14, // More padding
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: "#e9e9e9", // Lighter inactive background
+    backgroundColor: '#e9e9e9', // Lighter inactive background
     margin: 4, // Use margin for spacing
   },
   selectedFuelType: {
-    backgroundColor: "#2a9d8f",
+    backgroundColor: '#2a9d8f',
   },
   fuelTypeOptionText: {
     fontSize: 14,
-    color: "#555",
+    color: '#555',
   },
   selectedFuelTypeText: {
-    color: "#fff",
-    fontWeight: "bold", // Bold selected
+    color: '#fff',
+    fontWeight: 'bold', // Bold selected
   },
   modalFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 24, // More margin top
     paddingTop: 16, // Add padding top
     borderTopWidth: 1,
-    borderTopColor: "#eee",
+    borderTopColor: '#eee',
   },
   modalButton: {
     flex: 1,
