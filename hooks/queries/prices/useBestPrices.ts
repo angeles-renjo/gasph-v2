@@ -21,7 +21,7 @@ interface PriceReportSelect {
   price: number;
   user_id: string;
   reported_at: string;
-  expires_at: string;
+  // expires_at: string; // Removed
   cycle_id: string;
   station_name: string;
   station_brand: string;
@@ -33,9 +33,10 @@ interface PriceReportSelect {
   confidence_score: number;
 }
 
-// Extend with distance property
+// Extend with distance (DOE benchmark removed)
 interface BestPrice extends PriceReportSelect {
   distance?: number;
+  // doe_benchmark_price?: number | null; // Removed DOE benchmark price
 }
 
 export interface UseBestPricesOptions {
@@ -65,17 +66,14 @@ export function useBestPrices({
           throw new Error('Location not available');
         }
 
-        let query = supabase
-          .from('active_price_reports')
-          .select(
-            `
+        let query = supabase.from('active_price_reports').select(
+          `
             id,
             station_id,
             fuel_type,
             price,
             user_id,
             reported_at,
-            expires_at,
             cycle_id,
             station_name,
             station_brand,
@@ -86,8 +84,9 @@ export function useBestPrices({
             confirmations_count,
             confidence_score
           `
-          )
-          .order('price', { ascending: true });
+        );
+        // We will sort later after distance calculation and DOE price addition
+        // .order('price', { ascending: true });
 
         // Only add the fuel type filter if one is specified
         if (fuelType) {
@@ -104,10 +103,13 @@ export function useBestPrices({
           return { prices: [], stats: null };
         }
 
+        // --- Removed DOE Benchmark Fetching Logic ---
+
         // 1. Calculate distance and filter
         const reportsWithDistance = (data as PriceReportSelect[])
           .map((report) => ({
             ...report,
+            // doe_benchmark_price: null, // Removed
             distance: calculateDistance(location, {
               latitude: report.station_latitude,
               longitude: report.station_longitude,

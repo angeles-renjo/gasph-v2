@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/utils/supabase/supabase";
-import { useAuth } from "@/hooks/useAuth";
-import { queryKeys } from "@/hooks/queries/utils/queryKeys";
-import { defaultQueryOptions } from "@/hooks/queries/utils/queryOptions";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/utils/supabase/supabase';
+import { useAuth } from '@/hooks/useAuth';
+import { queryKeys } from '@/hooks/queries/utils/queryKeys';
+import { defaultQueryOptions } from '@/hooks/queries/utils/queryOptions';
 
 // Define the structure for a gas station
 interface GasStationInfo {
@@ -19,7 +19,6 @@ interface UserContribution {
   price: number;
   reported_at: string;
   station: GasStationInfo;
-  confirmations_count: number;
   // Add cycle info if needed
   // cycle?: { cycle_number: number; status: string } | null;
 }
@@ -43,14 +42,13 @@ export function useUserContributions({
       }
 
       const { data, error } = await supabase
-        .from("user_price_reports")
+        .from('user_price_reports')
         .select(
           `
           id,
           fuel_type,
           price,
           reported_at,
-          confirmations_count,
           station:gas_stations!station_id(
             id,
             name,
@@ -59,12 +57,12 @@ export function useUserContributions({
           )
         `
         )
-        .eq("user_id", userId)
-        .order("reported_at", { ascending: false })
+        .eq('user_id', userId)
+        .order('reported_at', { ascending: false })
         .limit(limit);
 
       if (error) {
-        console.error("Error fetching user contributions:", error.message);
+        console.error('Error fetching user contributions:', error.message);
         throw error;
       }
 

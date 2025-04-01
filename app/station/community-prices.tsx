@@ -22,13 +22,6 @@ export default function CommunityPricesScreen() {
     stationName?: string; // Optional: Pass station name for display
   }>();
 
-  // --- DEBUG LOG 1: Check received parameters ---
-  console.log('[CommunityPricesScreen] Received Params:', {
-    stationId,
-    fuelType,
-    stationName,
-  });
-
   const { user } = useAuth(); // Get current user
 
   // Use the actual query hook
@@ -39,14 +32,6 @@ export default function CommunityPricesScreen() {
     error,
     refetch,
   } = useStationFuelTypePrices(stationId, fuelType);
-
-  // --- DEBUG LOG 2: Check hook results ---
-  console.log('[CommunityPricesScreen] Hook Data:', {
-    prices,
-    isLoading,
-    isError,
-    error,
-  });
 
   if (!stationId || !fuelType) {
     // Added check earlier, but good to keep just in case

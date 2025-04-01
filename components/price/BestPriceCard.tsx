@@ -17,8 +17,10 @@ export interface BestPriceCardProps
     | 'price'
     | 'distance'
     | 'station_city'
-    // Add confirmations_count from the full BestPrice type
-    | 'confirmations_count'
+    // Removed doe_benchmark_price
+    // | 'doe_benchmark_price'
+    // Remove confirmations_count as it's no longer consistently available
+    // | 'confirmations_count'
   > {}
 
 export function BestPriceCard({
@@ -29,8 +31,9 @@ export function BestPriceCard({
   price,
   distance = 0,
   station_city,
-  confirmations_count = 0, // Default to 0 if not provided
-}: BestPriceCardProps) {
+}: // doe_benchmark_price, // Removed prop
+// confirmations_count = 0, // Remove confirmations_count prop
+BestPriceCardProps) {
   const router = useRouter();
 
   const navigateToStation = () => {
@@ -50,6 +53,8 @@ export function BestPriceCard({
         <Text style={styles.price}>{formatPrice(price)}</Text>
       </View>
 
+      {/* Removed DOE Benchmark Price Display */}
+
       <View style={styles.stationRow}>
         <Text style={styles.stationName} numberOfLines={1}>
           {station_name}
@@ -57,16 +62,7 @@ export function BestPriceCard({
         <Text style={styles.stationBrand}>{station_brand}</Text>
       </View>
 
-      {/* Display Confirmations if available */}
-      {confirmations_count > 0 && (
-        <View style={styles.confirmationRow}>
-          <FontAwesome5 name='check-circle' size={14} color='#2a9d8f' />
-          <Text style={styles.confirmationText}>
-            {confirmations_count} confirmation
-            {confirmations_count > 1 ? 's' : ''}
-          </Text>
-        </View>
-      )}
+      {/* Confirmation display removed */}
 
       <View style={styles.infoRow}>
         <View style={styles.infoItem}>
@@ -138,18 +134,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  confirmationRow: {
+  doeBenchmarkRow: {
     flexDirection: 'row',
+    justifyContent: 'flex-start', // Align to the start
     alignItems: 'center',
-    marginBottom: 8,
-    marginTop: 4, // Add some space above
+    marginTop: 4, // Space below main price
+    marginBottom: 8, // Space above station info
   },
-  confirmationText: {
-    marginLeft: 6,
+  doeBenchmarkLabel: {
     fontSize: 13,
-    color: '#2a9d8f',
+    color: '#666',
+    marginRight: 4,
+  },
+  doeBenchmarkText: {
+    fontSize: 13,
+    color: '#666',
     fontWeight: '500',
   },
+  // Removed duplicate style definitions below
+  // Confirmation styles removed
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
