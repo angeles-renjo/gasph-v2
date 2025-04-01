@@ -30,8 +30,12 @@ interface StationWithPrices extends GasStation {
 
 // Removed duplicate ActivePriceReport interface - using the one from Tables<'active_price_reports'>
 
-interface StationWithPrices extends GasStation {
-  communityPrices: PriceCardProps[];
+// Define the structure for the best community price per fuel type
+type BestCommunityPrices = Record<string, PriceCardProps | undefined>;
+
+interface StationDetailsData extends GasStation {
+  // communityPrices: PriceCardProps[]; // We might not need to return the full list anymore
+  bestCommunityPrices: BestCommunityPrices; // Return only the best price per fuel type
   doePrices: DoePriceView[]; // Use the generated type
   latestDOEDate?: string;
 }
@@ -51,12 +55,36 @@ const getLatestDoeDate = (prices: DoePriceView[]): string | undefined => {
   }, undefined); // Start with undefined
 };
 
+// Helper function to find the best price report for a given fuel type
+const findBestPrice = (
+  prices: PriceCardProps[]
+): PriceCardProps | undefined => {
+  if (!prices || prices.length === 0) {
+    return undefined;
+  }
+
+  return prices.reduce((best, current) => {
+    if (!best) return current;
+    // Higher confirmations win
+    if (current.confirmations_count > best.confirmations_count) return current;
+    // If confirmations are equal, more recent report wins
+    if (
+      current.confirmations_count === best.confirmations_count &&
+      new Date(current.reported_at) > new Date(best.reported_at)
+    ) {
+      return current;
+    }
+    return best;
+  }, prices[0]); // Start comparison with the first element
+};
+
 export function useStationDetails(stationId: string | null) {
   const { user } = useAuth();
 
   return useQuery({
     queryKey: queryKeys.stations.detail(stationId ?? ''),
-    queryFn: async (): Promise<StationWithPrices | null> => {
+    queryFn: async (): Promise<StationDetailsData | null> => {
+      // Updated return type
       if (!stationId) return null;
 
       // Get station details
@@ -111,9 +139,27 @@ export function useStationDetails(stationId: string | null) {
         })
       );
 
+      // --- Process Community Prices to find the best per fuel type ---
+      const pricesByFuelType: Record<string, PriceCardProps[]> = {};
+      enhancedPrices.forEach((price) => {
+        if (!pricesByFuelType[price.fuel_type]) {
+          pricesByFuelType[price.fuel_type] = [];
+        }
+        pricesByFuelType[price.fuel_type].push(price);
+      });
+
+      const bestCommunityPrices: BestCommunityPrices = {};
+      for (const fuelType in pricesByFuelType) {
+        bestCommunityPrices[fuelType] = findBestPrice(
+          pricesByFuelType[fuelType]
+        );
+      }
+      // --- End Processing Community Prices ---
+
       return {
         ...station,
-        communityPrices: enhancedPrices,
+        // communityPrices: enhancedPrices, // Optionally remove if not needed elsewhere
+        bestCommunityPrices: bestCommunityPrices, // Return the processed best prices
         doePrices: doePrices, // Use fetched DOE prices
         latestDOEDate: latestDOEDate, // Use calculated latest date
       };

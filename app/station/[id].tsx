@@ -10,7 +10,7 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router'; // Import useRouter
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
 import { useStationDetails } from '@/hooks/queries/stations/useStationDetails';
@@ -30,6 +30,7 @@ import { queryKeys } from '@/hooks/queries/utils/queryKeys'; // Import queryKeys
 export default function StationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const router = useRouter(); // Get router instance
   const queryClient = useQueryClient(); // Get query client instance
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [selectedFuelType, setSelectedFuelType] = useState<FuelType>('Diesel');
@@ -163,6 +164,10 @@ export default function StationDetailScreen() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.prices.best.all(),
       });
+      // Invalidate the specific fuel type prices query for the new screen
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.stations.fuelTypePrices(id, selectedFuelType),
+      });
 
       // Success feedback
       setReportModalVisible(false);
@@ -199,15 +204,12 @@ export default function StationDetailScreen() {
     );
   }
 
-  // Group price reports by fuel type (remains the same)
-  const pricesByFuelType: Record<string, any[]> = {};
-  station.communityPrices?.forEach((price) => {
-    // Add optional chaining
-    if (!pricesByFuelType[price.fuel_type]) {
-      pricesByFuelType[price.fuel_type] = [];
-    }
-    pricesByFuelType[price.fuel_type].push(price);
-  });
+  // No longer need to group prices here, the hook provides bestCommunityPrices
+
+  // Check if there are any best prices to display
+  const hasBestCommunityPrices =
+    station.bestCommunityPrices &&
+    Object.values(station.bestCommunityPrices).some((price) => !!price);
 
   return (
     <ScrollView style={styles.container}>
@@ -242,34 +244,63 @@ export default function StationDetailScreen() {
         />
       </View>
 
-      {/* Community Prices */}
+      {/* Community Prices - Updated Logic */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Community Reported Prices</Text>
 
-        {Object.keys(pricesByFuelType).length > 0 ? (
-          Object.entries(pricesByFuelType).map(([fuelType, prices]) => (
-            <View key={fuelType} style={styles.fuelTypeSection}>
-              <Text style={styles.fuelTypeTitle}>{fuelType}</Text>
+        {hasBestCommunityPrices ? (
+          Object.entries(station.bestCommunityPrices).map(
+            ([fuelType, bestPrice]) => {
+              // Only render if a best price exists for this fuel type
+              if (!bestPrice) return null;
 
-              {prices.map((price) => (
-                <PriceCard
-                  key={price.id}
-                  id={price.id}
-                  station_id={id || ''}
-                  fuel_type={price.fuel_type}
-                  price={price.price}
-                  reported_at={price.reported_at}
-                  source='community'
-                  username={price.username}
-                  user_id={price.user_id}
-                  confirmations_count={price.confirmations_count}
-                  cycle_id={price.cycle_id}
-                  isOwnReport={price.isOwnReport}
-                />
-              ))}
-            </View>
-          ))
+              return (
+                <View key={fuelType} style={styles.fuelTypeSection}>
+                  <Text style={styles.fuelTypeTitle}>{fuelType}</Text>
+                  <PriceCard
+                    key={bestPrice.id} // Use bestPrice data
+                    id={bestPrice.id}
+                    station_id={id || ''}
+                    fuel_type={bestPrice.fuel_type}
+                    price={bestPrice.price}
+                    reported_at={bestPrice.reported_at}
+                    source='community'
+                    username={bestPrice.username}
+                    user_id={bestPrice.user_id}
+                    confirmations_count={bestPrice.confirmations_count}
+                    cycle_id={bestPrice.cycle_id}
+                    isOwnReport={bestPrice.isOwnReport}
+                  />
+                  {/* Add placeholder link/button to view all reports */}
+                  <TouchableOpacity
+                    style={styles.viewAllButton}
+                    onPress={() => {
+                      // Navigate to the community prices screen
+                      router.push({
+                        pathname: '/station/community-prices',
+                        params: {
+                          stationId: id,
+                          fuelType: fuelType,
+                          stationName: station.name, // Pass station name
+                        },
+                      });
+                    }}
+                  >
+                    <Text style={styles.viewAllButtonText}>
+                      View all reports
+                    </Text>
+                    <FontAwesome5
+                      name='chevron-right'
+                      size={12}
+                      color='#2a9d8f'
+                    />
+                  </TouchableOpacity>
+                </View>
+              );
+            }
+          )
         ) : (
+          // Corrected Else block for when no community prices exist
           <Card style={styles.emptyCard}>
             <Text style={styles.emptyText}>
               No community price reports yet. Be the first to report a price!
@@ -683,5 +714,20 @@ const styles = StyleSheet.create({
   modalButton: {
     flex: 1,
     marginHorizontal: 6, // Adjust spacing
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginTop: -8, // Adjust to align nicely below the card
+    marginBottom: 8,
+  },
+  viewAllButtonText: {
+    fontSize: 13,
+    color: '#2a9d8f',
+    marginRight: 5,
+    fontWeight: '500',
   },
 });
