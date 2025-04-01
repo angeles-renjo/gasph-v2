@@ -45,11 +45,19 @@ This document summarizes the understanding gained about the GasPH database schem
   - Fetches _all_ active community reports (`active_price_reports`) for the station.
   - **Processes** community reports to find the single "best" report per fuel type (highest confirmations, then latest date). Stores this in `bestCommunityPrices`.
   - Fetches relevant DOE benchmarks from `doe_price_view`.
-  - Used by the main station detail screen.
+  - Used by the main station detail screen (`app/station/[id].tsx`).
 - **`useStationFuelTypePrices` (`hooks/queries/stations/useStationFuelTypePrices.ts`)**:
   - Fetches _all_ active community reports (`active_price_reports`) for a _specific_ station AND _specific_ fuel type.
   - Orders results by confirmations, then date.
-  - Used by the new community prices list screen.
+  - Used by the community prices list screen (`app/station/community-prices.tsx`).
+- **`useBestPrices` (`hooks/queries/prices/useBestPrices.ts`)**:
+  - Fetches best community-reported prices near the user's location.
+  - Filters by distance and optionally by a specific `fuelType`.
+  - **Logic:**
+    - If a specific `fuelType` is selected, returns all reports for that type within the distance, sorted by price.
+    - If "All Types" is selected, finds the single lowest price report for _each distinct fuel type_ within the distance (potentially from different stations or the same station multiple times) and returns that list, sorted by price.
+  - Includes `confirmations_count` in the returned data.
+  - Used by the main best prices screen (`app/(tabs)/index.tsx`).
 - **`queryKeys` (`hooks/queries/utils/queryKeys.ts`)**: Defines structures for TanStack Query keys to manage caching and invalidation.
 
 ### Key Screens:
@@ -60,12 +68,17 @@ This document summarizes the understanding gained about the GasPH database schem
   - **Community Prices Display:** Now iterates through `bestCommunityPrices` from the hook, showing only one `PriceCard` per fuel type.
   - Includes a "View all reports" button/link next to each best price card.
   - Uses `useRouter` to navigate to the community prices screen, passing `stationId`, `fuelType`, and `stationName`.
-  - Contains the `handleReportPrice` function which submits new reports and invalidates relevant queries (`stations.detail`, `prices.best`, `users.contributions`, and now `stations.fuelTypePrices`).
+  - Contains the `handleReportPrice` function which submits new reports and invalidates relevant queries (`stations.detail`, `prices.best`, `users.contributions`, and `stations.fuelTypePrices`).
 - **`app/station/community-prices.tsx` (Community Prices List Screen)**:
-  - New screen created for this feature.
+  - New screen created for the "View all reports" feature.
   - Uses `useLocalSearchParams` to get `stationId` and `fuelType`.
   - Uses `useStationFuelTypePrices` to fetch the list of reports.
   - Maps over the fetched `prices` array and renders a `PriceCard` for each report.
+- **`app/(tabs)/index.tsx` (Best Prices Screen)**:
+  - Uses `useBestPrices` to fetch nearby price data based on location and filters.
+  - Provides UI filters for fuel type (chips) and distance (chips).
+  - Renders a `FlatList` of `BestPriceCard` components based on the data from `useBestPrices`.
+  - Passes `confirmations_count` to each `BestPriceCard`.
 
 ## Recent Tasks Summary
 
@@ -76,7 +89,7 @@ This document summarizes the understanding gained about the GasPH database schem
     - Resolved city name mismatch ('Makati' vs 'Makati City') by standardizing city names in `price_references.area` via `UPDATE` statements.
     - Simplified `doe_price_view` using `UNION ALL` and `row_number()` after data standardization. Fixed view replacement errors (type casting, column order).
 2.  **Community Price Display Refactor:**
-    - **Goal:** Show only the "best" report on the main screen, provide a link to a full list.
+    - **Goal:** Show only the "best" report on the main station detail screen, provide a link to a full list.
     - Modified `useStationDetails` to calculate `bestCommunityPrices`.
     - Updated `app/station/[id].tsx` to use `bestCommunityPrices` and add navigation button.
     - Created new screen `app/station/community-prices.tsx`.
@@ -85,6 +98,11 @@ This document summarizes the understanding gained about the GasPH database schem
     - Integrated hook into the new screen.
     - Added query invalidation to `handleReportPrice`.
     - **Debugging:** Traced empty community price list screen issue back to `active_price_reports` view filtering based on `expires_at`. Resolved by ensuring correct 'active' `price_reporting_cycles` exist. Confirmed hook returns data via console logs. Fixed minor JSX warning.
+3.  **Main Screen Best Price Display Update:**
+    - **Goal:** Modify the main screen (`index.tsx`) to display the best price _per fuel type_ (allowing duplicate stations) with confirmation counts, sorted by price.
+    - Modified `useBestPrices` hook to implement the new fetching/filtering logic (best per fuel type for "All Types" filter, all reports for specific fuel type filter).
+    - Updated `BestPriceCard` component to accept and display `confirmations_count`.
+    - Updated `index.tsx` to pass the `confirmations_count` to the card.
 
 ## Potential Next Steps / Areas for Improvement
 
