@@ -4,6 +4,7 @@ import { queryKeys } from '../utils/queryKeys';
 import { defaultQueryOptions } from '../utils/queryOptions';
 import type { LocationData } from '@/hooks/useLocation';
 import { calculateDistance } from '@/lib/geo';
+import { Tables } from '@/utils/supabase/types'; // Import Tables type
 
 export type FuelType =
   | 'Diesel'
@@ -33,10 +34,16 @@ interface PriceReportSelect {
   confidence_score: number;
 }
 
-// Extend with distance (DOE benchmark removed)
-interface BestPrice extends PriceReportSelect {
+// Define DOE Price structure based on doe_price_view, including source_type
+type DoePriceData = Pick<
+  Tables<'doe_price_view'>,
+  'min_price' | 'common_price' | 'max_price' | 'week_of' | 'source_type'
+>;
+
+// Extend BestPrice to include optional DOE data and source_type
+interface BestPrice extends PriceReportSelect, Partial<DoePriceData> {
   distance?: number;
-  // doe_benchmark_price?: number | null; // Removed DOE benchmark price
+  // doe_benchmark_price is removed, replaced by specific min/common/max
 }
 
 export interface UseBestPricesOptions {
@@ -53,6 +60,9 @@ export function useBestPrices({
   providedLocation,
 }: UseBestPricesOptions = {}) {
   const location = providedLocation;
+
+  // Define the type for the DOE data map
+  type DoePriceMap = Map<string, DoePriceData>; // Key: "stationId_fuelType"
 
   return useQuery({
     queryKey: queryKeys.prices.best.list({
@@ -85,10 +95,8 @@ export function useBestPrices({
             confidence_score
           `
         );
-        // We will sort later after distance calculation and DOE price addition
-        // .order('price', { ascending: true });
 
-        // Only add the fuel type filter if one is specified
+        // Only add the fuel type filter if one is specified for community prices
         if (fuelType) {
           query = query.eq('fuel_type', fuelType);
         }
@@ -103,66 +111,197 @@ export function useBestPrices({
           return { prices: [], stats: null };
         }
 
-        // --- Removed DOE Benchmark Fetching Logic ---
+        // Extract unique station IDs and fuel types from community reports
+        const stationIds = [...new Set(data.map((r) => r.station_id))];
+        const fuelTypes = fuelType
+          ? [fuelType] // Only the specified one if provided
+          : [...new Set(data.map((r) => r.fuel_type))]; // All unique types found otherwise
 
-        // 1. Calculate distance and filter
-        const reportsWithDistance = (data as PriceReportSelect[])
-          .map((report) => ({
-            ...report,
-            // doe_benchmark_price: null, // Removed
-            distance: calculateDistance(location, {
+        // Fetch DOE prices for the relevant stations and fuel types
+        // Assuming we want the latest DOE data for each station/fuel combo
+        // A more robust implementation might filter by current cycle or week_of
+        let doeQuery = supabase
+          .from('doe_price_view')
+          .select(
+            'gas_station_id, fuel_type, min_price, common_price, max_price, week_of, source_type' // Add source_type
+          )
+          .in('gas_station_id', stationIds)
+          .in('fuel_type', fuelTypes);
+        // Ideally, add ordering by week_of desc and potentially distinct on station/fuel
+
+        const { data: doeData, error: doeError } = await doeQuery;
+
+        if (doeError) {
+          console.error('Error fetching DOE prices:', doeError);
+          // Decide how to handle: throw, or continue without DOE data?
+          // For now, let's continue but log the error.
+        }
+
+        // Create a map for easy lookup: key="stationId_fuelType", value=DoePriceData
+        const doePriceMap: DoePriceMap = new Map();
+        if (doeData) {
+          // Assuming we get multiple entries per station/fuel, we might want the latest 'week_of'
+          // For simplicity now, just take the first one found (needs refinement based on actual data/needs)
+          doeData.forEach((doe) => {
+            const key = `${doe.gas_station_id}_${doe.fuel_type}`;
+            if (!doePriceMap.has(key) && doe.gas_station_id && doe.fuel_type) {
+              // Ensure key parts are not null
+              doePriceMap.set(key, {
+                min_price: doe.min_price,
+                common_price: doe.common_price,
+                max_price: doe.max_price,
+                week_of: doe.week_of,
+                source_type: doe.source_type, // Include source_type
+              });
+            }
+          });
+        }
+
+        // 1. Calculate distance, filter by maxDistance, and merge DOE data
+        const reportsWithDistanceAndDoe = (data as PriceReportSelect[])
+          .map((report): BestPrice | null => {
+            // Return BestPrice or null if filtered out
+            const distance = calculateDistance(location, {
               latitude: report.station_latitude,
               longitude: report.station_longitude,
-            }),
-          }))
-          .filter((report) => {
-            const distance = report.distance as number;
-            return !isNaN(distance) && distance <= maxDistance;
-          });
+            });
+
+            // Filter out reports beyond maxDistance or with invalid distance
+            if (isNaN(distance) || distance > maxDistance) {
+              return null;
+            }
+
+            const doeKey = `${report.station_id}_${report.fuel_type}`;
+            const matchingDoeData = doePriceMap.get(doeKey);
+
+            return {
+              ...report,
+              distance,
+              min_price: matchingDoeData?.min_price ?? null,
+              common_price: matchingDoeData?.common_price ?? null,
+              max_price: matchingDoeData?.max_price ?? null,
+              week_of: matchingDoeData?.week_of ?? null,
+              source_type: matchingDoeData?.source_type ?? null, // Include source_type
+            };
+          })
+          .filter((report): report is BestPrice => report !== null); // Remove null entries
 
         let finalBestPrices: BestPrice[];
 
         if (fuelType) {
-          // If a specific fuel type is selected, just sort the filtered reports by price
-          reportsWithDistance.sort((a, b) => {
+          // Scenario 1: Specific Fuel Type Selected
+          // We already filtered community prices by fuelType.
+          // We fetched DOE data only for this fuelType.
+          // The reportsWithDistanceAndDoe contains reports for the specific fuel type, augmented with DOE data.
+          // Sort by community price first, then distance.
+          reportsWithDistanceAndDoe.sort((a, b) => {
             if (a.price !== b.price) {
               return a.price - b.price;
             }
             return (a.distance ?? Infinity) - (b.distance ?? Infinity);
           });
-          finalBestPrices = reportsWithDistance; // Use all reports for the specific fuel type
+          finalBestPrices = reportsWithDistanceAndDoe;
         } else {
-          // If "All Types" is selected, find the best price for EACH fuel type
-          // 1. Group by fuel_type
-          const reportsByFuelType = reportsWithDistance.reduce<
+          // Scenario 2: "All Fuel Types" Selected
+          // Find the single cheapest option (fuel type) per station.
+          // 1. Group reports by station_id
+          const reportsByStation = reportsWithDistanceAndDoe.reduce<
             Record<string, BestPrice[]>
           >((acc, report) => {
-            if (!acc[report.fuel_type]) {
-              acc[report.fuel_type] = [];
+            if (!acc[report.station_id]) {
+              acc[report.station_id] = [];
             }
-            acc[report.fuel_type].push(report);
+            acc[report.station_id].push(report);
             return acc;
           }, {});
 
-          // 2. Select the best report (lowest price) for each fuel type
-          const bestPricePerFuelType: BestPrice[] = Object.values(
-            reportsByFuelType
+          // 2. For each station, find the cheapest fuel type
+          const cheapestOptionPerStation: BestPrice[] = Object.values(
+            reportsByStation
           )
-            .map((fuelTypeReports) => {
-              // Sort reports within the fuel type group by price (ascending), then distance
-              fuelTypeReports.sort((a, b) => {
-                if (a.price !== b.price) {
-                  return a.price - b.price;
-                }
-                return (a.distance ?? Infinity) - (b.distance ?? Infinity);
-              });
-              return fuelTypeReports[0]; // The first one is the best for this fuel type
-            })
-            .filter((report): report is BestPrice => !!report); // Filter out any undefined cases
+            .map((stationReports) => {
+              if (!stationReports || stationReports.length === 0) {
+                return null; // Should not happen if reportsByStation is built correctly
+              }
 
-          // 3. Sort the final list (containing best price for each fuel type) by price
-          bestPricePerFuelType.sort((a, b) => a.price - b.price);
-          finalBestPrices = bestPricePerFuelType;
+              // Find the best option within this station's reports
+              let bestOptionForStation: BestPrice | null = null;
+
+              for (const report of stationReports) {
+                if (!bestOptionForStation) {
+                  bestOptionForStation = report;
+                  continue;
+                }
+
+                // Comparison Logic:
+                // Priority 1: Community Price (lower is better)
+                // Priority 2: DOE Min Price (lower is better, used if community prices are equal or one is missing)
+                // Priority 3: Distance (lower is better, as tie-breaker)
+
+                const currentBestPrice = bestOptionForStation.price ?? Infinity;
+                const candidatePrice = report.price ?? Infinity;
+                const currentBestDoeMin =
+                  bestOptionForStation.min_price ?? Infinity;
+                const candidateDoeMin = report.min_price ?? Infinity;
+
+                let candidateIsBetter = false;
+
+                if (candidatePrice < currentBestPrice) {
+                  candidateIsBetter = true;
+                } else if (candidatePrice === currentBestPrice) {
+                  // If community prices are equal (or both missing), compare DOE min
+                  if (candidateDoeMin < currentBestDoeMin) {
+                    candidateIsBetter = true;
+                  } else if (candidateDoeMin === currentBestDoeMin) {
+                    // If DOE min are also equal, compare distance
+                    if (
+                      (report.distance ?? Infinity) <
+                      (bestOptionForStation.distance ?? Infinity)
+                    ) {
+                      candidateIsBetter = true;
+                    }
+                  }
+                } else if (
+                  currentBestPrice === Infinity &&
+                  candidatePrice === Infinity
+                ) {
+                  // If NEITHER has community price, compare DOE min directly
+                  if (candidateDoeMin < currentBestDoeMin) {
+                    candidateIsBetter = true;
+                  } else if (candidateDoeMin === currentBestDoeMin) {
+                    // If DOE min are also equal, compare distance
+                    if (
+                      (report.distance ?? Infinity) <
+                      (bestOptionForStation.distance ?? Infinity)
+                    ) {
+                      candidateIsBetter = true;
+                    }
+                  }
+                }
+                // Implicit else: candidatePrice > currentBestPrice - candidate is not better
+
+                if (candidateIsBetter) {
+                  bestOptionForStation = report;
+                }
+              }
+              return bestOptionForStation; // Return the single best option found for this station
+            })
+            .filter((report): report is BestPrice => report !== null); // Filter out any nulls
+
+          // 3. Sort the final list (cheapest option per station) by the determined best price
+          //    (using the same comparison logic as above for sorting)
+          cheapestOptionPerStation.sort((a, b) => {
+            const priceA = a.price ?? Infinity;
+            const priceB = b.price ?? Infinity;
+            const doeMinA = a.min_price ?? Infinity;
+            const doeMinB = b.min_price ?? Infinity;
+
+            if (priceA !== priceB) return priceA - priceB;
+            if (doeMinA !== doeMinB) return doeMinA - doeMinB;
+            return (a.distance ?? Infinity) - (b.distance ?? Infinity);
+          });
+
+          finalBestPrices = cheapestOptionPerStation;
         }
 
         // Calculate stats based on the final list

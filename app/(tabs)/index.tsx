@@ -216,6 +216,11 @@ export default function BestPricesScreen() {
             distance={item.distance}
             station_city={item.station_city}
             confirmations_count={item.confirmations_count} // Pass the count
+            // Pass the DOE price fields
+            min_price={item.min_price}
+            common_price={item.common_price}
+            max_price={item.max_price}
+            source_type={item.source_type} // Pass source_type
           />
         )}
         contentContainerStyle={styles.listContent}

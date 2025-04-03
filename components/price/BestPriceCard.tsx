@@ -17,11 +17,33 @@ export interface BestPriceCardProps
     | 'price'
     | 'distance'
     | 'station_city'
-    // Removed doe_benchmark_price
-    // | 'doe_benchmark_price'
-    // Add confirmations_count back
     | 'confirmations_count'
+    // Add optional DOE price fields from the updated BestPrice type
+    | 'min_price'
+    | 'common_price'
+    | 'max_price'
+    | 'week_of' // Optional: might be useful for context later
+    | 'source_type' // Add source_type
   > {}
+
+// Helper function to format source_type to just the specific label text
+const formatSourceTypeLabel = (
+  sourceType: string | null | undefined
+): string => {
+  if (!sourceType) return ''; // Return empty if no type
+  switch (sourceType) {
+    case 'brand_specific':
+      return 'Brand Specific';
+    case 'city_overall':
+      return 'City Overall';
+    case 'ncr_prevailing':
+      return 'NCR Prevailing';
+    // Add other cases as needed
+    default:
+      // Simple formatting for unknown types
+      return sourceType.replace(/_/g, ' ');
+  }
+};
 
 export function BestPriceCard({
   station_id,
@@ -31,7 +53,12 @@ export function BestPriceCard({
   price,
   distance = 0,
   station_city,
-  confirmations_count = 0, // Add confirmations_count to props
+  confirmations_count = 0,
+  // Destructure new DOE props, providing defaults (null)
+  min_price = null,
+  common_price = null,
+  max_price = null,
+  source_type = null, // Destructure source_type
 }: BestPriceCardProps) {
   const router = useRouter();
 
@@ -49,10 +76,48 @@ export function BestPriceCard({
         <View style={styles.fuelTypeContainer}>
           <Text style={styles.fuelType}>{fuel_type}</Text>
         </View>
-        <Text style={styles.price}>{formatPrice(price)}</Text>
+        {/* Display community price or placeholder */}
+        <Text style={styles.price}>{price ? formatPrice(price) : '--'}</Text>
       </View>
 
-      {/* Removed DOE Benchmark Price Display */}
+      {/* Display DOE Price Range if available - Label + Badge + Table Row Style */}
+      {(min_price !== null || common_price !== null || max_price !== null) && (
+        <View style={styles.doeContainer}>
+          {/* Row 1: Label + Badge */}
+          <View style={styles.doeInfoRow}>
+            <Text style={styles.doeLabel}>DOE:</Text>
+            {source_type && ( // Only show badge if source_type exists
+              <View style={styles.doeTypeBadge}>
+                <Text style={styles.doeTypeBadgeText}>
+                  {formatSourceTypeLabel(source_type)}
+                </Text>
+              </View>
+            )}
+          </View>
+          {/* Row 2: Min/Common/Max Table */}
+          <View style={styles.doeTableRow}>
+            <View style={styles.doeTableCell}>
+              <Text style={styles.doeTableHeader}>Min</Text>
+              <Text style={styles.doeTableValue}>
+                {min_price !== null ? formatPrice(min_price) : '--'}
+              </Text>
+            </View>
+            <View style={styles.doeTableCell}>
+              <Text style={styles.doeTableHeader}>Common</Text>
+              <Text style={styles.doeTableValue}>
+                {common_price !== null ? formatPrice(common_price) : '--'}
+              </Text>
+            </View>
+            <View style={styles.doeTableCell}>
+              <Text style={styles.doeTableHeader}>Max</Text>
+              <Text style={styles.doeTableValue}>
+                {max_price !== null ? formatPrice(max_price) : '--'}
+              </Text>
+            </View>
+          </View>
+          {/* Removed comment to prevent text node error */}
+        </View>
+      )}
 
       <View style={styles.stationRow}>
         <Text style={styles.stationName} numberOfLines={1}>
@@ -127,6 +192,64 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2a9d8f',
   },
+  // Styles for DOE Section (Container, Label+Badge Row, Table Row)
+  doeContainer: {
+    marginTop: 6, // Add a bit more space above
+    marginBottom: 8,
+  },
+  doeInfoRow: {
+    // Row for "DOE:" label and Type Badge
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4, // Space between label/badge row and table row
+  },
+  doeLabel: {
+    // Style for "DOE:" text
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+    marginRight: 6,
+  },
+  doeTypeBadge: {
+    // Style for the type badge (e.g., "NCR Prevailing")
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  doeTypeBadgeText: {
+    // Text inside the type badge
+    fontSize: 11,
+    color: '#444',
+    fontWeight: '500',
+  },
+  doeTableRow: {
+    // Row containing Min/Common/Max cells
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#f9f9f9',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  doeTableCell: {
+    // Individual cell (Min, Common, or Max)
+    flex: 1,
+    alignItems: 'center',
+  },
+  doeTableHeader: {
+    // Header text ("Min", "Common", "Max")
+    fontSize: 11,
+    color: '#888',
+    marginBottom: 2,
+  },
+  doeTableValue: {
+    // Price value text
+    fontSize: 13,
+    color: '#444',
+    fontWeight: '500',
+  },
+  // Removed doeValueText style
   stationRow: {
     marginBottom: 4, // Reduced margin
   },
