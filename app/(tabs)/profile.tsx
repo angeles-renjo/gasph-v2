@@ -26,22 +26,19 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 
-// Define the structure for a gas station (copied from hook for local use)
-interface GasStationInfo {
-  id: string;
-  name: string;
-  brand: string;
-  city: string;
-}
-
-// Define the structure of a contribution locally
+// Define the structure of a contribution locally, matching the updated hook
 interface UserContribution {
   id: string;
   fuel_type: string;
   price: number;
   reported_at: string;
-  station: GasStationInfo;
-  // cycle?: { cycle_number: number; status: string } | null; // Keep commented if not used
+  station_id: string; // Added
+  station_name: string; // Added
+  station_brand: string; // Added
+  station_city: string; // Added
+  confirmations_count: number; // Added
+  confidence_score: number; // Added
+  cycle_id: string; // Added
 }
 
 export default function ProfileScreen() {
@@ -209,7 +206,8 @@ export default function ProfileScreen() {
             <Card key={contribution.id} style={styles.contributionCard}>
               <View style={styles.contributionHeader}>
                 <Text style={styles.stationName} numberOfLines={1}>
-                  {contribution.station?.name ?? 'Unknown Station'}
+                  {contribution.station_name ?? 'Unknown Station'}{' '}
+                  {/* Updated access */}
                 </Text>
                 <Text style={styles.contributionDate} numberOfLines={1}>
                   {formatRelativeTime(contribution.reported_at)}
@@ -222,7 +220,13 @@ export default function ProfileScreen() {
                     ₱{contribution.price.toFixed(2)}
                   </Text>
                 </View>
-                {/* Confirmation count text removed as requested */}
+                {/* Re-add confirmation count display */}
+                <Text style={styles.confirmations}>
+                  {contribution.confirmations_count}{' '}
+                  {contribution.confirmations_count === 1
+                    ? 'confirmation'
+                    : 'confirmations'}
+                </Text>
               </View>
             </Card>
           ))}
@@ -541,10 +545,10 @@ const styles = StyleSheet.create({
   buttonSection: {
     marginTop: 10, // Space above buttons
   },
-  // Removed confirmations style as it's no longer used
-  // confirmations: {
-  //   fontSize: 12,
-  //   color: '#666',
-  //   marginLeft: 8,
-  // },
+  // Add confirmations style back
+  confirmations: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8, // Add some space if needed, adjust as per design
+  },
 });

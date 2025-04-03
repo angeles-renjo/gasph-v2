@@ -9,7 +9,7 @@ export interface DOEPrice {
   common_price: number | null; // Allow null
   max_price: number | null; // Allow null
   week_of: string;
-  source: string; // Add source field
+  source: string | null; // Source might be null if no DOE data found
 }
 
 interface DOEPriceTableProps {
@@ -67,19 +67,12 @@ export function DOEPriceTable({ prices, latestDate }: DOEPriceTableProps) {
             ]}
           >
             <View style={styles.fuelTypeCell}>
-              <Text style={styles.fuelTypeText}>
-                {price.fuel_type.includes('(') ? (
-                  <>
-                    {price.fuel_type.split('(')[0].trim()}
-                    {'\n'}
-                    {'(' + price.fuel_type.split('(')[1]}
-                  </>
-                ) : (
-                  price.fuel_type
-                )}
-              </Text>
-              {/* Display the source */}
-              <Text style={styles.sourceText}>({price.source})</Text>
+              {/* Simplify fuel type display */}
+              <Text style={styles.fuelTypeText}>{price.fuel_type}</Text>
+              {/* Display the source only if it exists */}
+              {price.source && (
+                <Text style={styles.sourceText}>({price.source})</Text>
+              )}
             </View>
             <View style={styles.priceCell}>
               <Text style={styles.priceText}>

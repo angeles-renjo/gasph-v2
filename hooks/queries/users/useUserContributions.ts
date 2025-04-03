@@ -3,24 +3,26 @@ import { supabase } from '@/utils/supabase/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 import { defaultQueryOptions } from '@/hooks/queries/utils/queryOptions';
+import { Tables } from '@/utils/supabase/types'; // Import generated types
 
-// Define the structure for a gas station
-interface GasStationInfo {
-  id: string;
-  name: string;
-  brand: string;
-  city: string;
-}
+// Use the view type, potentially extending or picking fields if needed
+// type ActivePriceReport = Tables<'active_price_reports'>;
 
-// Define the structure of a contribution
+// Define the structure of a contribution based on the view
 interface UserContribution {
   id: string;
   fuel_type: string;
   price: number;
   reported_at: string;
-  station: GasStationInfo;
-  // Add cycle info if needed
-  // cycle?: { cycle_number: number; status: string } | null;
+  station_id: string;
+  station_name: string;
+  station_brand: string;
+  station_city: string;
+  confirmations_count: number;
+  confidence_score: number;
+  cycle_id: string;
+  // user_id is implicitly the current user
+  // reporter_username is also implicitly the current user's username
 }
 
 // Define props for the hook
@@ -41,20 +43,22 @@ export function useUserContributions({
         return [];
       }
 
+      // Query the active_price_reports view instead
       const { data, error } = await supabase
-        .from('user_price_reports')
+        .from('active_price_reports')
         .select(
           `
           id,
           fuel_type,
           price,
           reported_at,
-          station:gas_stations!station_id(
-            id,
-            name,
-            brand,
-            city
-          )
+          station_id,
+          station_name,
+          station_brand,
+          station_city,
+          confirmations_count,
+          confidence_score,
+          cycle_id
         `
         )
         .eq('user_id', userId)
@@ -66,7 +70,8 @@ export function useUserContributions({
         throw error;
       }
 
-      return (data as unknown as UserContribution[]) || [];
+      // Cast directly to the updated UserContribution interface
+      return (data as UserContribution[]) || [];
     },
     ...defaultQueryOptions.users.contributions,
     enabled: !!userId,

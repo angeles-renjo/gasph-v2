@@ -19,8 +19,8 @@ export interface BestPriceCardProps
     | 'station_city'
     // Removed doe_benchmark_price
     // | 'doe_benchmark_price'
-    // Remove confirmations_count as it's no longer consistently available
-    // | 'confirmations_count'
+    // Add confirmations_count back
+    | 'confirmations_count'
   > {}
 
 export function BestPriceCard({
@@ -31,9 +31,8 @@ export function BestPriceCard({
   price,
   distance = 0,
   station_city,
-}: // doe_benchmark_price, // Removed prop
-// confirmations_count = 0, // Remove confirmations_count prop
-BestPriceCardProps) {
+  confirmations_count = 0, // Add confirmations_count to props
+}: BestPriceCardProps) {
   const router = useRouter();
 
   const navigateToStation = () => {
@@ -62,7 +61,14 @@ BestPriceCardProps) {
         <Text style={styles.stationBrand}>{station_brand}</Text>
       </View>
 
-      {/* Confirmation display removed */}
+      {/* Add Confirmation display back */}
+      <View style={styles.confirmationRow}>
+        <FontAwesome5 name='check-circle' size={14} color='#666' />
+        <Text style={styles.confirmationText}>
+          {confirmations_count}{' '}
+          {confirmations_count === 1 ? 'confirmation' : 'confirmations'}
+        </Text>
+      </View>
 
       <View style={styles.infoRow}>
         <View style={styles.infoItem}>
@@ -151,8 +157,19 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-  // Removed duplicate style definitions below
-  // Confirmation styles removed
+  confirmationRow: {
+    // Add styles for confirmation row
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4, // Add some space
+    marginBottom: 8,
+  },
+  confirmationText: {
+    // Add styles for confirmation text
+    fontSize: 13,
+    color: '#666',
+    marginLeft: 6,
+  },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

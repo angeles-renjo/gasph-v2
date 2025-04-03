@@ -9,72 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      city_overall_prices: {
-        Row: {
-          area: string
-          fuel_type: string
-          id: string
-          max_price: number | null
-          min_price: number | null
-          updated_at: string | null
-          week_of: string
-        }
-        Insert: {
-          area: string
-          fuel_type: string
-          id?: string
-          max_price?: number | null
-          min_price?: number | null
-          updated_at?: string | null
-          week_of: string
-        }
-        Update: {
-          area?: string
-          fuel_type?: string
-          id?: string
-          max_price?: number | null
-          min_price?: number | null
-          updated_at?: string | null
-          week_of?: string
-        }
-        Relationships: []
-      }
-      fuel_prices: {
-        Row: {
-          area: string
-          brand: string
-          common_price: number | null
-          fuel_type: string
-          id: string
-          max_price: number | null
-          min_price: number | null
-          updated_at: string | null
-          week_of: string
-        }
-        Insert: {
-          area: string
-          brand: string
-          common_price?: number | null
-          fuel_type: string
-          id?: string
-          max_price?: number | null
-          min_price?: number | null
-          updated_at?: string | null
-          week_of: string
-        }
-        Update: {
-          area?: string
-          brand?: string
-          common_price?: number | null
-          fuel_type?: string
-          id?: string
-          max_price?: number | null
-          min_price?: number | null
-          updated_at?: string | null
-          week_of?: string
-        }
-        Relationships: []
-      }
       gas_stations: {
         Row: {
           address: string
@@ -120,36 +54,6 @@ export type Database = {
           province?: string
           status?: string
           updated_at?: string | null
-        }
-        Relationships: []
-      }
-      ncr_prevailing_prices: {
-        Row: {
-          common_price: number | null
-          fuel_type: string
-          id: string
-          max_price: number | null
-          min_price: number | null
-          updated_at: string | null
-          week_of: string
-        }
-        Insert: {
-          common_price?: number | null
-          fuel_type: string
-          id?: string
-          max_price?: number | null
-          min_price?: number | null
-          updated_at?: string | null
-          week_of: string
-        }
-        Update: {
-          common_price?: number | null
-          fuel_type?: string
-          id?: string
-          max_price?: number | null
-          min_price?: number | null
-          updated_at?: string | null
-          week_of?: string
         }
         Relationships: []
       }
@@ -201,6 +105,7 @@ export type Database = {
           area: string
           brand: string | null
           created_at: string | null
+          cycle_id: string | null
           fuel_type: string
           id: string
           max_price: number | null
@@ -214,6 +119,7 @@ export type Database = {
           area: string
           brand?: string | null
           created_at?: string | null
+          cycle_id?: string | null
           fuel_type: string
           id?: string
           max_price?: number | null
@@ -227,6 +133,7 @@ export type Database = {
           area?: string
           brand?: string | null
           created_at?: string | null
+          cycle_id?: string | null
           fuel_type?: string
           id?: string
           max_price?: number | null
@@ -236,34 +143,49 @@ export type Database = {
           updated_at?: string | null
           week_of?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "price_references_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "current_price_cycle"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_references_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "price_reporting_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       price_reporting_cycles: {
         Row: {
           created_at: string | null
           cycle_number: number
           doe_import_date: string | null
-          end_date: string
+          end_date: string | null
           id: string
-          start_date: string
+          start_date: string | null
           status: string
         }
         Insert: {
           created_at?: string | null
           cycle_number?: number
           doe_import_date?: string | null
-          end_date: string
+          end_date?: string | null
           id?: string
-          start_date: string
+          start_date?: string | null
           status?: string
         }
         Update: {
           created_at?: string | null
           cycle_number?: number
           doe_import_date?: string | null
-          end_date?: string
+          end_date?: string | null
           id?: string
-          start_date?: string
+          start_date?: string | null
           status?: string
         }
         Relationships: []
@@ -297,9 +219,7 @@ export type Database = {
       }
       user_price_reports: {
         Row: {
-          confirmations_count: number | null
-          cycle_id: string | null
-          expires_at: string
+          cycle_id: string
           fuel_type: string
           id: string
           price: number
@@ -308,9 +228,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          confirmations_count?: number | null
-          cycle_id?: string | null
-          expires_at: string
+          cycle_id: string
           fuel_type: string
           id?: string
           price: number
@@ -319,9 +237,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          confirmations_count?: number | null
-          cycle_id?: string | null
-          expires_at?: string
+          cycle_id?: string
           fuel_type?: string
           id?: string
           price?: number
@@ -374,7 +290,6 @@ export type Database = {
           confidence_score: number | null
           confirmations_count: number | null
           cycle_id: string | null
-          expires_at: string | null
           fuel_type: string | null
           id: string | null
           price: number | null
