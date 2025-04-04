@@ -1,6 +1,4 @@
 import { supabase } from '@/utils/supabase/supabase';
-import { calculateDistance } from '@/lib/geo';
-import type { LocationData } from '@/hooks/useLocation';
 // Import GasStation type directly
 import type { GasStation } from '../stations/useNearbyStations';
 import type {
@@ -11,10 +9,6 @@ import type {
   BestPrice, // This will now extend GasStation in useBestPrices.ts
   FuelType,
 } from './useBestPrices';
-
-/** Fetches stations, calculates distance, filters by maxDistance */
-// This function is now redundant as we use useNearbyStations hook
-// export async function fetchNearbyStations(...) { ... }
 
 /** Fetches community prices for given station IDs and optional fuel type */
 export async function fetchCommunityPrices(
@@ -67,12 +61,32 @@ export async function fetchDoePrices(
     console.error('Error fetching DOE prices:', error);
     return new Map(); // Return empty map on error
   }
+  // console.log('[bestPricesUtils] Raw DOE Data:', data); // Log raw data - REMOVED
 
   const map = new Map<string, DoePriceInfo>();
   data?.forEach((dp) => {
-    // Key uses gas_station_id from the view data
-    const key = `${dp.gas_station_id}_${dp.fuel_type}`;
-    if (!map.has(key) && dp.gas_station_id && dp.fuel_type) {
+    if (!dp.gas_station_id || !dp.fuel_type) return; // Skip if essential keys are missing
+
+    // Normalize fuel_type to uppercase for consistent key matching
+    const key = `${dp.gas_station_id}_${dp.fuel_type.toUpperCase()}`;
+    const currentEntry = map.get(key);
+    const newEntryHasPrice =
+      dp.min_price !== null ||
+      dp.common_price !== null ||
+      dp.max_price !== null;
+    const currentEntryHasPrice =
+      currentEntry &&
+      (currentEntry.min_price !== null ||
+        currentEntry.common_price !== null ||
+        currentEntry.max_price !== null);
+
+    // Set if:
+    // 1. No current entry exists OR
+    // 2. New entry has prices and current entry does not OR
+    // 3. Both have prices (let the last one processed win, assuming view order is consistent, e.g., specific then general)
+    //    OR if we want to explicitly prioritize non-nulls, we could add more checks here.
+    //    Let's stick with prioritizing if the current one is null.
+    if (!currentEntry || (newEntryHasPrice && !currentEntryHasPrice)) {
       map.set(key, {
         min_price: dp.min_price,
         common_price: dp.common_price,
@@ -82,6 +96,7 @@ export async function fetchDoePrices(
       });
     }
   });
+  // console.log('[bestPricesUtils] Processed DOE Price Map:', map); // Log processed map - REMOVED
   return map;
 }
 
@@ -97,9 +112,21 @@ export function createPotentialPricePoints(
   nearbyStationsMap.forEach((stationInfo, stationId) => {
     // stationId is GasStation.id
     fuelTypesToConsider.forEach((ft) => {
-      const key = `${stationId}_${ft}`; // Use GasStation.id for key
-      const communityPrice = communityPriceMap.get(key) || null;
-      const doePrice = doePriceMap.get(key) || null;
+      // Use uppercase fuel type for map lookups
+      const communityKey = `${stationId}_${ft}`; // Assume community prices use title case key
+      const doeKey = `${stationId}_${ft.toUpperCase()}`; // Use uppercase for DOE lookup
+
+      const communityPrice = communityPriceMap.get(communityKey) || null;
+      const doePrice = doePriceMap.get(doeKey) || null; // Lookup using uppercase key
+
+      // // Log DOE lookup specifically for Diesel - REMOVED
+      // if (ft === 'Diesel') {
+      //   console.log(
+      //     `[bestPricesUtils] DOE Lookup for Diesel: Key='${doeKey}', Found=`,
+      //     doePrice
+      //   );
+      // }
+
       if (communityPrice || doePrice) {
         // Spread GasStation properties directly
         points.push({
@@ -157,13 +184,21 @@ export function mapToBestPrice(p: PotentialPricePoint): BestPrice {
     confirmations_count: undefined,
     confidence_score: undefined,
   };
+  // // Log incoming DOE price for Diesel before mapping - REMOVED
+  // if (p.fuel_type === 'Diesel') {
+  //   console.log(
+  //     `[bestPricesUtils] Mapping BestPrice for Diesel (Station ID: ${p.id}): Incoming doe_price=`,
+  //     p.doe_price
+  //   );
+  // }
   return {
     ...p, // Spreads GasStation props (id, name, brand, city, lat, lon, distance?) and fuel_type
-    // Explicitly map community fields, handling potential overrides like 'id'
-    id: p.community_price?.id ?? p.id, // Prioritize community report ID if exists
+    // Ensure the primary 'id' remains the station ID from 'p'.
+    // Map community fields explicitly, excluding the community report 'id' from overwriting the station 'id'.
     price: p.community_price?.price ?? null,
     user_id: p.community_price?.user_id,
     reported_at: p.community_price?.reported_at,
+    // community_report_id: p.community_price?.id, // Optionally add if needed elsewhere
     cycle_id: p.community_price?.cycle_id,
     reporter_username: p.community_price?.reporter_username,
     confirmations_count: p.community_price?.confirmations_count,
@@ -189,29 +224,14 @@ export function processSpecificFuelType(
   return filteredPoints.map(mapToBestPrice);
 }
 
-/** Processes potential points for "All Fuel Types" */
+/** Processes potential points for "All Fuel Types" - Modified to return all points */
 export function processAllFuelTypes(
   potentialPoints: PotentialPricePoint[]
 ): BestPrice[] {
-  const pointsByStation = potentialPoints.reduce<
-    Record<string, PotentialPricePoint[]>
-  >((acc, point) => {
-    // Use point.id from GasStation for grouping
-    acc[point.id] = acc[point.id] || [];
-    acc[point.id].push(point);
-    return acc;
-  }, {});
-
-  const cheapestOptionPerStation = Object.values(pointsByStation)
-    .map((stationPoints) => {
-      if (!stationPoints || stationPoints.length === 0) return null;
-      stationPoints.sort(sortPotentialPricePoints);
-      return stationPoints[0];
-    })
-    .filter((point): point is PotentialPricePoint => point !== null);
-
-  cheapestOptionPerStation.sort(sortPotentialPricePoints);
-  return cheapestOptionPerStation.map(mapToBestPrice);
+  // Simply sort all potential points globally by price/distance
+  potentialPoints.sort(sortPotentialPricePoints);
+  // Map all sorted points to the BestPrice structure
+  return potentialPoints.map(mapToBestPrice);
 }
 
 /** Calculates summary statistics */

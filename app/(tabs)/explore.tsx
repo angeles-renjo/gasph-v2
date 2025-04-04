@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
+// Removed FlashList import
 import { useNearbyStations } from '@/hooks/queries/stations/useNearbyStations';
 import { useLocation } from '@/hooks/useLocation';
 import { StationCard } from '@/components/station/StationCard';
@@ -218,6 +219,7 @@ export default function ExploreScreen() {
             data={filteredStations}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => <StationCard station={item} />}
+            // Removed estimatedItemSize
             contentContainerStyle={styles.stationList}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />

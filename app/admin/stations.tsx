@@ -1,13 +1,14 @@
-import React from "react";
-import { View, StyleSheet, FlatList, RefreshControl } from "react-native";
-import { useRouter } from "expo-router";
-import { useStations } from "@/hooks/queries/admin/useStations";
-import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { ErrorDisplay } from "@/components/common/ErrorDisplay";
-import { Button } from "@/components/ui/Button";
-import { StationListItem } from "@/components/admin/StationListItem";
-import Colors from "@/constants/Colors";
-import type { InfiniteData } from "@tanstack/react-query";
+import React from 'react';
+import { View, StyleSheet, FlatList, RefreshControl } from 'react-native'; // Re-added FlatList
+import { useRouter } from 'expo-router';
+// Removed FlashList import
+import { useStations } from '@/hooks/queries/admin/useStations';
+import { LoadingIndicator } from '@/components/common/LoadingIndicator';
+import { ErrorDisplay } from '@/components/common/ErrorDisplay';
+import { Button } from '@/components/ui/Button';
+import { StationListItem } from '@/components/admin/StationListItem';
+import Colors from '@/constants/Colors';
+import type { InfiniteData } from '@tanstack/react-query';
 
 interface GasStation {
   id: string;
@@ -20,7 +21,7 @@ interface GasStation {
   longitude: number;
   amenities: Record<string, boolean>;
   operating_hours: Record<string, string>;
-  status: "active" | "inactive";
+  status: 'active' | 'inactive';
   created_at: string;
   updated_at: string;
 }
@@ -55,7 +56,7 @@ export default function StationsScreen() {
   }
 
   if (error) {
-    return <ErrorDisplay message="Failed to load stations" onRetry={refetch} />;
+    return <ErrorDisplay message='Failed to load stations' onRetry={refetch} />;
   }
 
   return (
@@ -64,6 +65,7 @@ export default function StationsScreen() {
         data={stations}
         renderItem={({ item }) => <StationListItem station={item} />}
         keyExtractor={(item) => item.id}
+        // Removed estimatedItemSize
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
@@ -81,9 +83,9 @@ export default function StationsScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <Button
-              title="Import Stations"
-              onPress={() => router.push("/admin/import-stations")}
-              variant="primary"
+              title='Import Stations'
+              onPress={() => router.push('/admin/import-stations')}
+              variant='primary'
             />
           </View>
         }

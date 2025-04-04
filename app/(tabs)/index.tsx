@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  FlatList, // Re-added
   TouchableOpacity,
   RefreshControl,
   ScrollView,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
+// Removed FlashList import
 import { useBestPrices, FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { useLocation } from '@/hooks/useLocation';
 import { BestPriceCard } from '@/components/price/BestPriceCard';
@@ -200,12 +201,12 @@ export default function BestPricesScreen() {
     }
 
     return (
-      // Update the FlatList with a fix for the duplicate keys issue
+      // Reverted to FlatList
       <FlatList
         data={data.prices}
-        keyExtractor={
-          (item) => `${item.id || `${item.id}-${item.fuel_type}-${item.price}`}` // Use item.id in fallback
-        }
+        // Ensure unique key by combining station ID and fuel type
+        keyExtractor={(item) => `${item.id}-${item.fuel_type}`}
+        // Removed estimatedItemSize
         renderItem={({ item }) => (
           <BestPriceCard
             id={item.id} // Changed from station_id

@@ -87,26 +87,57 @@ export function useStationDetails(stationId: string | null) {
       // Updated return type
       if (!stationId) return null;
 
-      // Get station details
-      const { data: station, error: stationError } = await supabase
-        .from('gas_stations')
-        .select('*')
-        .eq('id', stationId)
-        .single();
+      let station: GasStation | null = null;
+      try {
+        // Get station details
+        const { data: stationData, error: stationError } = await supabase
+          .from('gas_stations')
+          .select('*')
+          .eq('id', stationId)
+          .single();
 
-      if (stationError) throw stationError;
-      if (!station) return null;
+        if (stationError) throw stationError;
+        station = stationData;
+      } catch (error: any) {
+        // Check if it's the specific Supabase .single() error
+        const errorMessage =
+          error?.code === 'PGRST116' // Supabase code for .single() row count error
+            ? `Station details query with .single() returned unexpected row count for ID ${stationId}. ${error.message}`
+            : error?.message || 'Failed to fetch station details';
+        console.error('Error fetching station details:', errorMessage, error);
+        throw new Error(errorMessage);
+      }
 
-      // Get active price reports for this station
-      const { data: communityPrices, error: communityError } = await supabase
-        .from('active_price_reports')
-        .select('*')
-        .eq('station_id', stationId)
-        .order('reported_at', { ascending: false });
+      // If station is null after the try block (e.g., .single() returned no rows but didn't throw an error, though it should)
+      // or if the ID was invalid from the start.
+      if (!station) {
+        // It's often better to return null/undefined for "not found" scenarios
+        // rather than throwing an error, allowing the UI to handle the empty state.
+        // Throwing here might be desired if a missing station is truly an exceptional case.
+        // Let's stick to returning null as it was before.
+        console.warn(`No station found for ID: ${stationId}`);
+        return null;
+      }
 
-      if (communityError) throw communityError;
+      let communityPrices: ActivePriceReport[] | null = null;
+      try {
+        // Get active price reports for this station
+        const { data: communityPricesData, error: communityError } =
+          await supabase
+            .from('active_price_reports')
+            .select('*')
+            .eq('station_id', stationId)
+            .order('reported_at', { ascending: false });
+
+        if (communityError) throw communityError;
+        communityPrices = communityPricesData;
+      } catch (error: any) {
+        console.error('Error fetching community prices:', error);
+        throw new Error(error.message || 'Failed to fetch community prices');
+      }
 
       // --- Fetch DOE Prices ---
+      // Note: DOE price errors are already handled by logging, not throwing.
       const { data: doePricesData, error: doeError } = await supabase
         .from('doe_price_view') // Query the view
         .select('*')
