@@ -203,19 +203,19 @@ export default function BestPricesScreen() {
       // Update the FlatList with a fix for the duplicate keys issue
       <FlatList
         data={data.prices}
-        keyExtractor={(item) =>
-          `${item.id || `${item.station_id}-${item.fuel_type}-${item.price}`}`
+        keyExtractor={
+          (item) => `${item.id || `${item.id}-${item.fuel_type}-${item.price}`}` // Use item.id in fallback
         }
         renderItem={({ item }) => (
           <BestPriceCard
-            station_id={item.station_id}
-            station_name={item.station_name}
-            station_brand={item.station_brand}
+            id={item.id} // Changed from station_id
+            name={item.name} // Changed from station_name
+            brand={item.brand} // Changed from station_brand
             fuel_type={item.fuel_type}
             price={item.price}
             distance={item.distance}
-            station_city={item.station_city}
-            confirmations_count={item.confirmations_count} // Pass the count
+            city={item.city} // Changed from station_city
+            confirmations_count={item.confirmations_count} // Keep this if it exists on BestPrice
             // Pass the DOE price fields
             min_price={item.min_price}
             common_price={item.common_price}
@@ -233,7 +233,8 @@ export default function BestPricesScreen() {
               <Text style={styles.statsLabel}>
                 Found {data.stats.count} stations
               </Text>
-              {data.stats.lowestPrice && (
+              {/* Add null check for lowestPrice */}
+              {data.stats.lowestPrice != null && (
                 <Text style={styles.statsPrice}>
                   Lowest: ₱{data.stats.lowestPrice.toFixed(2)}
                 </Text>
@@ -271,7 +272,8 @@ export default function BestPricesScreen() {
           <View style={styles.locationContainer}>
             <FontAwesome5 name='map-marker-alt' size={16} color='#2a9d8f' />
             <Text style={styles.locationText}>Your Area</Text>
-            {data?.stats && (
+            {/* Add null check for averagePrice */}
+            {data?.stats?.averagePrice != null && (
               <Text style={styles.statsText}>
                 • Avg: ₱{data.stats.averagePrice.toFixed(2)}
               </Text>

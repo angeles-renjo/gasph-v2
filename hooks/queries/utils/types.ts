@@ -5,6 +5,7 @@ export interface BestPricesParams {
     latitude: number;
     longitude: number;
   };
+  stationCount?: number; // Add optional stationCount for query key dependency
 }
 
 export interface PriceCycle {
@@ -12,7 +13,7 @@ export interface PriceCycle {
   cycle_number: number;
   start_date: string;
   end_date: string;
-  status: "active" | "completed" | "archived";
+  status: 'active' | 'completed' | 'archived';
   doe_import_date?: string;
   created_at: string;
 }
@@ -47,7 +48,7 @@ export interface Station {
   longitude: number;
   amenities: Record<string, boolean>;
   operating_hours: Record<string, string>;
-  status: "active";
+  status: 'active';
 }
 
 export interface PlaceDetails {

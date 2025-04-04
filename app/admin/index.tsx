@@ -1,9 +1,9 @@
-import { View, StyleSheet, ScrollView, Text } from "react-native";
-import { DashboardCard } from "@/components/admin/DashboardCard";
-import { useAdminStats } from "@/hooks/queries/admin/useAdminStats";
-import { formatDate } from "@/utils/formatters";
-import { Button } from "@/components/ui/Button";
-import Colors from "@/constants/Colors";
+import { View, StyleSheet, ScrollView, Text } from 'react-native';
+import { DashboardCard } from '@/components/admin/DashboardCard';
+import { useAdminStats } from '@/hooks/queries/admin/useAdminStats';
+import { formatDate } from '@/utils/formatters';
+import { Button } from '@/components/ui/Button';
+import Colors from '@/constants/Colors';
 
 export default function AdminDashboard() {
   const { data: stats, isLoading, error, refetch } = useAdminStats();
@@ -14,9 +14,11 @@ export default function AdminDashboard() {
         <Text style={styles.errorText}>
           Failed to load dashboard stats. Please try again.
         </Text>
-        <Button title="Retry" onPress={() => refetch()} variant="secondary">
-          Retry
-        </Button>
+        <Button
+          title='Retry'
+          onPress={() => refetch()}
+          variant='secondary'
+        ></Button>
       </View>
     );
   }
@@ -32,42 +34,42 @@ export default function AdminDashboard() {
         </View>
 
         <DashboardCard
-          title="Gas Stations"
+          title='Gas Stations'
           value={stats?.stationsCount ?? 0}
-          subtitle="Total registered stations"
-          icon="location"
-          href="/admin/stations"
+          subtitle='Total registered stations'
+          icon='location'
+          href='/admin/stations'
           isLoading={isLoading}
         />
 
         <DashboardCard
-          title="Price Cycles"
+          title='Price Cycles'
           value={stats?.activeCyclesCount ?? 0}
-          subtitle="Active reporting cycles"
-          icon="time"
-          href="/admin/cycles"
+          subtitle='Active reporting cycles'
+          icon='time'
+          href='/admin/cycles'
           isLoading={isLoading}
         />
 
         <DashboardCard
-          title="Users"
+          title='Users'
           value={stats?.usersCount ?? 0}
-          subtitle="Registered users"
-          icon="people"
-          href="/admin/users"
+          subtitle='Registered users'
+          icon='people'
+          href='/admin/users'
           isLoading={isLoading}
         />
 
         <DashboardCard
-          title="Import Stations"
+          title='Import Stations'
           value={
             stats?.lastImportDate
               ? `Last import: ${formatDate(stats.lastImportDate)}`
-              : "No imports yet"
+              : 'No imports yet'
           }
-          subtitle="Update station database"
-          icon="cloud-download"
-          href="/admin/import-stations"
+          subtitle='Update station database'
+          icon='cloud-download'
+          href='/admin/import-stations'
           isLoading={isLoading}
         />
       </View>
@@ -77,7 +79,7 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9fafb",
+    backgroundColor: '#f9fafb',
   },
 
   content: {
@@ -89,18 +91,18 @@ const styles = StyleSheet.create({
   },
   dashboardTitle: {
     fontSize: 24,
-    fontWeight: "700",
-    color: "#111827",
+    fontWeight: '700',
+    color: '#111827',
     marginBottom: 4,
   },
   dashboardSubtitle: {
     fontSize: 16,
-    color: "#6B7280",
-    fontWeight: "400",
+    color: '#6B7280',
+    fontWeight: '400',
   },
   errorText: {
-    color: "red",
-    textAlign: "center",
+    color: 'red',
+    textAlign: 'center',
     marginVertical: 16,
   },
 });

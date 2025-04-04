@@ -9,16 +9,17 @@ import type { BestPrice } from '@/hooks/queries/prices/useBestPrices';
 // Props now extends from our BestPrice type
 export interface BestPriceCardProps
   extends Pick<
+    // Use properties from BestPrice (which extends GasStation)
     BestPrice,
-    | 'station_id'
-    | 'station_name'
-    | 'station_brand'
+    | 'id' // Changed from station_id
+    | 'name' // Changed from station_name
+    | 'brand' // Changed from station_brand
     | 'fuel_type'
     | 'price'
     | 'distance'
-    | 'station_city'
+    | 'city' // Changed from station_city
     | 'confirmations_count'
-    // Add optional DOE price fields from the updated BestPrice type
+    // DOE fields
     | 'min_price'
     | 'common_price'
     | 'max_price'
@@ -46,13 +47,13 @@ const formatSourceTypeLabel = (
 };
 
 export function BestPriceCard({
-  station_id,
-  station_name,
-  station_brand,
+  id, // Changed from station_id
+  name, // Changed from station_name
+  brand, // Changed from station_brand
   fuel_type,
   price,
-  distance = 0,
-  station_city,
+  distance = 0, // Keep distance, assuming it's correctly passed or defaulted
+  city, // Changed from station_city
   confirmations_count = 0,
   // Destructure new DOE props, providing defaults (null)
   min_price = null,
@@ -63,7 +64,7 @@ export function BestPriceCard({
   const router = useRouter();
 
   const navigateToStation = () => {
-    router.push(`/station/${station_id}`);
+    router.push(`/station/${id}`); // Use id here
   };
 
   return (
@@ -79,7 +80,6 @@ export function BestPriceCard({
         {/* Display community price or placeholder */}
         <Text style={styles.price}>{price ? formatPrice(price) : '--'}</Text>
       </View>
-
       {/* Display DOE Price Range if available - Label + Badge + Table Row Style */}
       {(min_price !== null || common_price !== null || max_price !== null) && (
         <View style={styles.doeContainer}>
@@ -115,38 +115,36 @@ export function BestPriceCard({
               </Text>
             </View>
           </View>
-          {/* Removed comment to prevent text node error */}
         </View>
       )}
-
       <View style={styles.stationRow}>
         <Text style={styles.stationName} numberOfLines={1}>
-          {station_name}
+          {name}
         </Text>
-        <Text style={styles.stationBrand}>{station_brand}</Text>
+        <Text style={styles.stationBrand}>{brand}</Text>
       </View>
-
       {/* Add Confirmation display back */}
       <View style={styles.confirmationRow}>
         <FontAwesome5 name='check-circle' size={14} color='#666' />
         <Text style={styles.confirmationText}>
-          {confirmations_count}{' '}
+          {confirmations_count}
+          <Text> </Text> {/* Explicit Text for space */}
           {confirmations_count === 1 ? 'confirmation' : 'confirmations'}
         </Text>
       </View>
-
       <View style={styles.infoRow}>
         <View style={styles.infoItem}>
           <FontAwesome5 name='map-marker-alt' size={14} color='#666' />
-          <Text style={styles.infoText}>{station_city}</Text>
+          <Text style={styles.infoText}>
+            {city}
+            <Text> </Text> {/* Explicit Text for space */}
+          </Text>
         </View>
-
         <View style={styles.infoItem}>
           <FontAwesome5 name='route' size={14} color='#666' />
           <Text style={styles.infoText}>{formatDistance(distance)}</Text>
         </View>
       </View>
-
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.directionButton}
@@ -155,7 +153,6 @@ export function BestPriceCard({
           <FontAwesome5 name='info-circle' size={14} color='#2a9d8f' />
           <Text style={styles.buttonText}>Details</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.directionButton}>
           <FontAwesome5 name='directions' size={14} color='#2a9d8f' />
           <Text style={styles.buttonText}>Directions</Text>

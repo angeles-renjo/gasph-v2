@@ -1,11 +1,34 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/utils/supabase/supabase';
 import { queryKeys } from '../utils/queryKeys';
 import { defaultQueryOptions } from '../utils/queryOptions';
 import type { LocationData } from '@/hooks/useLocation';
-import { calculateDistance } from '@/lib/geo';
-import { Tables } from '@/utils/supabase/types'; // Import Tables type
+// Import useNearbyStations and its return type
+import { useNearbyStations } from '../stations/useNearbyStations';
+import type { GasStation } from '../stations/useNearbyStations'; // Now exported
 
+// Import helpers from the utility file
+import {
+  fetchCommunityPrices,
+  fetchDoePrices,
+  createPotentialPricePoints,
+  processSpecificFuelType,
+  processAllFuelTypes,
+  calculateStats,
+} from './bestPricesUtils';
+
+// --- Constants ---
+const DEFAULT_MAX_DISTANCE = 15;
+const RESULT_LIMIT = 10;
+const ALL_FUEL_TYPES: FuelType[] = [
+  'Diesel',
+  'RON 91',
+  'RON 95',
+  'RON 97',
+  'RON 100',
+  'Diesel Plus',
+];
+
+// --- Type Definitions ---
 export type FuelType =
   | 'Diesel'
   | 'RON 91'
@@ -14,36 +37,44 @@ export type FuelType =
   | 'RON 100'
   | 'Diesel Plus';
 
-// Define what we select from the view
-interface PriceReportSelect {
-  id: string;
-  station_id: string;
-  fuel_type: string;
+export interface CommunityPriceInfo {
+  id: string; // Report ID
   price: number;
   user_id: string;
   reported_at: string;
-  // expires_at: string; // Removed
   cycle_id: string;
-  station_name: string;
-  station_brand: string;
-  station_city: string;
-  station_latitude: number;
-  station_longitude: number;
   reporter_username: string;
   confirmations_count: number;
   confidence_score: number;
 }
 
-// Define DOE Price structure based on doe_price_view, including source_type
-type DoePriceData = Pick<
-  Tables<'doe_price_view'>,
-  'min_price' | 'common_price' | 'max_price' | 'week_of' | 'source_type'
->;
+export interface DoePriceInfo {
+  min_price: number | null;
+  common_price: number | null;
+  max_price: number | null;
+  week_of: string | null;
+  source_type: string | null;
+}
 
-// Extend BestPrice to include optional DOE data and source_type
-interface BestPrice extends PriceReportSelect, Partial<DoePriceData> {
-  distance?: number;
-  // doe_benchmark_price is removed, replaced by specific min/common/max
+// PotentialPricePoint now extends GasStation
+export interface PotentialPricePoint extends GasStation {
+  fuel_type: FuelType;
+  community_price: CommunityPriceInfo | null;
+  doe_price: DoePriceInfo | null;
+}
+
+// BestPrice now extends GasStation
+// It includes all GasStation properties (id, name, brand, city, lat, lon, distance?)
+// It includes nullable community price and optional other community fields
+// It includes optional DOE fields
+export interface BestPrice
+  extends GasStation, // Use GasStation type directly
+    Partial<Omit<CommunityPriceInfo, 'price' | 'id'>>, // Omit price and id (id comes from GasStation)
+    Partial<DoePriceInfo> {
+  fuel_type: FuelType;
+  price: number | null; // Community price (nullable)
+  // Ensure 'id' from GasStation is the primary one, community 'id' might be different (report id)
+  // We might need a separate field like 'community_report_id' if needed
 }
 
 export interface UseBestPricesOptions {
@@ -53,282 +84,85 @@ export interface UseBestPricesOptions {
   providedLocation?: LocationData;
 }
 
+// --- Main Hook ---
 export function useBestPrices({
   fuelType,
-  maxDistance = 15,
+  maxDistance = DEFAULT_MAX_DISTANCE,
   enabled = true,
   providedLocation,
 }: UseBestPricesOptions = {}) {
   const location = providedLocation;
 
-  // Define the type for the DOE data map
-  type DoePriceMap = Map<string, DoePriceData>; // Key: "stationId_fuelType"
+  const {
+    data: nearbyStations,
+    isLoading: isLoadingStations,
+    error: stationsError,
+  } = useNearbyStations({
+    radiusKm: maxDistance,
+    enabled: !!location && enabled,
+    providedLocation: location,
+  });
+
+  const isQueryEnabled =
+    !!location &&
+    enabled &&
+    !isLoadingStations &&
+    !!nearbyStations &&
+    nearbyStations.length > 0;
 
   return useQuery({
     queryKey: queryKeys.prices.best.list({
       location,
       fuelType,
       maxDistance,
+      stationCount: nearbyStations?.length ?? 0, // Add dependency on station count
     }),
-    queryFn: async () => {
-      try {
-        if (!location) {
-          throw new Error('Location not available');
-        }
+    queryFn: async (): Promise<{ prices: BestPrice[]; stats: any | null }> => {
+      if (!isQueryEnabled || !nearbyStations) {
+        // Check isQueryEnabled guard
+        return { prices: [], stats: null };
+      }
 
-        let query = supabase.from('active_price_reports').select(
-          `
-            id,
-            station_id,
-            fuel_type,
-            price,
-            user_id,
-            reported_at,
-            cycle_id,
-            station_name,
-            station_brand,
-            station_city,
-            station_latitude,
-            station_longitude,
-            reporter_username,
-            confirmations_count,
-            confidence_score
-          `
+      try {
+        const nearbyStationIds = nearbyStations.map((s) => s.id);
+        const nearbyStationsMap = new Map<string, GasStation>(
+          nearbyStations.map((s) => [s.id, s])
         );
 
-        // Only add the fuel type filter if one is specified for community prices
-        if (fuelType) {
-          query = query.eq('fuel_type', fuelType);
-        }
+        const fuelTypesToFetch = fuelType ? [fuelType] : ALL_FUEL_TYPES;
+        const [communityPriceMap, doePriceMap] = await Promise.all([
+          fetchCommunityPrices(nearbyStationIds, fuelType),
+          fetchDoePrices(nearbyStationIds, fuelTypesToFetch),
+        ]);
 
-        const { data, error } = await query;
-
-        if (error) {
-          throw error;
-        }
-
-        if (!data) {
-          return { prices: [], stats: null };
-        }
-
-        // Extract unique station IDs and fuel types from community reports
-        const stationIds = [...new Set(data.map((r) => r.station_id))];
-        const fuelTypes = fuelType
-          ? [fuelType] // Only the specified one if provided
-          : [...new Set(data.map((r) => r.fuel_type))]; // All unique types found otherwise
-
-        // Fetch DOE prices for the relevant stations and fuel types
-        // Assuming we want the latest DOE data for each station/fuel combo
-        // A more robust implementation might filter by current cycle or week_of
-        let doeQuery = supabase
-          .from('doe_price_view')
-          .select(
-            'gas_station_id, fuel_type, min_price, common_price, max_price, week_of, source_type' // Add source_type
-          )
-          .in('gas_station_id', stationIds)
-          .in('fuel_type', fuelTypes);
-        // Ideally, add ordering by week_of desc and potentially distinct on station/fuel
-
-        const { data: doeData, error: doeError } = await doeQuery;
-
-        if (doeError) {
-          console.error('Error fetching DOE prices:', doeError);
-          // Decide how to handle: throw, or continue without DOE data?
-          // For now, let's continue but log the error.
-        }
-
-        // Create a map for easy lookup: key="stationId_fuelType", value=DoePriceData
-        const doePriceMap: DoePriceMap = new Map();
-        if (doeData) {
-          // Assuming we get multiple entries per station/fuel, we might want the latest 'week_of'
-          // For simplicity now, just take the first one found (needs refinement based on actual data/needs)
-          doeData.forEach((doe) => {
-            const key = `${doe.gas_station_id}_${doe.fuel_type}`;
-            if (!doePriceMap.has(key) && doe.gas_station_id && doe.fuel_type) {
-              // Ensure key parts are not null
-              doePriceMap.set(key, {
-                min_price: doe.min_price,
-                common_price: doe.common_price,
-                max_price: doe.max_price,
-                week_of: doe.week_of,
-                source_type: doe.source_type, // Include source_type
-              });
-            }
-          });
-        }
-
-        // 1. Calculate distance, filter by maxDistance, and merge DOE data
-        const reportsWithDistanceAndDoe = (data as PriceReportSelect[])
-          .map((report): BestPrice | null => {
-            // Return BestPrice or null if filtered out
-            const distance = calculateDistance(location, {
-              latitude: report.station_latitude,
-              longitude: report.station_longitude,
-            });
-
-            // Filter out reports beyond maxDistance or with invalid distance
-            if (isNaN(distance) || distance > maxDistance) {
-              return null;
-            }
-
-            const doeKey = `${report.station_id}_${report.fuel_type}`;
-            const matchingDoeData = doePriceMap.get(doeKey);
-
-            return {
-              ...report,
-              distance,
-              min_price: matchingDoeData?.min_price ?? null,
-              common_price: matchingDoeData?.common_price ?? null,
-              max_price: matchingDoeData?.max_price ?? null,
-              week_of: matchingDoeData?.week_of ?? null,
-              source_type: matchingDoeData?.source_type ?? null, // Include source_type
-            };
-          })
-          .filter((report): report is BestPrice => report !== null); // Remove null entries
+        const potentialPricePoints = createPotentialPricePoints(
+          nearbyStationsMap,
+          communityPriceMap,
+          doePriceMap,
+          fuelTypesToFetch
+        );
 
         let finalBestPrices: BestPrice[];
-
         if (fuelType) {
-          // Scenario 1: Specific Fuel Type Selected
-          // We already filtered community prices by fuelType.
-          // We fetched DOE data only for this fuelType.
-          // The reportsWithDistanceAndDoe contains reports for the specific fuel type, augmented with DOE data.
-          // Sort by community price first, then distance.
-          reportsWithDistanceAndDoe.sort((a, b) => {
-            if (a.price !== b.price) {
-              return a.price - b.price;
-            }
-            return (a.distance ?? Infinity) - (b.distance ?? Infinity);
-          });
-          finalBestPrices = reportsWithDistanceAndDoe;
+          finalBestPrices = processSpecificFuelType(
+            potentialPricePoints,
+            fuelType
+          );
         } else {
-          // Scenario 2: "All Fuel Types" Selected
-          // Find the single cheapest option (fuel type) per station.
-          // 1. Group reports by station_id
-          const reportsByStation = reportsWithDistanceAndDoe.reduce<
-            Record<string, BestPrice[]>
-          >((acc, report) => {
-            if (!acc[report.station_id]) {
-              acc[report.station_id] = [];
-            }
-            acc[report.station_id].push(report);
-            return acc;
-          }, {});
-
-          // 2. For each station, find the cheapest fuel type
-          const cheapestOptionPerStation: BestPrice[] = Object.values(
-            reportsByStation
-          )
-            .map((stationReports) => {
-              if (!stationReports || stationReports.length === 0) {
-                return null; // Should not happen if reportsByStation is built correctly
-              }
-
-              // Find the best option within this station's reports
-              let bestOptionForStation: BestPrice | null = null;
-
-              for (const report of stationReports) {
-                if (!bestOptionForStation) {
-                  bestOptionForStation = report;
-                  continue;
-                }
-
-                // Comparison Logic:
-                // Priority 1: Community Price (lower is better)
-                // Priority 2: DOE Min Price (lower is better, used if community prices are equal or one is missing)
-                // Priority 3: Distance (lower is better, as tie-breaker)
-
-                const currentBestPrice = bestOptionForStation.price ?? Infinity;
-                const candidatePrice = report.price ?? Infinity;
-                const currentBestDoeMin =
-                  bestOptionForStation.min_price ?? Infinity;
-                const candidateDoeMin = report.min_price ?? Infinity;
-
-                let candidateIsBetter = false;
-
-                if (candidatePrice < currentBestPrice) {
-                  candidateIsBetter = true;
-                } else if (candidatePrice === currentBestPrice) {
-                  // If community prices are equal (or both missing), compare DOE min
-                  if (candidateDoeMin < currentBestDoeMin) {
-                    candidateIsBetter = true;
-                  } else if (candidateDoeMin === currentBestDoeMin) {
-                    // If DOE min are also equal, compare distance
-                    if (
-                      (report.distance ?? Infinity) <
-                      (bestOptionForStation.distance ?? Infinity)
-                    ) {
-                      candidateIsBetter = true;
-                    }
-                  }
-                } else if (
-                  currentBestPrice === Infinity &&
-                  candidatePrice === Infinity
-                ) {
-                  // If NEITHER has community price, compare DOE min directly
-                  if (candidateDoeMin < currentBestDoeMin) {
-                    candidateIsBetter = true;
-                  } else if (candidateDoeMin === currentBestDoeMin) {
-                    // If DOE min are also equal, compare distance
-                    if (
-                      (report.distance ?? Infinity) <
-                      (bestOptionForStation.distance ?? Infinity)
-                    ) {
-                      candidateIsBetter = true;
-                    }
-                  }
-                }
-                // Implicit else: candidatePrice > currentBestPrice - candidate is not better
-
-                if (candidateIsBetter) {
-                  bestOptionForStation = report;
-                }
-              }
-              return bestOptionForStation; // Return the single best option found for this station
-            })
-            .filter((report): report is BestPrice => report !== null); // Filter out any nulls
-
-          // 3. Sort the final list (cheapest option per station) by the determined best price
-          //    (using the same comparison logic as above for sorting)
-          cheapestOptionPerStation.sort((a, b) => {
-            const priceA = a.price ?? Infinity;
-            const priceB = b.price ?? Infinity;
-            const doeMinA = a.min_price ?? Infinity;
-            const doeMinB = b.min_price ?? Infinity;
-
-            if (priceA !== priceB) return priceA - priceB;
-            if (doeMinA !== doeMinB) return doeMinA - doeMinB;
-            return (a.distance ?? Infinity) - (b.distance ?? Infinity);
-          });
-
-          finalBestPrices = cheapestOptionPerStation;
+          finalBestPrices = processAllFuelTypes(potentialPricePoints);
         }
 
-        // Calculate stats based on the final list
-        const stats = finalBestPrices.length
-          ? {
-              count: finalBestPrices.length, // Count of best prices found (one per fuel type if 'All', or all for specific type)
-              averagePrice:
-                finalBestPrices.reduce((sum, p) => sum + p.price, 0) /
-                finalBestPrices.length,
-              lowestPrice: finalBestPrices[0]?.price,
-              highestPrice: finalBestPrices[finalBestPrices.length - 1]?.price,
-            }
-          : null;
+        const limitedBestPrices = finalBestPrices.slice(0, RESULT_LIMIT);
+        const stats = calculateStats(limitedBestPrices);
 
-        return {
-          prices: finalBestPrices, // Return the list of best prices per fuel type (or all for specific type)
-          stats,
-        };
+        return { prices: limitedBestPrices, stats };
       } catch (error) {
-        console.error('Error fetching best prices:', error);
-        throw error;
+        // Simplified error handling: Log and rethrow
+        console.error('Error fetching/processing best prices:', error);
+        throw error; // Let react-query handle the error state
       }
     },
     ...defaultQueryOptions.prices.best,
-    enabled: Boolean(location && enabled),
+    enabled: isQueryEnabled, // Use the calculated enabled state
   });
 }
-
-// Export types for consumers
-export type { BestPrice };
