@@ -7,7 +7,7 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { Button } from '@/components/ui/Button';
 import { StationListItem } from '@/components/admin/StationListItem';
-import Colors from '@/constants/Colors';
+import { Colors } from '@/styles/theme'; // Updated import path
 import type { InfiniteData } from '@tanstack/react-query';
 
 interface GasStation {

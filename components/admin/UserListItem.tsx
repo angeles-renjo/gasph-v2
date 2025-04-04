@@ -1,7 +1,8 @@
-import React from "react";
-import { View, Text, StyleSheet, Image } from "react-native";
-import { Card } from "@/components/ui/Card";
-import { FontAwesome5 } from "@expo/vector-icons";
+import React from 'react';
+import { View, Text, StyleSheet, Image } from 'react-native';
+import { Card } from '@/components/ui/Card';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 
 export interface UserListItemProps {
   user: {
@@ -24,7 +25,8 @@ export function UserListItem({ user }: UserListItemProps) {
             <Image source={{ uri: user.avatar_url }} style={styles.avatar} />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <FontAwesome5 name="user" size={20} color="#fff" />
+              <FontAwesome5 name='user' size={20} color={Colors.white} />
+              {/* Use theme color - Removed trailing space */}
             </View>
           )}
         </View>
@@ -34,16 +36,23 @@ export function UserListItem({ user }: UserListItemProps) {
             <Text style={styles.username}>{user.username}</Text>
             {user.is_admin && (
               <View style={styles.adminBadge}>
-                <FontAwesome5 name="shield-alt" size={12} color="#fff" />
+                <FontAwesome5
+                  name='shield-alt'
+                  size={12}
+                  color={Colors.white}
+                />
+                {/* Use theme color - Removed trailing space */}
                 <Text style={styles.adminText}>Admin</Text>
               </View>
             )}
           </View>
           <Text style={styles.email}>{user.email}</Text>
           <View style={styles.stats}>
+            {/* Combine into a single template literal to avoid potential issues with raw strings */}
             <Text style={styles.statsText}>
-              {user.reportCount} reports • Joined{" "}
-              {new Date(user.created_at).toLocaleDateString()}
+              {`${user.reportCount ?? 0} reports • Joined ${new Date(
+                user.created_at
+              ).toLocaleDateString()}`}
             </Text>
           </View>
         </View>
@@ -54,68 +63,68 @@ export function UserListItem({ user }: UserListItemProps) {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 8,
-    padding: 16,
+    marginBottom: Spacing.sm, // Use theme spacing
+    padding: Spacing.xl, // Use theme spacing
   },
   content: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   avatarContainer: {
-    marginRight: 16,
+    marginRight: Spacing.xl, // Use theme spacing
   },
   avatar: {
-    width: 50,
+    width: 50, // Keep fixed size for avatar
     height: 50,
-    borderRadius: 25,
+    borderRadius: BorderRadius.round, // Use theme border radius
   },
   avatarPlaceholder: {
     width: 50,
     height: 50,
-    borderRadius: 25,
-    backgroundColor: "#ccc",
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: BorderRadius.round, // Use theme border radius
+    backgroundColor: Colors.mediumGray, // Use theme color
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   info: {
     flex: 1,
   },
   nameContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xxs, // Use theme spacing
   },
   username: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginRight: 8,
+    fontSize: Typography.fontSizeLarge, // Use theme typography
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
+    color: Colors.darkGray, // Use theme color
+    marginRight: Spacing.sm, // Use theme spacing
   },
   adminBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#2a9d8f",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary, // Use theme color
+    paddingHorizontal: Spacing.sm, // Use theme spacing
+    paddingVertical: Spacing.xxs, // Use theme spacing
+    borderRadius: BorderRadius.lg_xl, // Use theme border radius
   },
   adminText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "500",
-    marginLeft: 4,
+    color: Colors.white, // Use theme color
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
+    marginLeft: Spacing.xxs, // Use theme spacing
   },
   email: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginBottom: Spacing.xxs, // Use theme spacing
   },
   stats: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   statsText: {
-    fontSize: 12,
-    color: "#999",
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.placeholderGray, // Use theme color
   },
 });

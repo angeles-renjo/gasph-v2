@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,14 @@ import {
   Modal,
   TouchableOpacity,
   Platform,
-} from "react-native";
-import { FontAwesome5 } from "@expo/vector-icons";
-import { Button } from "@/components/ui/Button";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { formatDate } from "@/utils/formatters";
-import type { PriceCycle } from "@/hooks/queries/prices/usePriceCycles";
-import { Alert } from "react-native";
+} from 'react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { Button } from '@/components/ui/Button';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
+import { formatDate } from '@/utils/formatters';
+import type { PriceCycle } from '@/hooks/queries/prices/usePriceCycles';
+import { Alert } from 'react-native';
 
 interface CreateCycleModalProps {
   visible: boolean;
@@ -36,12 +37,15 @@ export function CreateCycleModal({
     return date;
   });
 
+  // State for controlling date picker visibility
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  // State to track submission status and prevent double-clicks
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Handler for when the start date is changed via the picker
   const handleStartDateChange = (event: any, selectedDate?: Date) => {
-    setShowStartDatePicker(Platform.OS === "ios");
+    setShowStartDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setStartDate(selectedDate);
 
@@ -54,13 +58,15 @@ export function CreateCycleModal({
     }
   };
 
+  // Handler for when the end date is changed via the picker
   const handleEndDateChange = (event: any, selectedDate?: Date) => {
-    setShowEndDatePicker(Platform.OS === "ios");
+    setShowEndDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setEndDate(selectedDate);
     }
   };
 
+  // Handler for submitting the new cycle data
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
@@ -75,13 +81,14 @@ export function CreateCycleModal({
       setIsSubmitting(false);
     }
   };
+  // Determine if the submit button should be disabled
   const isDisabled = endDate < startDate || loading || isSubmitting;
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType='slide'
       onRequestClose={onClose}
     >
       <View style={styles.centeredView}>
@@ -93,7 +100,8 @@ export function CreateCycleModal({
               style={styles.closeButton}
               disabled={isSubmitting}
             >
-              <FontAwesome5 name="times" size={20} color="#666" />
+              <FontAwesome5 name='times' size={20} color={Colors.textGray} />{' '}
+              {/* Use theme color */}
             </TouchableOpacity>
           </View>
 
@@ -113,15 +121,20 @@ export function CreateCycleModal({
               disabled={isSubmitting}
             >
               <Text style={styles.datePickerText}>{formatDate(startDate)}</Text>
-              <FontAwesome5 name="calendar-alt" size={16} color="#2a9d8f" />
+              <FontAwesome5
+                name='calendar-alt'
+                size={16}
+                color={Colors.primary}
+              />{' '}
+              {/* Use theme color */}
             </TouchableOpacity>
           </View>
 
           {showStartDatePicker && (
             <DateTimePicker
               value={startDate}
-              mode="date"
-              display="default"
+              mode='date'
+              display='default'
               onChange={handleStartDateChange}
               minimumDate={new Date()}
             />
@@ -138,15 +151,20 @@ export function CreateCycleModal({
               disabled={isSubmitting}
             >
               <Text style={styles.datePickerText}>{formatDate(endDate)}</Text>
-              <FontAwesome5 name="calendar-alt" size={16} color="#2a9d8f" />
+              <FontAwesome5
+                name='calendar-alt'
+                size={16}
+                color={Colors.primary}
+              />{' '}
+              {/* Use theme color */}
             </TouchableOpacity>
           </View>
 
           {showEndDatePicker && (
             <DateTimePicker
               value={endDate}
-              mode="date"
-              display="default"
+              mode='date'
+              display='default'
               onChange={handleEndDateChange}
               minimumDate={startDate}
             />
@@ -160,14 +178,14 @@ export function CreateCycleModal({
 
           <View style={styles.buttonContainer}>
             <Button
-              title="Cancel"
-              variant="outline"
+              title='Cancel'
+              variant='outline'
               onPress={onClose}
               style={styles.button}
               disabled={isSubmitting}
             />
             <Button
-              title="Create Cycle"
+              title='Create Cycle'
               onPress={handleSubmit}
               loading={loading || isSubmitting}
               disabled={isDisabled}
@@ -183,16 +201,16 @@ export function CreateCycleModal({
 const styles = StyleSheet.create({
   centeredView: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.modalBackdrop, // Use theme color
   },
   modalView: {
-    width: "85%",
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
+    width: '85%',
+    backgroundColor: Colors.white, // Use theme color
+    borderRadius: BorderRadius.xl_xxl, // Use theme border radius
+    padding: Spacing.lg_xl, // Use theme spacing
+    shadowColor: Colors.black, // Use theme color
     shadowOffset: {
       width: 0,
       height: 2,
@@ -202,69 +220,70 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg_xl, // Use theme spacing
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: Typography.fontSizeXLarge, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
   closeButton: {
-    padding: 5,
+    padding: Spacing.xxs, // Use theme spacing (approx 5)
   },
   cycleNumberContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg_xl, // Use theme spacing
   },
   cycleNumberLabel: {
-    fontSize: 16,
-    color: "#333",
-    marginRight: 10,
+    fontSize: Typography.fontSizeLarge, // Use theme typography
+    color: Colors.darkGray, // Use theme color
+    marginRight: Spacing.md, // Use theme spacing
   },
   cycleNumber: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#2a9d8f",
+    fontSize: Typography.fontSizeXLarge, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
+    color: Colors.primary, // Use theme color
   },
   datePickerContainer: {
-    marginBottom: 20,
+    marginBottom: Spacing.lg_xl, // Use theme spacing
   },
   datePickerLabel: {
-    fontSize: 16,
-    color: "#333",
-    marginBottom: 8,
+    fontSize: Typography.fontSizeLarge, // Use theme typography
+    color: Colors.darkGray, // Use theme color
+    marginBottom: Spacing.sm, // Use theme spacing
   },
   datePickerButton: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 12,
+    borderColor: Colors.mediumGray, // Use theme color
+    borderRadius: BorderRadius.md, // Use theme border radius
+    padding: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   datePickerButtonDisabled: {
     opacity: 0.5,
   },
   datePickerText: {
-    fontSize: 16,
-    color: "#333",
+    fontSize: Typography.fontSizeLarge, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
   errorText: {
-    color: "#f44336",
-    marginTop: -10,
-    marginBottom: 10,
+    color: Colors.danger, // Use theme color
+    marginTop: -Spacing.md, // Use negative theme spacing
+    marginBottom: Spacing.md, // Use theme spacing
+    fontSize: Typography.fontSizeMedium, // Added font size for consistency
   },
   buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   button: {
     flex: 1,
-    marginHorizontal: 5,
+    marginHorizontal: Spacing.xxs, // Use theme spacing (approx 5)
   },
 });

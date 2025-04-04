@@ -1,157 +1,64 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, Alert } from "react-native";
-import { supabase } from "@/utils/supabase/supabase";
-import { Button } from "@/components/ui/Button";
-import { PriceCycleCard } from "@/components/admin/PriceCycleCard";
-import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { ErrorDisplay } from "@/components/common/ErrorDisplay";
-import { formatDate } from "@/utils/formatters";
-import type { PriceCycle } from "@/hooks/queries/prices/usePriceCycles";
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
+import { Button } from '@/components/ui/Button';
+import { PriceCycleCard } from '@/components/admin/PriceCycleCard';
+import { LoadingIndicator } from '@/components/common/LoadingIndicator';
+import { ErrorDisplay } from '@/components/common/ErrorDisplay';
+import { EmptyState } from '@/components/common/EmptyState'; // Import EmptyState
+import { Colors, Typography, Spacing } from '@/styles/theme'; // Import theme constants
+import {
+  usePriceCycles,
+  useCreatePriceCycleMutation,
+  useUpdatePriceCycleStatusMutation,
+} from '@/hooks/queries/prices/usePriceCycles'; // Import the new hooks
 
 export function PriceCycleManagement() {
-  const [cycles, setCycles] = useState<PriceCycle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [creatingCycle, setCreatingCycle] = useState(false);
-  const [archivingCycleId, setArchivingCycleId] = useState<string | null>(null);
-  const [activatingCycleId, setActivatingCycleId] = useState<string | null>(
-    null
-  );
 
-  const fetchCycles = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  // Use React Query hook to fetch cycles
+  const {
+    data: cycles,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching, // Use isRefetching for pull-to-refresh indicator
+  } = usePriceCycles({ showArchived });
 
-      const query = supabase
-        .from("price_reporting_cycles")
-        .select("*")
-        .order("cycle_number", { ascending: false });
+  // Use React Query mutation hooks
+  const createCycleMutation = useCreatePriceCycleMutation();
+  const updateStatusMutation = useUpdatePriceCycleStatusMutation();
 
-      if (!showArchived) {
-        query.neq("status", "archived");
-      }
-
-      const { data, error: fetchError } = await query;
-
-      if (fetchError) throw fetchError;
-
-      setCycles(data || []);
-    } catch (err: any) {
-      console.error("Error fetching price cycles:", err);
-      setError(err.message || "Failed to load price cycles");
-    } finally {
-      setLoading(false);
-    }
+  // Handlers now call the mutation hooks
+  const handleCreateNewCycle = () => {
+    // Simple date logic for now, could be moved to hook or made configurable
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 7);
+    createCycleMutation.mutate({ startDate, endDate });
   };
 
-  useEffect(() => {
-    fetchCycles();
-  }, [showArchived]);
-
-  const createNewCycle = async () => {
-    try {
-      setCreatingCycle(true);
-
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 7);
-
-      // Get the next cycle number
-      const { data: maxCycleData, error: maxCycleError } = await supabase
-        .from("price_reporting_cycles")
-        .select("cycle_number")
-        .order("cycle_number", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (maxCycleError && maxCycleError.code !== "PGRST116") {
-        throw maxCycleError;
-      }
-
-      const nextCycleNumber = (maxCycleData?.cycle_number || 0) + 1;
-
-      const { data, error } = await supabase
-        .from("price_reporting_cycles")
-        .insert({
-          start_date: startDate.toISOString(),
-          end_date: endDate.toISOString(),
-          status: "active",
-          cycle_number: nextCycleNumber,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      Alert.alert(
-        "Success",
-        `New price cycle #${nextCycleNumber} created successfully.`
-      );
-      fetchCycles();
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to create price cycle");
-    } finally {
-      setCreatingCycle(false);
-    }
+  const handleArchive = (cycleId: string) => {
+    updateStatusMutation.mutate({ cycleId, status: 'archived' });
   };
 
-  const archiveCycle = async (cycleId: string) => {
-    try {
-      setArchivingCycleId(cycleId);
-      const { error } = await supabase
-        .from("price_reporting_cycles")
-        .update({ status: "archived" })
-        .eq("id", cycleId);
-
-      if (error) throw error;
-
-      Alert.alert("Success", "Cycle archived successfully.");
-      fetchCycles();
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to archive cycle");
-    } finally {
-      setArchivingCycleId(null);
-    }
+  const handleActivate = (cycleId: string) => {
+    updateStatusMutation.mutate({ cycleId, status: 'active' });
   };
 
-  const activateCycle = async (cycleId: string) => {
-    try {
-      setActivatingCycleId(cycleId);
-
-      // First, set all other cycles to completed
-      const { error: deactivateError } = await supabase
-        .from("price_reporting_cycles")
-        .update({ status: "completed" })
-        .neq("id", cycleId)
-        .eq("status", "active");
-
-      if (deactivateError) throw deactivateError;
-
-      // Then activate the selected cycle
-      const { error: activateError } = await supabase
-        .from("price_reporting_cycles")
-        .update({ status: "active" })
-        .eq("id", cycleId);
-
-      if (activateError) throw activateError;
-
-      Alert.alert("Success", "Cycle activated successfully.");
-      fetchCycles();
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to activate cycle");
-    } finally {
-      setActivatingCycleId(null);
-    }
-  };
-
-  if (loading && cycles.length === 0) {
-    return <LoadingIndicator message="Loading price cycles..." />;
+  // Loading state from useQuery
+  if (isLoading) {
+    return <LoadingIndicator message='Loading price cycles...' />;
   }
 
-  if (error) {
-    return <ErrorDisplay message={error} onRetry={fetchCycles} />;
+  // Error state from useQuery
+  if (isError) {
+    return (
+      <ErrorDisplay
+        message={error?.message || 'Failed to load price cycles'}
+        onRetry={refetch}
+      />
+    );
   }
 
   return (
@@ -159,37 +66,53 @@ export function PriceCycleManagement() {
       <View style={styles.header}>
         <Text style={styles.title}>Price Reporting Cycles</Text>
         <Button
-          title="Create New Cycle"
-          onPress={createNewCycle}
-          loading={creatingCycle}
+          title='Create New Cycle'
+          onPress={handleCreateNewCycle}
+          loading={createCycleMutation.isPending} // Use mutation pending state
         />
       </View>
 
       <View style={styles.filterContainer}>
         <Button
-          title={showArchived ? "Hide Archived" : "Show Archived"}
-          variant="outline"
-          size="small"
+          title={showArchived ? 'Hide Archived' : 'Show Archived'}
+          variant='outline'
+          size='small'
           onPress={() => setShowArchived(!showArchived)}
         />
       </View>
 
       <FlatList
-        data={cycles}
+        data={cycles || []} // Use data from useQuery, default to empty array
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <PriceCycleCard
             cycle={item}
-            onArchive={item.status === "active" ? archiveCycle : undefined}
-            onActivate={item.status === "completed" ? activateCycle : undefined}
-            isArchiving={archivingCycleId === item.id}
-            isActivating={activatingCycleId === item.id}
+            // Pass mutation functions directly if needed, or handle within card
+            // For simplicity, passing handlers that call mutate
+            onArchive={item.status === 'completed' ? handleArchive : undefined} // Only allow archiving completed
+            onActivate={
+              item.status === 'completed' ? handleActivate : undefined
+            } // Only allow activating completed
+            // Check specific mutation based on ID and status being updated
+            isArchiving={
+              updateStatusMutation.isPending &&
+              updateStatusMutation.variables?.cycleId === item.id &&
+              updateStatusMutation.variables?.status === 'archived'
+            }
+            isActivating={
+              updateStatusMutation.isPending &&
+              updateStatusMutation.variables?.cycleId === item.id &&
+              updateStatusMutation.variables?.status === 'active'
+            }
           />
         )}
-        refreshing={loading}
-        onRefresh={fetchCycles}
+        refreshing={isRefetching} // Use isRefetching for pull-to-refresh
+        onRefresh={refetch} // Use refetch from useQuery
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No price cycles found.</Text>
+          <EmptyState // Use EmptyState component
+            message='No price cycles found.'
+            onAction={{ label: 'Refresh', onPress: refetch }}
+          />
         }
       />
     </View>
@@ -201,27 +124,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xl, // Use theme spacing
+    paddingHorizontal: Spacing.xl, // Use theme spacing
+    paddingVertical: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: Typography.fontSizeXLarge, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
   filterContainer: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.xl, // Use theme spacing
+    marginBottom: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   emptyText: {
-    textAlign: "center",
-    padding: 20,
-    color: "#666",
+    textAlign: 'center',
+    padding: Spacing.lg_xl, // Use theme spacing
+    color: Colors.textGray, // Use theme color
+    fontSize: Typography.fontSizeMedium, // Added font size for consistency
   },
 });

@@ -1,12 +1,13 @@
 // components/admin/CycleInfoBadge.tsx
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { FontAwesome5 } from "@expo/vector-icons";
-import { formatDate } from "@/utils/formatters";
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { formatDate } from '@/utils/formatters';
+import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 
 interface CycleInfoBadgeProps {
   cycleNumber: number;
-  status: "active" | "completed" | "archived";
+  status: 'active' | 'completed' | 'archived';
   compact?: boolean;
   showDates?: boolean;
   startDate?: string;
@@ -24,29 +25,29 @@ export function CycleInfoBadge({
   // Get appropriate icon and colors based on status
   const getStatusInfo = () => {
     switch (status) {
-      case "active":
+      case 'active':
         return {
-          icon: "play-circle",
-          color: "#2a9d8f",
-          bgColor: "#e6f7f5",
+          icon: 'play-circle',
+          color: Colors.primary, // Use theme color
+          bgColor: Colors.primaryLightTint, // Use theme color
         };
-      case "completed":
+      case 'completed':
         return {
-          icon: "check-circle",
-          color: "#4caf50",
-          bgColor: "#e8f5e9",
+          icon: 'check-circle',
+          color: Colors.successDark, // Use theme color
+          bgColor: Colors.successLightTint, // Use theme color
         };
-      case "archived":
+      case 'archived':
         return {
-          icon: "archive",
-          color: "#9e9e9e",
-          bgColor: "#f5f5f5",
+          icon: 'archive',
+          color: Colors.mediumGray2, // Use theme color
+          bgColor: Colors.backgroundGray2, // Use theme color
         };
       default:
         return {
-          icon: "circle",
-          color: "#666",
-          bgColor: "#f0f0f0",
+          icon: 'circle',
+          color: Colors.textGray, // Use theme color
+          bgColor: Colors.lightGray2, // Use theme color
         };
     }
   };
@@ -89,48 +90,48 @@ export function CycleInfoBadge({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 8,
+    borderRadius: BorderRadius.md, // Use theme border radius
+    padding: Spacing.inputPaddingHorizontal, // Use theme spacing
+    marginVertical: Spacing.sm, // Use theme spacing
   },
   compactBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.lg_xl, // Use theme border radius
+    paddingVertical: Spacing.xxs, // Use theme spacing
+    paddingHorizontal: Spacing.sm, // Use theme spacing
   },
   compactText: {
-    fontSize: 12,
-    fontWeight: "500",
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   icon: {
-    marginRight: 6,
+    marginRight: Spacing.xs, // Use theme spacing
   },
   cycleNumber: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
     flex: 1,
   },
   statusBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: Spacing.xs, // Use theme spacing
+    paddingVertical: Spacing.xxxs, // Use theme spacing
+    borderRadius: BorderRadius.sm, // Use theme border radius
   },
   statusText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "bold",
+    color: Colors.white, // Use theme color
+    fontSize: Typography.fontSizeXXSmall, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
   },
   dateContainer: {
-    marginTop: 6,
+    marginTop: Spacing.xs, // Use theme spacing
   },
   dateText: {
-    fontSize: 12,
-    color: "#666",
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.textGray, // Use theme color
   },
 });

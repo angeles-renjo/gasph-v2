@@ -7,6 +7,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import { Colors, Typography, Spacing } from '@/styles/theme'; // Import theme constants
 
 interface LoadingIndicatorProps {
   message?: string;
@@ -23,7 +24,7 @@ export function LoadingIndicator({
   containerStyle,
   textStyle,
   size = 'large',
-  color = '#2a9d8f',
+  color = Colors.primary, // Use theme color as default
 }: LoadingIndicatorProps) {
   return (
     <View
@@ -41,18 +42,18 @@ export function LoadingIndicator({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: Spacing.lg_xl, // Use theme spacing
     alignItems: 'center',
     justifyContent: 'center',
   },
   fullScreen: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white, // Use theme color
   },
   message: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    marginTop: Spacing.inputPaddingHorizontal, // Use theme spacing (value 12)
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
     textAlign: 'center',
   },
 });

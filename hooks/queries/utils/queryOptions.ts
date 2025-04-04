@@ -34,9 +34,10 @@ export const defaultQueryOptions = {
       refetchOnWindowFocus: false,
     },
     detail: {
-      staleTime: 60 * 60 * 1000, // 1 hour
-      gcTime: 2 * 60 * 60 * 1000, // 2 hours
+      staleTime: 10 * 60 * 1000, // 10 minutes (reduced from 1 hour)
+      gcTime: 30 * 60 * 1000, // 30 minutes (reduced from 2 hours)
       refetchOnMount: true,
+      // refetchOnWindowFocus: true, // Consider adding if very fresh data is critical on focus
     },
     nearby: {
       staleTime: 5 * 60 * 1000, // 5 minutes

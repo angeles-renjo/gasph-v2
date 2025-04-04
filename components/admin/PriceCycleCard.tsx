@@ -1,14 +1,15 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { formatDate } from "@/utils/formatters";
-import type { PriceCycle } from "@/hooks/queries/prices/usePriceCycles";
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { formatDate } from '@/utils/formatters';
+import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
+import type { PriceCycle } from '@/hooks/queries/prices/usePriceCycles';
 
 interface PriceCycleCardProps {
   cycle: PriceCycle;
-  onArchive?: (id: string) => Promise<void>;
-  onActivate?: (id: string) => Promise<void>;
+  onArchive?: (id: string) => void; // Changed return type to void
+  onActivate?: (id: string) => void; // Changed return type to void
   isArchiving?: boolean;
   isActivating?: boolean;
 }
@@ -20,25 +21,23 @@ export function PriceCycleCard({
   isArchiving,
   isActivating,
 }: PriceCycleCardProps) {
-  const handleArchive = async () => {
+  // Removed async from handlers as they now just call the prop
+  const handleArchive = () => {
     Alert.alert(
-      "Archive Cycle",
-      "Are you sure you want to archive this price cycle?",
+      'Archive Cycle',
+      'Are you sure you want to archive this price cycle?',
       [
         {
-          text: "Cancel",
-          style: "cancel",
+          text: 'Cancel',
+          style: 'cancel',
         },
         {
-          text: "Archive",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              if (onArchive) {
-                await onArchive(cycle.id);
-              }
-            } catch (error) {
-              Alert.alert("Error", "Failed to archive price cycle");
+          text: 'Archive',
+          style: 'destructive',
+          onPress: () => {
+            // No need for try/catch here, error handled by mutation hook
+            if (onArchive) {
+              onArchive(cycle.id); // Call prop directly
             }
           },
         },
@@ -46,24 +45,22 @@ export function PriceCycleCard({
     );
   };
 
-  const handleActivate = async () => {
+  // Removed async from handlers as they now just call the prop
+  const handleActivate = () => {
     Alert.alert(
-      "Activate Cycle",
-      "Are you sure you want to activate this price cycle? This will deactivate the current active cycle.",
+      'Activate Cycle',
+      'Are you sure you want to activate this price cycle? This will deactivate the current active cycle.',
       [
         {
-          text: "Cancel",
-          style: "cancel",
+          text: 'Cancel',
+          style: 'cancel',
         },
         {
-          text: "Activate",
-          onPress: async () => {
-            try {
-              if (onActivate) {
-                await onActivate(cycle.id);
-              }
-            } catch (error) {
-              Alert.alert("Error", "Failed to activate price cycle");
+          text: 'Activate',
+          onPress: () => {
+            // No need for try/catch here, error handled by mutation hook
+            if (onActivate) {
+              onActivate(cycle.id); // Call prop directly
             }
           },
         },
@@ -85,15 +82,15 @@ export function PriceCycleCard({
         <View
           style={[
             styles.statusBadge,
-            cycle.status === "archived" && styles.archivedBadge,
-            cycle.status === "completed" && styles.completedBadge,
+            cycle.status === 'archived' && styles.archivedBadge,
+            cycle.status === 'completed' && styles.completedBadge,
           ]}
         >
           <Text
             style={[
               styles.statusText,
-              cycle.status === "archived" && styles.archivedText,
-              cycle.status === "completed" && styles.completedText,
+              cycle.status === 'archived' && styles.archivedText,
+              cycle.status === 'completed' && styles.completedText,
             ]}
           >
             {cycle.status.toUpperCase()}
@@ -104,30 +101,34 @@ export function PriceCycleCard({
       <View style={styles.dates}>
         <View style={styles.dateItem}>
           <Text style={styles.dateLabel}>Start Date</Text>
-          <Text style={styles.dateValue}>{formatDate(cycle.start_date)}</Text>
+          <Text style={styles.dateValue}>
+            {cycle.start_date ? formatDate(cycle.start_date) : 'N/A'}
+          </Text>
         </View>
         <View style={styles.dateItem}>
           <Text style={styles.dateLabel}>End Date</Text>
-          <Text style={styles.dateValue}>{formatDate(cycle.end_date)}</Text>
+          <Text style={styles.dateValue}>
+            {cycle.end_date ? formatDate(cycle.end_date) : 'N/A'}
+          </Text>
         </View>
       </View>
 
       <View style={styles.actions}>
-        {cycle.status === "completed" && onActivate && (
+        {cycle.status === 'completed' && onActivate && (
           <Button
-            title="Activate Cycle"
+            title='Activate Cycle'
             onPress={handleActivate}
-            variant="primary"
+            variant='primary'
             style={styles.actionButton}
             loading={isActivating}
             disabled={isActivating}
           />
         )}
-        {cycle.status === "completed" && onArchive && (
+        {cycle.status === 'completed' && onArchive && (
           <Button
-            title="Archive Cycle"
+            title='Archive Cycle'
             onPress={handleArchive}
-            variant="outline"
+            variant='outline'
             style={styles.actionButton}
             loading={isArchiving}
             disabled={isArchiving}
@@ -140,69 +141,69 @@ export function PriceCycleCard({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
-    padding: 16,
+    marginBottom: Spacing.xl, // Use theme spacing
+    padding: Spacing.xl, // Use theme spacing
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.xl, // Use theme spacing
   },
   title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: Typography.fontSizeXLarge, // Use theme typography
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
   importDate: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 4,
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginTop: Spacing.xxs, // Use theme spacing
   },
   statusBadge: {
-    backgroundColor: "#e6f7f5",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    backgroundColor: Colors.primaryLightTint, // Use theme color
+    paddingHorizontal: Spacing.sm, // Use theme spacing
+    paddingVertical: Spacing.xxs, // Use theme spacing
+    borderRadius: BorderRadius.sm, // Use theme border radius
   },
   archivedBadge: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: Colors.backgroundGray2, // Use theme color
   },
   completedBadge: {
-    backgroundColor: "#fff3e0",
+    backgroundColor: Colors.warningLightTint, // Use theme color
   },
   statusText: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#2a9d8f",
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
+    color: Colors.primary, // Use theme color
   },
   archivedText: {
-    color: "#666",
+    color: Colors.textGray, // Use theme color
   },
   completedText: {
-    color: "#f57c00",
+    color: Colors.warningDark, // Use theme color
   },
   dates: {
-    flexDirection: "row",
-    marginBottom: 16,
+    flexDirection: 'row',
+    marginBottom: Spacing.xl, // Use theme spacing
   },
   dateItem: {
     flex: 1,
   },
   dateLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginBottom: Spacing.xxs, // Use theme spacing
   },
   dateValue: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#333",
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
   actions: {
-    marginTop: 8,
-    flexDirection: "row",
-    gap: 8,
+    marginTop: Spacing.sm, // Use theme spacing
+    flexDirection: 'row',
+    gap: Spacing.sm, // Use theme spacing
   },
   actionButton: {
     flex: 1,

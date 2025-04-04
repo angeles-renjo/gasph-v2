@@ -2,8 +2,10 @@ import type { LocationData } from '@/hooks/useLocation';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { BestPricesParams } from './types';
 
+// Updated PriceCycleParams to include filter options
 export interface PriceCycleParams {
   id?: string;
+  showArchived?: boolean; // Added filter param
 }
 
 export const queryKeys = {

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
+import { Colors, Typography, Spacing } from '@/styles/theme'; // Import theme constants
 
 interface ErrorDisplayProps {
   title?: string;
@@ -30,10 +31,14 @@ export function ErrorDisplay({
         containerStyle,
       ]}
     >
-      <FontAwesome5 name='exclamation-triangle' size={40} color='#f44336' />
+      <FontAwesome5
+        name='exclamation-triangle'
+        size={40}
+        color={Colors.danger}
+      />{' '}
+      {/* Use theme color */}
       <Text style={[styles.title, titleStyle]}>{title}</Text>
       <Text style={[styles.message, messageStyle]}>{message}</Text>
-
       {onRetry && (
         <View style={styles.buttonContainer}>
           <Button title='Try Again' onPress={onRetry} variant='primary' />
@@ -45,28 +50,28 @@ export function ErrorDisplay({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: Spacing.lg_xl, // Use theme spacing
     alignItems: 'center',
     justifyContent: 'center',
   },
   fullScreen: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white, // Use theme color
   },
   title: {
-    marginTop: 16,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    marginTop: Spacing.xl, // Use theme spacing
+    fontSize: Typography.fontSizeLarge, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
+    color: Colors.darkGray, // Use theme color
     textAlign: 'center',
   },
   message: {
-    marginTop: 8,
-    fontSize: 16,
-    color: '#666',
+    marginTop: Spacing.sm, // Use theme spacing
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
     textAlign: 'center',
   },
   buttonContainer: {
-    marginTop: 20,
+    marginTop: Spacing.lg_xl, // Use theme spacing
   },
 });

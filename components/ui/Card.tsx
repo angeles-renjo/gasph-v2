@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TouchableOpacityProps,
 } from 'react-native';
+import { Colors, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 
 interface CardProps extends ViewProps {
   style?: ViewStyle;
@@ -72,32 +73,33 @@ export function TouchableCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 16,
-    marginVertical: 8,
+    backgroundColor: Colors.white, // Use theme color
+    borderRadius: BorderRadius.lg, // Use theme border radius
+    padding: Spacing.xl, // Use theme spacing
+    marginVertical: Spacing.sm, // Use theme spacing
     overflow: 'hidden',
   },
   default: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
+    // Base styles are in 'card', specific variant styles can override if needed
+    // backgroundColor: Colors.white, // Already in card
+    // borderRadius: BorderRadius.lg, // Already in card
   },
   elevated: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    shadowColor: '#000',
+    // backgroundColor: Colors.white, // Already in card
+    // borderRadius: BorderRadius.lg, // Already in card
+    shadowColor: Colors.black, // Use theme color
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 3,
+    elevation: 3, // Keep elevation for Android
   },
   outline: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
+    // backgroundColor: Colors.white, // Already in card
+    // borderRadius: BorderRadius.lg, // Already in card
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: Colors.lightGray, // Use theme color
   },
 });

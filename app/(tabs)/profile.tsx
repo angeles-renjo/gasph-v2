@@ -25,6 +25,11 @@ import { useUserContributions } from '@/hooks/queries/users/useUserContributions
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
+import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
+import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme'; // Import theme for styling (Added BorderRadius)
+// Import FuelType definition (assuming it's correctly exported)
+import { FuelType } from '@/hooks/queries/prices/useBestPrices';
+import { Picker } from '@react-native-picker/picker'; // Import Picker
 
 // Define the structure of a contribution locally, matching the updated hook
 interface UserContribution {
@@ -45,6 +50,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut, isAdmin } = useAuth();
   const queryClient = useQueryClient();
+  // Get preferences state and setter
+  const { defaultFuelType, setDefaultFuelType } = usePreferencesStore();
 
   // State only for UI actions, not data fetching
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -361,6 +368,40 @@ export default function ProfileScreen() {
           {renderContributions()}
         </View>
 
+        {/* Preferences Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <Card style={styles.preferenceCard}>
+            <Text style={styles.preferenceLabel}>Default Fuel Type</Text>
+            {/* Use Picker component */}
+            <View style={styles.pickerContainer}>
+              {/* Note: Picker styling can be inconsistent across platforms.
+                  Wrapping in a View helps manage layout and appearance. */}
+              <Picker
+                selectedValue={defaultFuelType}
+                onValueChange={
+                  (
+                    itemValue: FuelType | null // Add type annotation
+                  ) =>
+                    // Handle null explicitly for the "None" option
+                    setDefaultFuelType(itemValue) // No need for casting now
+                }
+                // style={styles.picker} // Remove direct style
+                // itemStyle={styles.pickerItem} // Remove direct style
+                mode='dropdown' // Android style
+              >
+                <Picker.Item label='None (Use best available)' value={null} />
+                <Picker.Item label='Diesel' value='Diesel' />
+                <Picker.Item label='Diesel Plus' value='Diesel Plus' />
+                <Picker.Item label='RON 91' value='RON 91' />
+                <Picker.Item label='RON 95' value='RON 95' />
+                <Picker.Item label='RON 97' value='RON 97' />
+                <Picker.Item label='RON 100' value='RON 100' />
+              </Picker>
+            </View>
+          </Card>
+        </View>
+
         {/* Action Buttons Section */}
         <View style={styles.buttonSection}>
           {/* Example: Add Edit Profile button */}
@@ -482,9 +523,28 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
+    color: Colors.darkGray, // Use theme color
+    marginBottom: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
+  preferenceCard: {
+    padding: Spacing.xl,
+  },
+  preferenceLabel: {
+    fontSize: Typography.fontSizeMedium,
+    fontWeight: Typography.fontWeightMedium,
+    color: Colors.darkGray,
+    marginBottom: Spacing.sm,
+  },
+  pickerContainer: {
+    // Style for the view wrapping the picker
+    borderWidth: 1,
+    borderColor: Colors.mediumGray,
+    borderRadius: BorderRadius.md,
+    // height: Spacing.inputHeight + 2, // Remove fixed height
+    // justifyContent: 'center', // Remove vertical centering
+    overflow: 'hidden', // Keep this for border radius clipping
+  },
+  // Removed picker and pickerItem styles
   contributionCard: {
     marginBottom: 12,
     padding: 12, // Slightly reduced padding

@@ -37,3 +37,6 @@ yarn-error.*
 *.tsbuildinfo
 
 .cursor
+
+# Project specific
+CLEANUP_CHECKLIST.md

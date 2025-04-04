@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { formatDate, formatPrice } from '@/utils/formatters';
+import { Colors, Typography, Spacing } from '@/styles/theme'; // Import theme constants
 
 export interface DOEPrice {
   fuel_type: string;
@@ -102,82 +103,82 @@ export function DOEPriceTable({ prices, latestDate }: DOEPriceTableProps) {
 
 const styles = StyleSheet.create({
   card: {
-    padding: 16,
-    marginBottom: 16,
-    backgroundColor: '#ffffff',
+    padding: Spacing.xl, // Use theme spacing
+    marginBottom: Spacing.xl, // Use theme spacing
+    backgroundColor: Colors.white, // Use theme color
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
+    fontSize: Typography.fontSizeXLarge, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
+    color: Colors.darkGray, // Use theme color
+    marginBottom: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   tableContainer: {
-    marginBottom: 8,
+    marginBottom: Spacing.sm, // Use theme spacing
   },
   headerRow: {
     flexDirection: 'row',
-    paddingVertical: 6,
+    paddingVertical: Spacing.xs, // Use theme spacing
   },
   divider: {
     height: 1,
-    backgroundColor: '#ddd',
-    marginBottom: 2,
+    backgroundColor: Colors.mediumLightGray2, // Use theme color
+    marginBottom: Spacing.xxxs, // Use theme spacing
   },
   dataRow: {
     flexDirection: 'row',
-    paddingVertical: 8,
+    paddingVertical: Spacing.sm, // Use theme spacing
   },
   evenRow: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.backgroundGray2, // Use theme color
   },
   oddRow: {
-    backgroundColor: '#ffffff',
+    backgroundColor: Colors.white, // Use theme color
   },
   fuelTypeCell: {
     flex: 1.5,
-    paddingRight: 4,
+    paddingRight: Spacing.xxs, // Use theme spacing
     justifyContent: 'center',
-    minHeight: 42,
+    minHeight: 42, // Keep minHeight for now
   },
   priceCell: {
-    width: 70,
+    width: 70, // Keep width fixed for alignment
     alignItems: 'flex-end',
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: Spacing.xxxs, // Use theme spacing
   },
   headerCellText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
+    color: Colors.textGray, // Use theme color
     textAlign: 'center',
   },
   fuelTypeText: {
-    fontSize: 13,
-    color: '#333',
+    fontSize: Typography.fontSizeSmallMedium, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
   priceText: {
-    fontSize: 13,
-    color: '#2a9d8f',
-    fontWeight: '500',
+    fontSize: Typography.fontSizeSmallMedium, // Use theme typography
+    color: Colors.primary, // Use theme color
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
   },
   sourceText: {
-    fontSize: 11,
-    color: '#777',
-    marginTop: 2,
+    fontSize: Typography.fontSizeXSmall, // Use theme typography
+    color: Colors.iconGray, // Use theme color
+    marginTop: Spacing.xxxs, // Use theme spacing
   },
   dateText: {
-    marginTop: 6,
-    fontSize: 12,
-    color: '#666',
-    fontStyle: 'italic',
+    marginTop: Spacing.xs, // Use theme spacing
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    fontStyle: 'italic', // Keep fontStyle local
     textAlign: 'right',
   },
   emptyText: {
-    fontSize: 13,
-    color: '#666',
-    fontStyle: 'italic',
+    fontSize: Typography.fontSizeSmallMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    fontStyle: 'italic', // Keep fontStyle local
     textAlign: 'center',
-    marginVertical: 20,
+    marginVertical: Spacing.lg_xl, // Use theme spacing
   },
 });

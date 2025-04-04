@@ -1,19 +1,17 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-} from "react-native";
-import { Card } from "@/components/ui/Card";
-import { FontAwesome5 } from "@expo/vector-icons";
-import { formatPrice, formatRelativeTime } from "@/utils/formatters";
-import {
-  usePriceConfirmation,
-  useHasConfirmedPrice,
-} from "@/hooks/queries/prices/usePriceConfirmation";
-import { useAuth } from "@/hooks/useAuth";
+} from 'react-native';
+import { Card } from '@/components/ui/Card';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { formatPrice, formatRelativeTime } from '@/utils/formatters';
+import { Colors, Typography, Spacing } from '@/styles/theme'; // Import theme constants
+// Removed unused hooks: usePriceConfirmation, useHasConfirmedPrice, useAuth
+import { PriceConfirmation } from './PriceConfirmation'; // Import the new component
 
 export interface PriceCardProps {
   id: string;
@@ -23,7 +21,7 @@ export interface PriceCardProps {
   reported_at: string;
   confirmations_count: number;
   cycle_id: string;
-  source?: "community" | "official";
+  source?: 'community' | 'official';
   username?: string;
   user_id?: string;
   isOwnReport?: boolean;
@@ -36,87 +34,17 @@ export function PriceCard({
   price,
   reported_at,
   confirmations_count = 0,
-  source = "community",
+  source = 'community',
   username,
   user_id,
   isOwnReport = false,
 }: PriceCardProps) {
-  const isCommunity = source === "community";
+  const isCommunity = source === 'community';
   const relativeTime = formatRelativeTime(reported_at);
-  const { user } = useAuth();
-
-  // Use the mutation hook
-  const { mutate: confirmPrice, isPending: isConfirming } =
-    usePriceConfirmation();
-
-  // Use the query hook to check confirmation status
-  const { data: hasConfirmed } = useHasConfirmedPrice(id);
-
-  const handleConfirmPrice = () => {
-    if (!id || !station_id) return;
-
-    confirmPrice(
-      { reportId: id, stationId: station_id },
-      {
-        onError: (error) => {
-          console.error("Error confirming price:", error);
-        },
-      }
-    );
-  };
-
-  const renderConfirmationContent = () => {
-    // If user has already confirmed or it's their own report
-    if (hasConfirmed || isOwnReport) {
-      return (
-        <View style={styles.confirmationsContainer}>
-          <Text style={styles.confirmationsLabel}>Confirmations</Text>
-          <Text style={styles.confirmationsCount}>
-            {confirmations_count}{" "}
-            {confirmations_count === 1 ? "Confirmation" : "Confirmations"}
-          </Text>
-          {isOwnReport && <Text style={styles.ownReportTag}>Your report</Text>}
-        </View>
-      );
-    }
-
-    // If user hasn't confirmed and is not the report owner
-    if (user && !isOwnReport) {
-      return isConfirming ? (
-        <ActivityIndicator size="small" color="#2a9d8f" />
-      ) : (
-        <View style={styles.confirmationsContainer}>
-          <TouchableOpacity
-            onPress={handleConfirmPrice}
-            style={styles.confirmButton}
-            disabled={isConfirming}
-          >
-            <FontAwesome5 name="check-circle" size={16} color="#2a9d8f" />
-            <Text style={styles.confirmButtonText}>Confirm</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.confirmationsCount}>
-            {confirmations_count}{" "}
-            {confirmations_count === 1 ? "Confirmation" : "Confirmations"}
-          </Text>
-        </View>
-      );
-    }
-
-    // Fallback to just showing confirmation count
-    return (
-      <View style={styles.confirmationsContainer}>
-        <Text style={styles.confirmationsLabel}>Confirmations</Text>
-        <Text style={styles.confirmationsCount}>
-          {confirmations_count}{" "}
-          {confirmations_count === 1 ? "Confirmation" : "Confirmations"}
-        </Text>
-      </View>
-    );
-  };
+  // Removed unused hooks and related logic (useAuth, usePriceConfirmation, useHasConfirmedPrice, handleConfirmPrice, renderConfirmationContent)
 
   return (
-    <Card variant="outline" style={styles.card}>
+    <Card variant='outline' style={styles.card}>
       <View style={styles.priceContainer}>
         <Text style={styles.fuelType}>{fuel_type}</Text>
         <Text style={styles.price}>{formatPrice(price)}</Text>
@@ -124,7 +52,7 @@ export function PriceCard({
 
       <View style={styles.sourceContainer}>
         <Text style={styles.sourceLabel}>
-          {isCommunity ? "Community Report" : "DOE Official Price"}
+          {isCommunity ? 'Community Report' : 'DOE Official Price'}
         </Text>
         <Text style={styles.dateLabel}>{relativeTime}</Text>
       </View>
@@ -136,10 +64,16 @@ export function PriceCard({
           <View style={styles.detailsContainer}>
             <View style={styles.userContainer}>
               <Text style={styles.userLabel}>Reported by</Text>
-              <Text style={styles.username}>{username || "Anonymous"}</Text>
+              <Text style={styles.username}>{username || 'Anonymous'}</Text>
             </View>
 
-            {renderConfirmationContent()}
+            {/* Use the extracted PriceConfirmation component */}
+            <PriceConfirmation
+              reportId={id}
+              stationId={station_id}
+              confirmationsCount={confirmations_count}
+              isOwnReport={isOwnReport}
+            />
           </View>
         </>
       )}
@@ -151,87 +85,64 @@ export function PriceCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginVertical: 8,
-    padding: 12,
+    marginVertical: Spacing.sm, // Use theme spacing
+    padding: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   priceContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm, // Use theme spacing
   },
   fuelType: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
   price: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#2a9d8f",
+    fontSize: Typography.fontSizeLarge, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
+    color: Colors.primary, // Use theme color
   },
   sourceContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   sourceLabel: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.textGray, // Use theme color
   },
   dateLabel: {
-    fontSize: 14,
-    color: "#999",
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.placeholderGray, // Use theme color
   },
   divider: {
     height: 1,
-    backgroundColor: "#eee",
-    marginVertical: 12,
+    backgroundColor: Colors.dividerGray, // Use theme color
+    marginVertical: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   detailsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   userContainer: {
-    alignItems: "center",
+    alignItems: 'center',
   },
   userLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
+    fontSize: Typography.fontSizeXSmall, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginBottom: Spacing.xxs, // Use theme spacing
   },
   username: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#333",
+    fontSize: Typography.fontSizeXSmall, // Use theme typography
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
   confirmationsContainer: {
-    alignItems: "center",
+    alignItems: 'center',
   },
-  confirmationsLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
-  },
-  confirmButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 8,
-  },
-  confirmButtonText: {
-    fontSize: 12,
-    color: "#2a9d8f",
-    marginLeft: 4,
-  },
-  confirmationsCount: {
-    fontSize: 12,
-    color: "#666",
-  },
-  ownReportTag: {
-    fontSize: 10,
-    color: "#2a9d8f",
-    fontStyle: "italic",
-    marginTop: 2,
-  },
+  // Removed styles related to confirmation button and labels as they are now in PriceConfirmation.tsx
+  // confirmationsContainer, confirmationsLabel, confirmButton, confirmButtonText, confirmationsCount, ownReportTag
 });

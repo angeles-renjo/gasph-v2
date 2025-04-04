@@ -64,6 +64,10 @@ export function usePriceConfirmation() {
       // );
 
       // Optimistically update the best prices list if it exists in cache
+      /*
+      // Temporarily commenting out optimistic update for confirmations_count
+      // as the underlying RPC function seems to have an issue assuming this column exists
+      // on user_price_reports. Invalidation on success/settled will handle UI updates.
       queryClient.setQueriesData(
         { queryKey: queryKeys.prices.best.all() },
         (old: any) => {
@@ -82,7 +86,7 @@ export function usePriceConfirmation() {
           };
         }
       );
-
+      */
       // --- Remove optimistic update for station details ---
       // queryClient.setQueryData(
       //   queryKeys.stations.detail(stationId),
@@ -124,12 +128,14 @@ export function usePriceConfirmation() {
     // Handle errors
     onError: (err, { reportId, stationId }, context) => {
       // Revert optimistic updates
+      /* // Also comment out the rollback for the best prices optimistic update
       if (context?.previousBestPrices) {
         queryClient.setQueryData(
           queryKeys.prices.best.all(),
           context.previousBestPrices
         );
       }
+      */
 
       // Remove rollback for station details
       // if (context?.previousStationDetails) {

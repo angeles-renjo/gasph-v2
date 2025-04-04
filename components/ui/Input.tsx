@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -50,8 +51,8 @@ export function Input({
     <TouchableOpacity onPress={togglePasswordVisibility}>
       <FontAwesome5
         name={isPasswordVisible ? 'eye-slash' : 'eye'}
-        size={18}
-        color='#777'
+        size={18} // Keep size hardcoded for now, or add to theme if needed
+        color={Colors.iconGray} // Use theme color
       />
     </TouchableOpacity>
   ) : null;
@@ -77,7 +78,7 @@ export function Input({
           onFocus={handleFocus}
           onBlur={handleBlur}
           secureTextEntry={isPassword ? !isPasswordVisible : secureTextEntry}
-          placeholderTextColor='#999'
+          placeholderTextColor={Colors.placeholderGray} // Use theme color
           {...props}
         />
         {(rightIcon || isPassword) && (
@@ -93,35 +94,35 @@ export function Input({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: Spacing.xl, // Use theme spacing
     width: '100%',
   },
   label: {
-    fontSize: 16,
-    marginBottom: 6,
-    fontWeight: '500',
-    color: '#333',
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    marginBottom: Spacing.xs, // Use theme spacing
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    backgroundColor: '#fff',
+    borderColor: Colors.mediumGray, // Use theme color
+    borderRadius: BorderRadius.md, // Use theme border radius
+    backgroundColor: Colors.white, // Use theme color
   },
   focusedInput: {
-    borderColor: '#2a9d8f',
+    borderColor: Colors.primary, // Use theme color
   },
   errorInput: {
-    borderColor: '#f44336',
+    borderColor: Colors.danger, // Use theme color
   },
   input: {
     flex: 1,
-    height: 48,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    color: '#333',
+    height: Spacing.inputHeight, // Use theme spacing
+    paddingHorizontal: Spacing.inputPaddingHorizontal, // Use theme spacing
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
   inputWithLeftIcon: {
     paddingLeft: 0,
@@ -130,14 +131,14 @@ const styles = StyleSheet.create({
     paddingRight: 0,
   },
   iconContainer: {
-    paddingHorizontal: 12,
-    height: 48,
+    paddingHorizontal: Spacing.inputPaddingHorizontal, // Use theme spacing
+    height: Spacing.inputHeight, // Use theme spacing
     justifyContent: 'center',
     alignItems: 'center',
   },
   errorText: {
-    color: '#f44336',
-    fontSize: 14,
-    marginTop: 4,
+    color: Colors.danger, // Use theme color
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    marginTop: Spacing.xxs, // Use theme spacing
   },
 });

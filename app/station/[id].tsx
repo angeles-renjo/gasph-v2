@@ -145,7 +145,7 @@ export default function StationDetailScreen() {
           fuel_type: selectedFuelType,
           price: parsedPrice, // Use parsed price
           user_id: user.id,
-          expires_at: expiresAt.toISOString(),
+          // expires_at: expiresAt.toISOString(), // Removed non-existent column
           cycle_id: currentCycle.id,
         });
 

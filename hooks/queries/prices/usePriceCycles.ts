@@ -1,180 +1,178 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/utils/supabase/supabase";
-import { queryKeys } from "../utils/queryKeys";
-import { defaultQueryOptions } from "../utils/queryOptions";
-import { Alert } from "react-native";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert } from 'react-native';
+import { supabase } from '@/utils/supabase/supabase';
+import { queryKeys } from '../utils/queryKeys';
+import {
+  defaultQueryOptions,
+  defaultMutationOptions,
+} from '../utils/queryOptions';
+import { Tables } from '@/utils/supabase/types';
 
-export interface PriceCycle {
-  id: string;
-  cycle_number: number;
-  start_date: string;
-  end_date: string;
-  status: "active" | "completed" | "archived";
-  doe_import_date?: string;
-  created_at: string;
+export type PriceCycle = Tables<'price_reporting_cycles'>;
+
+// --- Query Hook ---
+
+interface UsePriceCyclesParams {
+  showArchived?: boolean;
 }
 
-interface CreatePriceCycleParams {
+async function fetchPriceCycles({
+  showArchived = false,
+}: UsePriceCyclesParams): Promise<PriceCycle[]> {
+  const query = supabase
+    .from('price_reporting_cycles')
+    .select('*')
+    .order('cycle_number', { ascending: false });
+
+  if (!showArchived) {
+    query.neq('status', 'archived');
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching price cycles:', error);
+    throw new Error(error.message || 'Failed to load price cycles');
+  }
+
+  return data || [];
+}
+
+export function usePriceCycles({ showArchived = false }: UsePriceCyclesParams) {
+  return useQuery({
+    queryKey: queryKeys.prices.cycles.list({ showArchived }), // Include filter in key
+    queryFn: () => fetchPriceCycles({ showArchived }),
+    ...defaultQueryOptions.prices.cycles,
+  });
+}
+
+// --- Mutation Hooks ---
+
+// == Create Cycle ==
+interface CreateCycleVariables {
   startDate: Date;
   endDate: Date;
 }
 
-export function usePriceCycles(includeArchived = false) {
+async function createPriceCycle({
+  startDate,
+  endDate,
+}: CreateCycleVariables): Promise<PriceCycle> {
+  // Get the next cycle number
+  const { data: maxCycleData, error: maxCycleError } = await supabase
+    .from('price_reporting_cycles')
+    .select('cycle_number')
+    .order('cycle_number', { ascending: false })
+    .limit(1)
+    .single();
+
+  // Allow PGRST116 (No rows found) - means this is the first cycle
+  if (maxCycleError && maxCycleError.code !== 'PGRST116') {
+    throw maxCycleError;
+  }
+  const nextCycleNumber = (maxCycleData?.cycle_number || 0) + 1;
+
+  // Insert the new cycle (status defaults to 'active' via trigger/default)
+  const { data, error } = await supabase
+    .from('price_reporting_cycles')
+    .insert({
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
+      cycle_number: nextCycleNumber,
+      // status: 'active', // Rely on trigger/default if possible
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  if (!data) throw new Error('Failed to create cycle, no data returned.');
+
+  return data;
+}
+
+export function useCreatePriceCycleMutation() {
   const queryClient = useQueryClient();
-
-  // Fetch all price cycles
-  const cyclesQuery = useQuery({
-    queryKey: [...queryKeys.prices.cycles.list(), { includeArchived }],
-    queryFn: async () => {
-      let query = supabase
-        .from("price_reporting_cycles")
-        .select("*")
-        .order("cycle_number", { ascending: false });
-
-      if (!includeArchived) {
-        query = query.neq("status", "archived");
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as PriceCycle[];
-    },
-    ...defaultQueryOptions.prices,
-  });
-
-  // Get current active cycle
-  const activeCycleQuery = useQuery({
-    queryKey: queryKeys.prices.cycles.active(),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("price_reporting_cycles")
-        .select("*")
-        .eq("status", "active")
-        .single();
-
-      if (error && error.code !== "PGRST116") throw error;
-      return data as PriceCycle | null;
-    },
-    ...defaultQueryOptions.prices,
-  });
-
-  // Get next cycle number
-  const nextCycleNumberQuery = useQuery({
-    queryKey: queryKeys.prices.cycles.nextNumber(),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("price_reporting_cycles")
-        .select("cycle_number")
-        .order("cycle_number", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error && error.code !== "PGRST116") throw error;
-      return (data?.cycle_number || 0) + 1;
-    },
-    ...defaultQueryOptions.prices,
-  });
-
-  // Create cycle mutation
-  const createCycleMutation = useMutation({
-    mutationFn: async ({
-      startDate,
-      endDate,
-    }: CreatePriceCycleParams): Promise<PriceCycle> => {
-      const nextCycleNumber = nextCycleNumberQuery.data || 1;
-
-      const { data, error } = await supabase
-        .from("price_reporting_cycles")
-        .insert({
-          start_date: startDate.toISOString(),
-          end_date: endDate.toISOString(),
-          status: "active",
-          cycle_number: nextCycleNumber,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as PriceCycle;
-    },
-    onSuccess: () => {
+  return useMutation<PriceCycle, Error, CreateCycleVariables>({
+    mutationFn: createPriceCycle,
+    onSuccess: (newCycle) => {
+      Alert.alert(
+        'Success',
+        `New price cycle #${newCycle.cycle_number} created successfully.`
+      );
+      // Invalidate all cycle lists to refetch
       queryClient.invalidateQueries({
-        queryKey: queryKeys.prices.cycles.all(),
+        queryKey: queryKeys.prices.cycles.list(),
+      });
+      // Potentially invalidate active cycle query if one exists
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.prices.cycles.active(),
       });
     },
-    onError: (error: any) => {
-      Alert.alert("Error", error.message || "Failed to create price cycle");
+    onError: (error) => {
+      Alert.alert('Error', error.message || 'Failed to create price cycle');
     },
+    ...defaultMutationOptions.prices.cycles,
   });
+}
 
-  // Archive cycle mutation
-  const archiveCycleMutation = useMutation({
-    mutationFn: async (cycleId: string): Promise<string> => {
-      const { error } = await supabase
-        .from("price_reporting_cycles")
-        .update({ status: "archived" })
-        .eq("id", cycleId);
+// == Update Cycle Status (Activate/Archive) ==
+interface UpdateCycleStatusVariables {
+  cycleId: string;
+  status: 'active' | 'archived'; // Only allow activating or archiving via this hook
+}
 
-      if (error) throw error;
-      return cycleId;
-    },
-    onSuccess: () => {
+async function updateCycleStatus({
+  cycleId,
+  status,
+}: UpdateCycleStatusVariables): Promise<void> {
+  if (status === 'active') {
+    // Special logic for activation: deactivate others first
+    const { error: deactivateError } = await supabase
+      .from('price_reporting_cycles')
+      .update({ status: 'completed' }) // Set others to completed
+      .neq('id', cycleId)
+      .eq('status', 'active');
+
+    if (deactivateError) throw deactivateError;
+  }
+
+  // Update the target cycle's status
+  const { error } = await supabase
+    .from('price_reporting_cycles')
+    .update({ status })
+    .eq('id', cycleId);
+
+  if (error) throw error;
+}
+
+export function useUpdatePriceCycleStatusMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, UpdateCycleStatusVariables>({
+    mutationFn: updateCycleStatus,
+    onSuccess: (_, variables) => {
+      Alert.alert(
+        'Success',
+        `Cycle successfully ${
+          variables.status === 'active' ? 'activated' : 'archived'
+        }.`
+      );
+      // Invalidate all cycle lists and active cycle query
       queryClient.invalidateQueries({
-        queryKey: queryKeys.prices.cycles.all(),
+        queryKey: queryKeys.prices.cycles.list(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.prices.cycles.active(),
       });
     },
-    onError: (error: any) => {
-      Alert.alert("Error", error.message || "Failed to archive cycle");
+    onError: (error, variables) => {
+      Alert.alert(
+        'Error',
+        error.message ||
+          `Failed to ${
+            variables.status === 'active' ? 'activate' : 'archive'
+          } cycle`
+      );
     },
+    ...defaultMutationOptions.prices.cycles,
   });
-
-  // Activate cycle mutation
-  const activateCycleMutation = useMutation({
-    mutationFn: async (cycleId: string): Promise<string> => {
-      const { error } = await supabase
-        .from("price_reporting_cycles")
-        .update({ status: "active" })
-        .eq("id", cycleId);
-
-      if (error) throw error;
-      return cycleId;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.prices.cycles.all(),
-      });
-    },
-    onError: (error: any) => {
-      Alert.alert("Error", error.message || "Failed to activate cycle");
-    },
-  });
-
-  return {
-    // Query Results
-    cycles: cyclesQuery.data || [],
-    activeCycle: activeCycleQuery.data,
-    nextCycleNumber: nextCycleNumberQuery.data || 1,
-
-    // Loading States
-    isLoading: cyclesQuery.isLoading || activeCycleQuery.isLoading,
-    isRefetching: cyclesQuery.isRefetching,
-
-    // Error State
-    error: cyclesQuery.error || activeCycleQuery.error,
-
-    // Refetch Function
-    refetch: () => {
-      cyclesQuery.refetch();
-      activeCycleQuery.refetch();
-      nextCycleNumberQuery.refetch();
-    },
-
-    // Mutations and their states
-    createCycle: createCycleMutation.mutateAsync,
-    isCreating: createCycleMutation.isPending,
-    archiveCycle: archiveCycleMutation.mutateAsync,
-    isArchiving: archiveCycleMutation.isPending,
-    activateCycle: activateCycleMutation.mutateAsync,
-    isActivating: activateCycleMutation.isPending,
-  };
 }

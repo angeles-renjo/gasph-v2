@@ -5,6 +5,7 @@ import type { LocationData } from '@/hooks/useLocation';
 // Import useNearbyStations and its return type
 import { useNearbyStations } from '../stations/useNearbyStations';
 import type { GasStation } from '../stations/useNearbyStations'; // Now exported
+import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
 
 // Import helpers from the utility file
 import {
@@ -92,6 +93,12 @@ export function useBestPrices({
   providedLocation,
 }: UseBestPricesOptions = {}) {
   const location = providedLocation;
+  // Get default fuel type from preferences store
+  const defaultFuelTypeFromStore = usePreferencesStore(
+    (state) => state.defaultFuelType
+  );
+  // Use the prop if provided, otherwise use the stored preference
+  const effectiveFuelType = fuelType ?? defaultFuelTypeFromStore;
 
   const {
     data: nearbyStations,
@@ -113,7 +120,7 @@ export function useBestPrices({
   return useQuery({
     queryKey: queryKeys.prices.best.list({
       location,
-      fuelType,
+      fuelType: effectiveFuelType ?? undefined, // Pass undefined instead of null
       maxDistance,
       stationCount: nearbyStations?.length ?? 0, // Add dependency on station count
     }),
@@ -129,9 +136,15 @@ export function useBestPrices({
           nearbyStations.map((s) => [s.id, s])
         );
 
-        const fuelTypesToFetch = fuelType ? [fuelType] : ALL_FUEL_TYPES;
+        // Fetch based on the effective fuel type (prop or preference)
+        const fuelTypesToFetch = effectiveFuelType
+          ? [effectiveFuelType]
+          : ALL_FUEL_TYPES;
         const [communityPriceMap, doePriceMap] = await Promise.all([
-          fetchCommunityPrices(nearbyStationIds, fuelType),
+          fetchCommunityPrices(
+            nearbyStationIds,
+            effectiveFuelType ?? undefined
+          ), // Pass undefined instead of null
           fetchDoePrices(nearbyStationIds, fuelTypesToFetch),
         ]);
 
@@ -143,10 +156,11 @@ export function useBestPrices({
         );
 
         let finalBestPrices: BestPrice[];
-        if (fuelType) {
+        // Process based on the effective fuel type
+        if (effectiveFuelType) {
           finalBestPrices = processSpecificFuelType(
             potentialPricePoints,
-            fuelType
+            effectiveFuelType
           );
         } else {
           finalBestPrices = processAllFuelTypes(potentialPricePoints);

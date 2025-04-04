@@ -9,6 +9,7 @@ import {
   TouchableOpacityProps,
   View,
 } from 'react-native';
+import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
@@ -102,7 +103,7 @@ export function Button({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'outline' ? '#2a9d8f' : '#ffffff'}
+          color={variant === 'outline' ? Colors.primary : Colors.white} // Use theme colors
           size='small'
         />
       ) : (
@@ -118,36 +119,36 @@ export function Button({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 8,
+    borderRadius: BorderRadius.md, // Use theme border radius
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
   },
   primary: {
-    backgroundColor: '#2a9d8f',
+    backgroundColor: Colors.primary, // Use theme color
   },
   secondary: {
-    backgroundColor: '#f4a261',
+    backgroundColor: Colors.secondary, // Use theme color
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#2a9d8f',
+    borderColor: Colors.primary, // Use theme color
   },
   danger: {
-    backgroundColor: '#f44336',
+    backgroundColor: Colors.danger, // Use theme color
   },
   small: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: Spacing.xs, // Use theme spacing
+    paddingHorizontal: Spacing.md, // Use theme spacing
   },
   medium: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: Spacing.md, // Use theme spacing
+    paddingHorizontal: Spacing.xl, // Use theme spacing
   },
   large: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
+    paddingVertical: Spacing.lg, // Use theme spacing
+    paddingHorizontal: Spacing.xxl, // Use theme spacing
   },
   fullWidth: {
     width: '100%',
@@ -156,25 +157,25 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#ffffff',
-    fontWeight: '600',
+    color: Colors.white, // Use theme color
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
     textAlign: 'center',
   },
   outlineText: {
-    color: '#2a9d8f',
-    fontWeight: '600',
+    color: Colors.primary, // Use theme color
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
     textAlign: 'center',
   },
   smallText: {
-    fontSize: 14,
+    fontSize: Typography.fontSizeSmall, // Use theme typography
   },
   mediumText: {
-    fontSize: 16,
+    fontSize: Typography.fontSizeMedium, // Use theme typography
   },
   largeText: {
-    fontSize: 18,
+    fontSize: Typography.fontSizeLarge, // Use theme typography
   },
   iconContainer: {
-    marginRight: 8,
+    marginRight: Spacing.sm, // Use theme spacing
   },
 });

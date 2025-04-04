@@ -3,7 +3,7 @@ import { DashboardCard } from '@/components/admin/DashboardCard';
 import { useAdminStats } from '@/hooks/queries/admin/useAdminStats';
 import { formatDate } from '@/utils/formatters';
 import { Button } from '@/components/ui/Button';
-import Colors from '@/constants/Colors';
+import { Colors } from '@/styles/theme'; // Updated import path
 
 export default function AdminDashboard() {
   const { data: stats, isLoading, error, refetch } = useAdminStats();

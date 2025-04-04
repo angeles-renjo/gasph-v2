@@ -1,7 +1,8 @@
-import React from "react";
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from "react-native";
-import { FontAwesome5 } from "@expo/vector-icons";
-import { Button } from "@/components/ui/Button";
+import React from 'react';
+import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { Button } from '@/components/ui/Button';
+import { Colors, Typography, Spacing } from '@/styles/theme'; // Import theme constants
 
 interface EmptyStateProps {
   title?: string;
@@ -22,10 +23,10 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  title = "No Data Found",
+  title = 'No Data Found',
   message = "There's nothing to display here yet.",
-  icon = "info-circle",
-  iconColor = "#2a9d8f",
+  icon = 'info-circle',
+  iconColor = Colors.primary, // Use theme color as default
   actionLabel,
   onAction,
   fullScreen = false,
@@ -35,8 +36,8 @@ export function EmptyState({
 }: EmptyStateProps) {
   // Normalize onAction to ensure it's in the correct format
   const actionProps =
-    typeof onAction === "function"
-      ? { label: actionLabel || "Action", onPress: onAction }
+    typeof onAction === 'function'
+      ? { label: actionLabel || 'Action', onPress: onAction }
       : onAction;
 
   return (
@@ -56,7 +57,7 @@ export function EmptyState({
           <Button
             title={actionProps.label}
             onPress={actionProps.onPress}
-            variant="outline"
+            variant='outline'
           />
         </View>
       )}
@@ -66,28 +67,28 @@ export function EmptyState({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    alignItems: "center",
-    justifyContent: "center",
+    padding: Spacing.lg_xl, // Use theme spacing
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fullScreen: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.white, // Use theme color
   },
   title: {
-    marginTop: 16,
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    textAlign: "center",
+    marginTop: Spacing.xl, // Use theme spacing
+    fontSize: Typography.fontSizeLarge, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
+    color: Colors.darkGray, // Use theme color
+    textAlign: 'center',
   },
   message: {
-    marginTop: 8,
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
+    marginTop: Spacing.sm, // Use theme spacing
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    textAlign: 'center',
   },
   buttonContainer: {
-    marginTop: 20,
+    marginTop: Spacing.lg_xl, // Use theme spacing
   },
 });

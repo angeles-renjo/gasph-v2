@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { TouchableCard } from '@/components/ui/Card';
 import { formatPrice, formatDistance } from '@/utils/formatters';
+import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
+import { DOEPriceDisplay } from './DOEPriceDisplay'; // Import the new component
 import type { BestPrice } from '@/hooks/queries/prices/useBestPrices';
 
 // Props now extends from our BestPrice type
@@ -27,24 +29,7 @@ export interface BestPriceCardProps
     | 'source_type' // Add source_type
   > {}
 
-// Helper function to format source_type to just the specific label text
-const formatSourceTypeLabel = (
-  sourceType: string | null | undefined
-): string => {
-  if (!sourceType) return ''; // Return empty if no type
-  switch (sourceType) {
-    case 'brand_specific':
-      return 'Brand Specific';
-    case 'city_overall':
-      return 'City Overall';
-    case 'ncr_prevailing':
-      return 'NCR Prevailing';
-    // Add other cases as needed
-    default:
-      // Simple formatting for unknown types
-      return sourceType.replace(/_/g, ' ');
-  }
-};
+// Removed formatSourceTypeLabel helper function
 
 export function BestPriceCard({
   id, // Changed from station_id
@@ -80,43 +65,15 @@ export function BestPriceCard({
         {/* Display community price or placeholder */}
         <Text style={styles.price}>{price ? formatPrice(price) : '--'}</Text>
       </View>
-      {/* Display DOE Price Range if available - Label + Badge + Table Row Style */}
-      {(min_price !== null || common_price !== null || max_price !== null) && (
-        <View style={styles.doeContainer}>
-          {/* Row 1: Label + Badge */}
-          <View style={styles.doeInfoRow}>
-            <Text style={styles.doeLabel}>DOE:</Text>
-            {source_type && ( // Only show badge if source_type exists
-              <View style={styles.doeTypeBadge}>
-                <Text style={styles.doeTypeBadgeText}>
-                  {formatSourceTypeLabel(source_type)}
-                </Text>
-              </View>
-            )}
-          </View>
-          {/* Row 2: Min/Common/Max Table */}
-          <View style={styles.doeTableRow}>
-            <View style={styles.doeTableCell}>
-              <Text style={styles.doeTableHeader}>Min</Text>
-              <Text style={styles.doeTableValue}>
-                {min_price !== null ? formatPrice(min_price) : '--'}
-              </Text>
-            </View>
-            <View style={styles.doeTableCell}>
-              <Text style={styles.doeTableHeader}>Common</Text>
-              <Text style={styles.doeTableValue}>
-                {common_price !== null ? formatPrice(common_price) : '--'}
-              </Text>
-            </View>
-            <View style={styles.doeTableCell}>
-              <Text style={styles.doeTableHeader}>Max</Text>
-              <Text style={styles.doeTableValue}>
-                {max_price !== null ? formatPrice(max_price) : '--'}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
+
+      {/* Use the extracted DOEPriceDisplay component */}
+      <DOEPriceDisplay
+        min_price={min_price}
+        common_price={common_price}
+        max_price={max_price}
+        source_type={source_type}
+      />
+
       <View style={styles.stationRow}>
         <Text style={styles.stationName} numberOfLines={1}>
           {name}
@@ -164,181 +121,129 @@ export function BestPriceCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginVertical: 8,
-    padding: 16,
+    marginVertical: Spacing.sm, // Use theme spacing
+    padding: Spacing.xl, // Use theme spacing
   },
   priceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm, // Use theme spacing
   },
   fuelTypeContainer: {
-    backgroundColor: '#e6f7f5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: Colors.primaryLightTint, // Use theme color
+    paddingHorizontal: Spacing.md, // Use theme spacing
+    paddingVertical: Spacing.xxs, // Use theme spacing
+    borderRadius: BorderRadius.lg_xl, // Use theme border radius
   },
   fuelType: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2a9d8f',
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
+    color: Colors.primary, // Use theme color
   },
   price: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2a9d8f',
+    fontSize: Typography.fontSizeXXLarge, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
+    color: Colors.primary, // Use theme color
   },
-  // Styles for DOE Section (Container, Label+Badge Row, Table Row)
-  doeContainer: {
-    marginTop: 6, // Add a bit more space above
-    marginBottom: 8,
-  },
-  doeInfoRow: {
-    // Row for "DOE:" label and Type Badge
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4, // Space between label/badge row and table row
-  },
-  doeLabel: {
-    // Style for "DOE:" text
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
-    marginRight: 6,
-  },
-  doeTypeBadge: {
-    // Style for the type badge (e.g., "NCR Prevailing")
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  doeTypeBadgeText: {
-    // Text inside the type badge
-    fontSize: 11,
-    color: '#444',
-    fontWeight: '500',
-  },
-  doeTableRow: {
-    // Row containing Min/Common/Max cells
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#f9f9f9',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-  },
-  doeTableCell: {
-    // Individual cell (Min, Common, or Max)
-    flex: 1,
-    alignItems: 'center',
-  },
-  doeTableHeader: {
-    // Header text ("Min", "Common", "Max")
-    fontSize: 11,
-    color: '#888',
-    marginBottom: 2,
-  },
-  doeTableValue: {
-    // Price value text
-    fontSize: 13,
-    color: '#444',
-    fontWeight: '500',
-  },
-  // Removed doeValueText style
+  // Removed styles related to DOE display as they are now in DOEPriceDisplay.tsx
+  // doeContainer, doeInfoRow, doeLabel, doeTypeBadge, doeTypeBadgeText, doeTableRow, doeTableCell, doeTableHeader, doeTableValue
   stationRow: {
-    marginBottom: 4, // Reduced margin
+    marginBottom: Spacing.xxs, // Use theme spacing
   },
   stationName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
+    fontSize: Typography.fontSizeLarge, // Use theme typography
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
+    color: Colors.darkGray, // Use theme color
+    marginBottom: Spacing.xxxs, // Use theme spacing
   },
   stationBrand: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
   },
   doeBenchmarkRow: {
+    // Note: This style seems unused in the component logic, keeping for now
     flexDirection: 'row',
-    justifyContent: 'flex-start', // Align to the start
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    marginTop: 4, // Space below main price
-    marginBottom: 8, // Space above station info
+    marginTop: Spacing.xxs, // Use theme spacing
+    marginBottom: Spacing.sm, // Use theme spacing
   },
   doeBenchmarkLabel: {
-    fontSize: 13,
-    color: '#666',
-    marginRight: 4,
+    // Note: This style seems unused
+    fontSize: Typography.fontSizeSmallMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginRight: Spacing.xxs, // Use theme spacing
   },
   doeBenchmarkText: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
+    // Note: This style seems unused
+    fontSize: Typography.fontSizeSmallMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
   },
   confirmationRow: {
-    // Add styles for confirmation row
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4, // Add some space
-    marginBottom: 8,
+    marginTop: Spacing.xxs, // Use theme spacing
+    marginBottom: Spacing.sm, // Use theme spacing
   },
   confirmationText: {
-    // Add styles for confirmation text
-    fontSize: 13,
-    color: '#666',
-    marginLeft: 6,
+    fontSize: Typography.fontSizeSmallMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginLeft: Spacing.xs, // Use theme spacing
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   infoText: {
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 6,
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginLeft: Spacing.xs, // Use theme spacing
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 12,
+    borderTopColor: Colors.dividerGray, // Use theme color
+    paddingTop: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   directionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: Spacing.sm, // Use theme spacing
+    paddingHorizontal: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   buttonText: {
-    color: '#2a9d8f',
-    fontWeight: '500',
-    marginLeft: 6,
+    color: Colors.primary, // Use theme color
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
+    marginLeft: Spacing.xs, // Use theme spacing
   },
   reporterRow: {
+    // Note: This style seems unused
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm, // Use theme spacing
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 8,
+    borderTopColor: Colors.dividerGray, // Use theme color
+    paddingTop: Spacing.sm, // Use theme spacing
   },
   reporterLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginRight: 4,
+    // Note: This style seems unused
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginRight: Spacing.xxs, // Use theme spacing
   },
   reporterName: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#333',
+    // Note: This style seems unused
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
+    color: Colors.darkGray, // Use theme color
   },
 });

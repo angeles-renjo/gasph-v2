@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { TouchableCard } from '@/components/ui/Card';
 import { formatDistance } from '@/utils/formatters';
+import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 import { Database } from '@/utils/supabase/types';
 
 type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
@@ -114,102 +115,102 @@ export function StationCard({ station }: StationCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    marginVertical: 8,
-    padding: 16,
+    marginVertical: Spacing.sm, // Use theme spacing
+    padding: Spacing.xl, // Use theme spacing
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 6,
+    marginBottom: Spacing.xs, // Use theme spacing
   },
   stationName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    width: '85%',
+    fontSize: Typography.fontSizeLarge, // Use theme typography
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
+    color: Colors.darkGray, // Use theme color
+    width: '85%', // Keep width constraint
   },
   stationBrand: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 6,
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginBottom: Spacing.xs, // Use theme spacing
   },
   distanceContainer: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
+    backgroundColor: Colors.lightGray2, // Use theme color
+    paddingHorizontal: Spacing.sm, // Use theme spacing
+    paddingVertical: Spacing.xxs, // Use theme spacing
+    borderRadius: BorderRadius.lg, // Use theme border radius
   },
   distanceText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#666',
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
   },
   address: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginBottom: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   amenitiesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 12,
+    marginBottom: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   amenityBadge: {
-    backgroundColor: '#e6f7f5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    marginRight: 6,
-    marginBottom: 6,
+    backgroundColor: Colors.primaryLightTint, // Use theme color
+    paddingHorizontal: Spacing.sm, // Use theme spacing
+    paddingVertical: Spacing.xxs, // Use theme spacing
+    borderRadius: BorderRadius.lg, // Use theme border radius
+    marginRight: Spacing.xs, // Use theme spacing
+    marginBottom: Spacing.xs, // Use theme spacing
   },
   amenityText: {
-    fontSize: 12,
-    color: '#2a9d8f',
-    fontWeight: '500',
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.primary, // Use theme color
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
   },
   pricesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 12,
+    marginBottom: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   priceItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    marginRight: 8,
-    marginBottom: 6,
+    backgroundColor: Colors.backgroundGray2, // Use theme color
+    paddingHorizontal: Spacing.sm, // Use theme spacing
+    paddingVertical: Spacing.xxs, // Use theme spacing
+    borderRadius: BorderRadius.lg, // Use theme border radius
+    marginRight: Spacing.sm, // Use theme spacing
+    marginBottom: Spacing.xs, // Use theme spacing
   },
   fuelType: {
-    fontSize: 12,
-    color: '#666',
-    marginRight: 4,
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    marginRight: Spacing.xxs, // Use theme spacing
   },
   price: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#2a9d8f',
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    fontWeight: Typography.fontWeightBold, // Use theme typography
+    color: Colors.primary, // Use theme color
   },
   buttonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 12,
+    borderTopColor: Colors.dividerGray, // Use theme color
+    paddingTop: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: Spacing.xs, // Use theme spacing
+    paddingHorizontal: Spacing.md, // Use theme spacing
   },
   buttonText: {
-    color: '#2a9d8f',
-    fontWeight: '500',
-    marginLeft: 6,
-    fontSize: 14,
+    color: Colors.primary, // Use theme color
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
+    marginLeft: Spacing.xs, // Use theme spacing
+    fontSize: Typography.fontSizeMedium, // Use theme typography
   },
 });
