@@ -20,7 +20,8 @@ import {
 // --- Constants ---
 const DEFAULT_MAX_DISTANCE = 15;
 const RESULT_LIMIT = 10;
-const ALL_FUEL_TYPES: FuelType[] = [
+export const ALL_FUEL_TYPES: FuelType[] = [
+  // Add export keyword
   'Diesel',
   'RON 91',
   'RON 95',
