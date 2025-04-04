@@ -8,9 +8,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-  Modal, // Import Modal
-  FlatList, // Import FlatList
-  Platform, // Import Platform
+  Modal, // Re-add Modal
+  Platform, // Re-add Platform (might be useful for modal styling/behavior)
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -32,7 +31,7 @@ import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Imp
 import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme'; // Import theme for styling (Added BorderRadius)
 // Import FuelType definition (assuming it's correctly exported)
 import { FuelType, ALL_FUEL_TYPES } from '@/hooks/queries/prices/useBestPrices'; // Import ALL_FUEL_TYPES too
-// Removed Picker import
+import { Picker } from '@react-native-picker/picker'; // Import the native Picker
 
 // Define the structure of a contribution locally, matching the updated hook
 interface UserContribution {
@@ -55,7 +54,7 @@ export default function ProfileScreen() {
   const queryClient = useQueryClient();
   // Get preferences state and setter
   const { defaultFuelType, setDefaultFuelType } = usePreferencesStore();
-  // Re-add state for custom fuel picker modal
+  // Re-add state for the picker modal
   const [isFuelModalVisible, setIsFuelModalVisible] = useState(false);
 
   // State only for UI actions, not data fetching
@@ -378,10 +377,10 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Preferences</Text>
           <Card style={styles.preferenceCard}>
             <Text style={styles.preferenceLabel}>Default Fuel Type</Text>
-            {/* Re-add Custom Picker Trigger Button */}
+            {/* Restore Custom Picker Trigger Button */}
             <TouchableOpacity
-              style={styles.pickerTriggerButton}
-              onPress={() => setIsFuelModalVisible(true)}
+              style={styles.pickerTriggerButton} // Use the button style again
+              onPress={() => setIsFuelModalVisible(true)} // Open modal on press
             >
               <Text style={styles.pickerTriggerText}>
                 {defaultFuelType || 'None (Use best available)'}
@@ -408,72 +407,50 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* Re-add Custom Fuel Type Picker Modal */}
+      {/* Re-add Modal, but with Picker inside */}
       <Modal
         visible={isFuelModalVisible}
         transparent
-        animationType='fade' // Fade looks nicer for custom modals
+        animationType='slide' // Slide up animation is common for pickers
         onRequestClose={() => setIsFuelModalVisible(false)}
       >
-        <TouchableOpacity // Allow closing by tapping overlay
+        <TouchableOpacity // Full screen overlay to close on tap outside
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPressOut={() => setIsFuelModalVisible(false)}
+          onPressOut={() => setIsFuelModalVisible(false)} // Close on tap outside
         >
+          {/* Prevent closing when tapping inside the actual picker area */}
           <TouchableOpacity
-            style={styles.modalContentTouchable}
+            style={styles.modalPickerContainer}
             activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
+            onPress={(e) => e.stopPropagation()} // Stop propagation to prevent overlay tap
           >
-            <Card style={styles.modalContentCard}>
-              {/* Prevent overlay press closing when tapping card */}
-              <Text style={styles.modalTitle}>Select Default Fuel Type</Text>
-              <FlatList // Use FlatList for scrollable options
-                data={[null, ...ALL_FUEL_TYPES]} // Add null option for "None"
-                keyExtractor={(item: FuelType | null) => item ?? 'none'} // Add type for item
-                renderItem={(
-                  { item: fuelOption }: { item: FuelType | null } // Add type for renderItem param
-                ) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.modalOption,
-                      defaultFuelType === fuelOption &&
-                        styles.modalOptionSelected,
-                    ]}
-                    onPress={() => {
-                      setDefaultFuelType(fuelOption);
-                      setIsFuelModalVisible(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.modalOptionText,
-                        defaultFuelType === fuelOption &&
-                          styles.modalOptionTextSelected,
-                      ]}
-                    >
-                      {fuelOption || 'None (Use best available)'}
-                    </Text>
-                    {defaultFuelType === fuelOption && (
-                      <FontAwesome5
-                        name='check-circle'
-                        size={16}
-                        color={Colors.primary}
-                      />
-                    )}
-                  </TouchableOpacity>
-                )}
-                ItemSeparatorComponent={() => (
-                  <View style={styles.modalSeparator} />
-                )}
-              />
+            {/* Optional: Add a header bar to the modal */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Fuel Type</Text>
               <Button
-                title='Cancel'
+                title='Done'
                 onPress={() => setIsFuelModalVisible(false)}
-                variant='outline'
-                style={{ marginTop: Spacing.xl }}
+                size='small' // Smaller button for header
+                variant='outline' // Corrected variant
               />
-            </Card>
+            </View>
+            {/* The Native Picker */}
+            <Picker
+              selectedValue={defaultFuelType}
+              onValueChange={(itemValue: FuelType | null) => {
+                setDefaultFuelType(itemValue);
+                // Optionally close modal immediately on selection, or wait for "Done"
+                // setIsFuelModalVisible(false);
+              }}
+              style={styles.modalPicker} // Style the picker itself if needed
+              itemStyle={styles.modalPickerItem} // Style picker items (iOS)
+            >
+              <Picker.Item label='None (Use best available)' value={null} />
+              {ALL_FUEL_TYPES.map((fuelType) => (
+                <Picker.Item key={fuelType} label={fuelType} value={fuelType} />
+              ))}
+            </Picker>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -597,9 +574,9 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeightMedium,
     color: Colors.darkGray,
     marginBottom: Spacing.sm,
-  },
+  }, // <-- Fixed missing closing brace
+  // Restore pickerTriggerButton and pickerTriggerText styles
   pickerTriggerButton: {
-    // Re-add trigger button styles
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -611,59 +588,45 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white, // Match input background
   },
   pickerTriggerText: {
-    // Re-add trigger text styles
     fontSize: Typography.fontSizeLarge,
     color: Colors.darkGray,
   },
-  // Re-add Modal Styles
+  // Add Modal Styles for the Picker Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: Colors.modalBackdrop,
-    justifyContent: 'center', // Center modal vertically
-    alignItems: 'center',
-    padding: Spacing.lg_xl, // Add padding around modal
+    backgroundColor: Colors.modalBackdrop, // Semi-transparent background
+    justifyContent: 'flex-end', // Position modal at the bottom
   },
-  modalContentTouchable: {
-    // Style for the TouchableOpacity wrapping the Card
-    width: '100%',
-    maxHeight: '70%',
-    borderRadius: BorderRadius.lg, // Match Card's border radius
+  modalPickerContainer: {
+    backgroundColor: Colors.white, // White background for the picker area
+    borderTopLeftRadius: BorderRadius.lg, // Rounded corners at the top
+    borderTopRightRadius: BorderRadius.lg,
+    paddingBottom: Spacing.lg, // Use standard padding instead of safeAreaBottom
+    maxHeight: '50%', // Limit modal height
   },
-  modalContentCard: {
-    // Style for the Card inside the TouchableOpacity
-    width: '100%',
-    height: '100%', // Make card fill the touchable area
-    padding: Spacing.lg_xl,
-    borderRadius: BorderRadius.lg, // Use theme radius
-  },
-  modalTitle: {
-    fontSize: Typography.fontSizeXLarge,
-    fontWeight: Typography.fontWeightBold,
-    color: Colors.darkGray,
-    marginBottom: Spacing.xl,
-    textAlign: 'center',
-  },
-  modalOption: {
-    paddingVertical: Spacing.inputPaddingHorizontal,
+  modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dividerGray,
   },
-  modalOptionSelected: {
-    // Add subtle background or indicator for selected
-    // backgroundColor: Colors.primaryLightTint, // Example
-  },
-  modalOptionText: {
+  modalTitle: {
     fontSize: Typography.fontSizeLarge,
+    fontWeight: Typography.fontWeightSemiBold,
     color: Colors.darkGray,
   },
-  modalOptionTextSelected: {
-    fontWeight: Typography.fontWeightSemiBold,
-    color: Colors.primary, // Highlight selected text
+  modalPicker: {
+    // Style the picker within the modal if needed
+    // width: '100%', // Ensure it takes full width
+    // height: 200, // Example fixed height
   },
-  modalSeparator: {
-    height: 1,
-    backgroundColor: Colors.dividerGray,
+  modalPickerItem: {
+    // Style individual picker items (mainly iOS)
+    // fontSize: Typography.fontSizeLarge,
+    // height: 44, // Adjust height if needed
   },
   // End Modal Styles
   contributionCard: {
