@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.angeles-renjo.gasph-v2",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "GasPH needs access to your location to find gas stations near you and show the most relevant fuel prices.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "GasPH needs access to your location to find gas stations near you and show the most relevant fuel prices."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GasPH needs access to your location to find gas stations near you and show the most relevant fuel prices.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
