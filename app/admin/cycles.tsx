@@ -1,87 +1,99 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
   RefreshControl,
   Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { usePriceCycles } from "@/hooks/queries/prices/usePriceCycles";
-import { ErrorDisplay } from "@/components/common/ErrorDisplay";
-import { Button } from "@/components/ui/Button";
-import { CreateCycleModal } from "@/components/admin/CreateCycleModal";
-import { PriceCycleCard } from "@/components/admin/PriceCycleCard";
-import type { PriceCycle } from "@/hooks/queries/prices/usePriceCycles";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  usePriceCycles,
+  useCreatePriceCycleMutation, // Import mutation hook
+  useUpdatePriceCycleStatusMutation, // Import mutation hook
+} from '@/hooks/queries/prices/usePriceCycles';
+import { ErrorDisplay } from '@/components/common/ErrorDisplay';
+import { Button } from '@/components/ui/Button';
+import { CreateCycleModal } from '@/components/admin/CreateCycleModal';
+import { PriceCycleCard } from '@/components/admin/PriceCycleCard';
+import type { PriceCycle } from '@/hooks/queries/prices/usePriceCycles';
 
 export default function CyclesScreen() {
   const [showCreateModal, setShowCreateModal] = React.useState(false);
 
+  // Fetch cycles query
   const {
-    cycles,
-    isLoading,
+    data: cycles, // Rename data to cycles
+    isLoading: isLoadingCycles, // Rename isLoading
     error,
     refetch,
-    createCycle,
-    isCreating,
-    archiveCycle,
-    isArchiving,
-    activateCycle,
-    isActivating,
-  } = usePriceCycles(true); // true to include archived cycles
+  } = usePriceCycles({ showArchived: true }); // Pass object
 
-  const handleCreateCycle = async (
-    startDate: Date,
-    endDate: Date
-  ): Promise<PriceCycle> => {
+  // Create cycle mutation
+  const { mutateAsync: createCycleMutate, isPending: isCreating } =
+    useCreatePriceCycleMutation();
+
+  // Update cycle status mutation
+  const { mutateAsync: updateStatusMutate, isPending: isUpdatingStatus } =
+    useUpdatePriceCycleStatusMutation();
+
+  // Removed startDate and endDate parameters
+  const handleCreateCycle = async (): Promise<PriceCycle> => {
     try {
-      const result = await createCycle({ startDate, endDate });
+      // Use the mutation function - call without arguments
+      const result = await createCycleMutate({}); // Pass empty object
       setShowCreateModal(false);
       return result;
     } catch (error: any) {
-      // Don't show an alert here - let the hook handle it
+      // Error handled by mutation hook's onError, just rethrow
       // Just rethrow to complete the Promise rejection
       throw error;
     }
   };
 
   const handleArchiveCycle = async (cycleId: string) => {
+    console.log(`[CyclesScreen] handleArchiveCycle called for ID: ${cycleId}`); // Add log
     try {
-      await archiveCycle(cycleId);
+      // Use the update status mutation
+      await updateStatusMutate({ cycleId, status: 'archived' });
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to archive cycle");
+      // Error handled by mutation hook's onError
+      // Alert.alert('Error', error.message || 'Failed to archive cycle');
     }
   };
 
   if (error) {
     return (
-      <ErrorDisplay message="Failed to load price cycles" onRetry={refetch} />
+      <ErrorDisplay message='Failed to load price cycles' onRetry={refetch} />
     );
   }
   const handleActivateCycle = async (cycleId: string) => {
     try {
-      await activateCycle(cycleId);
+      // Use the update status mutation
+      await updateStatusMutate({ cycleId, status: 'active' });
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to activate cycle");
+      // Error handled by mutation hook's onError
+      // Alert.alert('Error', error.message || 'Failed to activate cycle');
     }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.header}>
         <Button
-          title="Create New Cycle"
+          title='Create New Cycle'
           onPress={() => setShowCreateModal(true)}
-          variant="primary"
+          variant='primary'
+          disabled={isCreating || isUpdatingStatus} // Disable if any mutation is pending
         />
       </View>
 
       <ScrollView
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
+            refreshing={isLoadingCycles} // Use renamed state
             onRefresh={refetch}
-            tintColor="#2a9d8f"
+            tintColor='#2a9d8f'
           />
         }
         contentContainerStyle={styles.content}
@@ -91,17 +103,18 @@ export default function CyclesScreen() {
             key={cycle.id}
             cycle={cycle}
             onArchive={
-              cycle.status === "completed"
+              cycle.status === 'completed'
                 ? () => handleArchiveCycle(cycle.id)
                 : undefined
             }
             onActivate={
-              cycle.status === "completed"
+              cycle.status === 'completed'
                 ? () => handleActivateCycle(cycle.id)
                 : undefined
             }
-            isActivating={isActivating}
-            isArchiving={isArchiving}
+            // Pass the generic updating status
+            isActivating={isUpdatingStatus}
+            isArchiving={isUpdatingStatus}
           />
         ))}
       </ScrollView>
@@ -122,13 +135,13 @@ export default function CyclesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
   },
   header: {
     padding: 16,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: '#eee',
   },
   content: {
     padding: 16,

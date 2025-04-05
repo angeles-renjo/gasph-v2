@@ -11,13 +11,14 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
-import { formatDate } from '@/utils/formatters';
+// Removed formatDate import as it's no longer needed
 import type { PriceCycle } from '@/hooks/queries/prices/usePriceCycles';
 
 interface CreateCycleModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (startDate: Date, endDate: Date) => Promise<PriceCycle>;
+  // Removed startDate and endDate from onSubmit signature
+  onSubmit: () => Promise<PriceCycle>;
   loading: boolean;
   nextCycleNumber: number;
 }
@@ -29,59 +30,31 @@ export function CreateCycleModal({
   loading,
   nextCycleNumber,
 }: CreateCycleModalProps) {
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() + 7);
-    return date;
-  });
+  // Removed date state variables
+  // Removed date picker visibility state
 
-  // State for controlling date picker visibility
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   // State to track submission status and prevent double-clicks
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Handler for when the start date is changed via the picker
-  const handleStartDateChange = (event: any, selectedDate?: Date) => {
-    setShowStartDatePicker(Platform.OS === 'ios');
-    if (selectedDate) {
-      setStartDate(selectedDate);
-
-      // If end date is earlier than start date, adjust it
-      if (endDate < selectedDate) {
-        const newEndDate = new Date(selectedDate);
-        newEndDate.setDate(selectedDate.getDate() + 7);
-        setEndDate(newEndDate);
-      }
-    }
-  };
-
-  // Handler for when the end date is changed via the picker
-  const handleEndDateChange = (event: any, selectedDate?: Date) => {
-    setShowEndDatePicker(Platform.OS === 'ios');
-    if (selectedDate) {
-      setEndDate(selectedDate);
-    }
-  };
+  // Removed date change handlers
 
   // Handler for submitting the new cycle data
   const handleSubmit = async () => {
+    console.log('[CreateCycleModal] handleSubmit entered.'); // Log entry
     try {
       setIsSubmitting(true);
-      await onSubmit(startDate, endDate);
-      // Reset form state after successful submission
-      setStartDate(new Date());
-      const newEndDate = new Date();
-      newEndDate.setDate(newEndDate.getDate() + 7);
-      setEndDate(newEndDate);
-    } catch (error) {
+      // Call onSubmit without arguments
+      await onSubmit();
+      // No date state to reset
     } finally {
       setIsSubmitting(false);
     }
   };
   // Determine if the submit button should be disabled
-  const isDisabled = endDate < startDate || loading || isSubmitting;
+  // Removed endDate < startDate check
+  const isDisabled = loading || isSubmitting;
+
+  // Removed state log as date checks are gone
 
   return (
     <Modal
@@ -108,71 +81,7 @@ export function CreateCycleModal({
             <Text style={styles.cycleNumber}>{nextCycleNumber}</Text>
           </View>
 
-          <View style={styles.datePickerContainer}>
-            <Text style={styles.datePickerLabel}>Start Date:</Text>
-            <TouchableOpacity
-              style={[
-                styles.datePickerButton,
-                isDisabled && styles.datePickerButtonDisabled,
-              ]}
-              onPress={() => setShowStartDatePicker(true)}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.datePickerText}>{formatDate(startDate)}</Text>
-              <FontAwesome5
-                name='calendar-alt'
-                size={16}
-                color={Colors.primary}
-              />
-              {/* Removed space */}
-            </TouchableOpacity>
-          </View>
-
-          {showStartDatePicker && (
-            <DateTimePicker
-              value={startDate}
-              mode='date'
-              display='default'
-              onChange={handleStartDateChange}
-              minimumDate={new Date()}
-            />
-          )}
-
-          <View style={styles.datePickerContainer}>
-            <Text style={styles.datePickerLabel}>End Date:</Text>
-            <TouchableOpacity
-              style={[
-                styles.datePickerButton,
-                isDisabled && styles.datePickerButtonDisabled,
-              ]}
-              onPress={() => setShowEndDatePicker(true)}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.datePickerText}>{formatDate(endDate)}</Text>
-              <FontAwesome5
-                name='calendar-alt'
-                size={16}
-                color={Colors.primary}
-              />
-              {/* Removed space */}
-            </TouchableOpacity>
-          </View>
-
-          {showEndDatePicker && (
-            <DateTimePicker
-              value={endDate}
-              mode='date'
-              display='default'
-              onChange={handleEndDateChange}
-              minimumDate={startDate}
-            />
-          )}
-
-          {endDate < startDate && (
-            <Text style={styles.errorText}>
-              End date must be after start date
-            </Text>
-          )}
+          {/* Removed Date Picker UI Elements */}
 
           <View style={styles.buttonContainer}>
             <Button

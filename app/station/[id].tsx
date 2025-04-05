@@ -59,7 +59,8 @@ export default function StationDetailScreen() {
     try {
       const { data, error } = await supabase
         .from('price_reporting_cycles')
-        .select('id, cycle_number, start_date, end_date')
+        // Removed start_date and end_date from select
+        .select('id, cycle_number')
         .eq('status', 'active')
         .maybeSingle();
 
@@ -134,8 +135,7 @@ export default function StationDetailScreen() {
     try {
       setSubmitting(true);
 
-      // Set expiration date to the end of the current cycle
-      const expiresAt = new Date(currentCycle.end_date);
+      // Removed expiresAt calculation as end_date no longer exists
 
       // Submit the price report
       const { error: reportError } = await supabase
@@ -415,10 +415,9 @@ export default function StationDetailScreen() {
             {currentCycle ? (
               <View style={styles.cycleInfoContainer}>
                 <Text style={styles.cycleInfoLabel}>For price cycle:</Text>
+                {/* Removed display of start/end date */}
                 <Text style={styles.cycleInfoValue}>
-                  #{currentCycle.cycle_number}:{' '}
-                  {formatDate(currentCycle.start_date)} to{' '}
-                  {formatDate(currentCycle.end_date)}
+                  #{currentCycle.cycle_number}
                 </Text>
               </View>
             ) : (

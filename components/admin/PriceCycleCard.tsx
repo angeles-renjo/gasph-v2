@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { formatDate } from '@/utils/formatters';
+import { formatDate } from '@/utils/formatters'; // Re-added formatDate import
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 import type { PriceCycle } from '@/hooks/queries/prices/usePriceCycles';
 
@@ -73,6 +73,13 @@ export function PriceCycleCard({
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Cycle #{cycle.cycle_number}</Text>
+          {cycle.created_at && (
+            <Text style={styles.importDate}>
+              {' '}
+              {/* Reuse style */}
+              Created: {formatDate(cycle.created_at)}
+            </Text>
+          )}
           {cycle.doe_import_date && (
             <Text style={styles.importDate}>
               Imported: {formatDate(cycle.doe_import_date)}
@@ -98,20 +105,7 @@ export function PriceCycleCard({
         </View>
       </View>
 
-      <View style={styles.dates}>
-        <View style={styles.dateItem}>
-          <Text style={styles.dateLabel}>Start Date</Text>
-          <Text style={styles.dateValue}>
-            {cycle.start_date ? formatDate(cycle.start_date) : 'N/A'}
-          </Text>
-        </View>
-        <View style={styles.dateItem}>
-          <Text style={styles.dateLabel}>End Date</Text>
-          <Text style={styles.dateValue}>
-            {cycle.end_date ? formatDate(cycle.end_date) : 'N/A'}
-          </Text>
-        </View>
-      </View>
+      {/* Removed dates display View */}
 
       <View style={styles.actions}>
         {cycle.status === 'completed' && onActivate && (
