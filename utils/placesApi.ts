@@ -4,6 +4,10 @@ import {
   DEFAULT_AMENITIES,
   DEFAULT_OPERATING_HOURS,
 } from '@/constants/gasStations';
+import type { GooglePlacesStation } from '@/hooks/queries/utils/types'; // Assuming this type exists
+
+// Helper function for delay
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const normalizeBrand = (name: string): string => {
   // Try to extract the brand from the station name
@@ -113,41 +117,134 @@ export const fetchPlaceDetails = async (placeId: string, apiKey: string) => {
 
     const data = await response.json();
 
+    // Check for API-level errors first
     if (data.status !== 'OK') {
+      console.error(
+        `Places API error for placeId ${placeId}: ${data.status} - ${
+          data.error_message || ''
+        }`
+      );
+      // Throw specific errors based on status if needed, e.g., NOT_FOUND, INVALID_REQUEST
       throw new Error(`Places API error: ${data.status}`);
+    }
+    // Check if result exists, even if status is OK
+    if (!data.result) {
+      console.warn(
+        `Places API returned OK status but no result for placeId ${placeId}`
+      );
+      // Depending on requirements, you might throw an error or return null/undefined
+      throw new Error(`Places API returned no result for placeId ${placeId}`);
     }
 
     return data.result;
   } catch (error) {
-    console.error('Error fetching place details:', error);
-    throw error;
+    // Log the specific placeId causing the error
+    console.error(
+      `Error fetching place details for placeId ${placeId}:`,
+      error
+    );
+    throw error; // Re-throw to allow calling function to handle
   }
 };
 
-export const searchGasStations = async (city: string, apiKey: string) => {
+export const searchGasStations = async (
+  city: string,
+  apiKey: string
+): Promise<GooglePlacesStation[]> => {
+  let allResults: GooglePlacesStation[] = [];
+  let nextPageToken: string | undefined = undefined;
+  const maxPages = 3; // Limit to fetching 3 pages (approx 60 results)
+  let currentPage = 0;
+  const initialQuery = `gas station in ${city}, Philippines`;
+  const encodedInitialQuery = encodeURIComponent(initialQuery);
+  let url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodedInitialQuery}&type=gas_station&region=ph&key=${apiKey}`;
+
   try {
-    // Start with a search for gas stations in the city
-    // Removed ", Metro Manila" to make the search region more flexible
-    const query = `gas station in ${city}, Philippines`;
-    const encodedQuery = encodeURIComponent(query);
+    do {
+      currentPage++;
+      console.log(`Fetching page ${currentPage} for city: ${city}`);
 
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodedQuery}&type=gas_station&region=ph&key=${apiKey}`
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        // Log response status for debugging
+        console.error(
+          `HTTP error fetching page ${currentPage} for ${city}: ${response.status} ${response.statusText}`
+        );
+        // Attempt to read response body for more details if possible
+        let errorBody = '';
+        try {
+          errorBody = await response.text();
+          console.error('Error response body:', errorBody);
+        } catch (e) {
+          console.error('Could not read error response body:', e);
+        }
+        throw new Error(
+          `Failed to fetch page ${currentPage} of gas stations: ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+
+      // Handle specific Places API status codes
+      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        console.error(
+          `Places API status error on page ${currentPage} for ${city}: ${
+            data.status
+          } - ${data.error_message || ''}`
+        );
+        // Stop pagination on critical errors like OVER_QUERY_LIMIT, REQUEST_DENIED
+        if (
+          ['OVER_QUERY_LIMIT', 'REQUEST_DENIED', 'UNKNOWN_ERROR'].includes(
+            data.status
+          )
+        ) {
+          throw new Error(`Places API critical error: ${data.status}`);
+        }
+        // Treat INVALID_REQUEST on subsequent pages as potentially expired token
+        if (currentPage > 1 && data.status === 'INVALID_REQUEST') {
+          console.warn(
+            `Places API returned INVALID_REQUEST on page ${currentPage}, likely expired token. Stopping pagination.`
+          );
+          nextPageToken = undefined; // Stop pagination
+        } else if (currentPage === 1) {
+          // If status is not OK/ZERO_RESULTS on the first page (and not critical), throw error
+          throw new Error(`Places API error on first page: ${data.status}`);
+        } else {
+          // For other non-OK statuses on subsequent pages, just stop pagination
+          console.warn(
+            `Places API status ${data.status} on page ${currentPage}, stopping pagination.`
+          );
+          nextPageToken = undefined;
+        }
+      }
+
+      if (data.results) {
+        allResults = [...allResults, ...data.results];
+      }
+
+      nextPageToken = data.next_page_token;
+
+      if (nextPageToken && currentPage < maxPages) {
+        // IMPORTANT: Google requires a short delay before using the next_page_token
+        await sleep(2000); // Wait 2 seconds
+        // Prepare URL for the next page request
+        url = `https://maps.googleapis.com/maps/api/place/textsearch/json?pagetoken=${nextPageToken}&key=${apiKey}`;
+      } else {
+        nextPageToken = undefined; // Ensure loop terminates if token missing or max pages reached
+      }
+    } while (nextPageToken && currentPage < maxPages);
+
+    console.log(
+      `Finished fetching for ${city}. Total results found: ${allResults.length}`
     );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch gas stations: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (data.status !== 'OK') {
-      throw new Error(`Places API error: ${data.status}`);
-    }
-
-    return data.results;
+    return allResults;
   } catch (error) {
-    console.error('Error searching gas stations:', error);
+    console.error(
+      `Error searching gas stations for ${city} with pagination:`,
+      error
+    );
+    // Re-throw the error to be handled by the calling code (e.g., useImportStations hook)
     throw error;
   }
 };
