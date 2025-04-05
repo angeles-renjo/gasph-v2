@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
+import { SUPPORTED_CITIES } from '@/constants/supportedCities'; // Import the list
 
 export default function ImportStationsScreen() {
   const [cityToImport, setCityToImport] = useState(''); // State for city input
+  const [isCityValid, setIsCityValid] = useState(true); // State for validation status
   const {
     apiKey,
     setApiKey,
@@ -19,6 +21,24 @@ export default function ImportStationsScreen() {
     overallProgress,
     importGasStations,
   } = useImportStations();
+
+  // Validation function
+  const handleCityChange = (text: string) => {
+    setCityToImport(text);
+    if (text.trim() === '') {
+      setIsCityValid(true); // Reset validation if empty
+    } else {
+      // Case-insensitive check against the supported list
+      const isValid = SUPPORTED_CITIES.some(
+        (supportedCity) =>
+          supportedCity.toLowerCase() === text.trim().toLowerCase()
+      );
+      setIsCityValid(isValid);
+    }
+  };
+
+  const canSubmit =
+    !isPending && apiKey.trim() && cityToImport.trim() && isCityValid;
 
   return (
     <>
@@ -55,14 +75,20 @@ export default function ImportStationsScreen() {
               label='City to Import'
               placeholder='Enter city name (e.g., Quezon City)'
               value={cityToImport}
-              onChangeText={setCityToImport}
+              onChangeText={handleCityChange} // Use validation handler
               containerStyle={styles.inputContainer}
+              // Optionally add error styling based on isCityValid
             />
+            {!isCityValid && cityToImport.trim() !== '' && (
+              <Text style={styles.errorText}>
+                City not currently supported.
+              </Text>
+            )}
             <Button
               title={isPending ? 'Importing...' : 'Start Import'}
-              onPress={() => importGasStations(cityToImport)} // Pass city to import function
+              onPress={() => importGasStations(cityToImport.trim())} // Trim city before passing
               loading={isPending}
-              disabled={isPending || !apiKey.trim() || !cityToImport.trim()} // Disable if no API key or city
+              disabled={!canSubmit} // Use combined disabled state
               style={styles.importButton}
             />
           </Card>
@@ -193,6 +219,7 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     color: '#f44336',
-    marginTop: 4,
+    marginTop: -10, // Adjust spacing as needed
+    marginBottom: 10, // Adjust spacing as needed
   },
 });

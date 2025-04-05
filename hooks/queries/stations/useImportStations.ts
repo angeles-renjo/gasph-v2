@@ -127,7 +127,8 @@ const processStationDetails = async (
       `Error processing station ${station.name} (${station.place_id}):`,
       error
     );
-    return null;
+    // return null; // Don't return null, let the error propagate
+    throw error; // Re-throw the error so Promise.all rejects
   }
 };
 
