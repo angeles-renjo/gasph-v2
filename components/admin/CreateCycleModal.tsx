@@ -13,7 +13,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 import { formatDate } from '@/utils/formatters';
 import type { PriceCycle } from '@/hooks/queries/prices/usePriceCycles';
-import { Alert } from 'react-native';
 
 interface CreateCycleModalProps {
   visible: boolean;
@@ -100,8 +99,7 @@ export function CreateCycleModal({
               style={styles.closeButton}
               disabled={isSubmitting}
             >
-              <FontAwesome5 name='times' size={20} color={Colors.textGray} />{' '}
-              {/* Use theme color */}
+              <FontAwesome5 name='times' size={20} color={Colors.textGray} />
             </TouchableOpacity>
           </View>
 
@@ -125,8 +123,8 @@ export function CreateCycleModal({
                 name='calendar-alt'
                 size={16}
                 color={Colors.primary}
-              />{' '}
-              {/* Use theme color */}
+              />
+              {/* Removed space */}
             </TouchableOpacity>
           </View>
 
@@ -155,8 +153,8 @@ export function CreateCycleModal({
                 name='calendar-alt'
                 size={16}
                 color={Colors.primary}
-              />{' '}
-              {/* Use theme color */}
+              />
+              {/* Removed space */}
             </TouchableOpacity>
           </View>
 
