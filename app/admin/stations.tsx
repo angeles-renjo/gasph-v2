@@ -1,14 +1,15 @@
-import React from 'react';
-import { View, StyleSheet, FlatList, RefreshControl } from 'react-native'; // Re-added FlatList
+import React, { useState, useCallback } from 'react'; // Added useState, useCallback
+import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-// Removed FlashList import
 import { useStations } from '@/hooks/queries/admin/useStations';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
-import { Button } from '@/components/ui/Button';
+// import { Button } from '@/components/ui/Button'; // Removed Button import
+import { Input } from '@/components/ui/Input'; // Added Input import
 import { StationListItem } from '@/components/admin/StationListItem';
-import { Colors } from '@/styles/theme'; // Updated import path
+import { Colors } from '@/styles/theme';
 import type { InfiniteData } from '@tanstack/react-query';
+import { useDebounce } from '@/hooks/useDebounce'; // Assuming a debounce hook exists or can be created
 
 interface GasStation {
   id: string;
@@ -32,7 +33,10 @@ interface StationsResponse {
 }
 
 export default function StationsScreen() {
-  const router = useRouter();
+  const router = useRouter(); // Keep router if needed for station item navigation
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Debounce search input
+
   const {
     data,
     isLoading,
@@ -41,10 +45,11 @@ export default function StationsScreen() {
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
-  } = useStations();
+  } = useStations(debouncedSearchTerm); // Pass debounced search term to hook
 
   const stations = React.useMemo(() => {
     if (!data) return [];
+    // Flatten pages for FlatList
     return (data as InfiniteData<StationsResponse>).pages.reduce<GasStation[]>(
       (acc, page) => [...acc, ...page.stations],
       []
@@ -82,14 +87,18 @@ export default function StationsScreen() {
         onEndReachedThreshold={0.5}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Button
-              title='Import Stations'
-              onPress={() => router.push('/admin/import-stations')}
-              variant='primary'
+            <Input
+              placeholder='Search by name, brand, city, address...'
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              containerStyle={styles.searchInput}
+              // Add clear button or icon if desired
             />
+            {/* Removed Import Stations button */}
           </View>
         }
         ListFooterComponent={isFetchingNextPage ? <LoadingIndicator /> : null}
+        // Add EmptyState component when stations array is empty
       />
     </View>
   );
@@ -106,5 +115,8 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 16,
+  },
+  searchInput: {
+    // Add styling for the search input container if needed
   },
 });

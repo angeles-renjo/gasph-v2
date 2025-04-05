@@ -74,7 +74,13 @@ export const queryKeys = {
     },
     stations: {
       all: () => [...queryKeys.admin.all, 'stations'] as const,
-      list: () => [...queryKeys.admin.stations.all(), 'list'] as const,
+      // Add optional searchTerm parameter
+      list: (searchTerm?: string) =>
+        [
+          ...queryKeys.admin.stations.all(),
+          'list',
+          { searchTerm: searchTerm ?? '' }, // Use object for clarity, default empty string
+        ] as const,
       import: () => [...queryKeys.admin.stations.all(), 'import'] as const,
     },
     stats: {

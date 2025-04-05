@@ -100,8 +100,11 @@ export const formatOperatingHours = (place: any): Record<string, any> => {
 
 export const fetchPlaceDetails = async (placeId: string, apiKey: string) => {
   try {
+    // Added address_components to the requested fields
+    const fields =
+      'name,formatted_address,geometry,type,opening_hours,business_status,address_components';
     const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,geometry,type,opening_hours,business_status&key=${apiKey}`
+      `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}`
     );
 
     if (!response.ok) {
@@ -124,7 +127,8 @@ export const fetchPlaceDetails = async (placeId: string, apiKey: string) => {
 export const searchGasStations = async (city: string, apiKey: string) => {
   try {
     // Start with a search for gas stations in the city
-    const query = `gas station in ${city}, Metro Manila, Philippines`;
+    // Removed ", Metro Manila" to make the search region more flexible
+    const query = `gas station in ${city}, Philippines`;
     const encodedQuery = encodeURIComponent(query);
 
     const response = await fetch(

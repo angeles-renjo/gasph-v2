@@ -1,15 +1,16 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
-import { Stack } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { FontAwesome5 } from "@expo/vector-icons";
-import { useImportStations } from "@/hooks/queries/stations/useImportStations";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
-import { LoadingIndicator } from "@/components/common/LoadingIndicator";
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Stack } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { useImportStations } from '@/hooks/queries/stations/useImportStations';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 
 export default function ImportStationsScreen() {
+  const [cityToImport, setCityToImport] = useState(''); // State for city input
   const {
     apiKey,
     setApiKey,
@@ -23,15 +24,15 @@ export default function ImportStationsScreen() {
     <>
       <Stack.Screen
         options={{
-          title: "Import Gas Stations",
+          title: 'Import Gas Stations',
           headerStyle: {
-            backgroundColor: "#2a9d8f",
+            backgroundColor: '#2a9d8f',
           },
-          headerTintColor: "#fff",
+          headerTintColor: '#fff',
         }}
       />
 
-      <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
             <Text style={styles.title}>Import Gas Stations</Text>
@@ -43,18 +44,25 @@ export default function ImportStationsScreen() {
           <Card style={styles.configCard}>
             <Text style={styles.sectionTitle}>Configuration</Text>
             <Input
-              label="Google Places API Key"
-              placeholder="Enter your API key"
+              label='Google Places API Key'
+              placeholder='Enter your API key'
               value={apiKey}
               onChangeText={setApiKey}
               containerStyle={styles.inputContainer}
               secureTextEntry
             />
+            <Input
+              label='City to Import'
+              placeholder='Enter city name (e.g., Quezon City)'
+              value={cityToImport}
+              onChangeText={setCityToImport}
+              containerStyle={styles.inputContainer}
+            />
             <Button
-              title={isPending ? "Importing..." : "Start Import"}
-              onPress={importGasStations}
+              title={isPending ? 'Importing...' : 'Start Import'}
+              onPress={() => importGasStations(cityToImport)} // Pass city to import function
               loading={isPending}
-              disabled={isPending || !apiKey.trim()}
+              disabled={isPending || !apiKey.trim() || !cityToImport.trim()} // Disable if no API key or city
               style={styles.importButton}
             />
           </Card>
@@ -88,45 +96,13 @@ export default function ImportStationsScreen() {
             </Card>
           )}
 
-          <Card style={styles.statusCard}>
-            <Text style={styles.sectionTitle}>Import Status by City</Text>
-            {importStatuses.map((status) => (
-              <View key={status.city} style={styles.statusItem}>
-                <View style={styles.statusHeader}>
-                  <Text style={styles.cityName}>{status.city}</Text>
-                  {status.status === "pending" && (
-                    <FontAwesome5 name="clock" size={16} color="#999" />
-                  )}
-                  {status.status === "in-progress" && (
-                    <LoadingIndicator size="small" />
-                  )}
-                  {status.status === "completed" && (
-                    <FontAwesome5
-                      name="check-circle"
-                      size={16}
-                      color="#4caf50"
-                    />
-                  )}
-                  {status.status === "error" && (
-                    <FontAwesome5
-                      name="exclamation-circle"
-                      size={16}
-                      color="#f44336"
-                    />
-                  )}
-                </View>
-                {status.stationsFound !== undefined && (
-                  <Text style={styles.statusText}>
-                    Found: {status.stationsFound}, Imported:{" "}
-                    {status.stationsImported}
-                  </Text>
-                )}
-                {status.error && (
-                  <Text style={styles.errorText}>{status.error}</Text>
-                )}
-              </View>
-            ))}
-          </Card>
+          {/* Simplified Status Display - Shows overall progress */}
+          {/* You might want to enhance this later to show status for the last imported city */}
+          {/* <Card style={styles.statusCard}>
+            <Text style={styles.sectionTitle}>Import Status</Text>
+             Add logic here to display status based on the last import attempt
+             Maybe find the status for `cityToImport` in `importStatuses` after import completes
+          </Card> */}
         </ScrollView>
       </SafeAreaView>
     </>
@@ -136,7 +112,7 @@ export default function ImportStationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
   },
   scrollContent: {
     padding: 16,
@@ -146,12 +122,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: 'bold',
+    color: '#333',
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
+    color: '#666',
     marginTop: 4,
   },
   configCard: {
@@ -160,9 +136,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 12,
-    color: "#333",
+    color: '#333',
   },
   inputContainer: {
     marginBottom: 16,
@@ -176,18 +152,18 @@ const styles = StyleSheet.create({
   },
   progressBarContainer: {
     height: 8,
-    backgroundColor: "#eee",
+    backgroundColor: '#eee',
     borderRadius: 4,
-    overflow: "hidden",
+    overflow: 'hidden',
     marginBottom: 8,
   },
   progressBar: {
-    height: "100%",
-    backgroundColor: "#2a9d8f",
+    height: '100%',
+    backgroundColor: '#2a9d8f',
   },
   progressText: {
     fontSize: 14,
-    color: "#666",
+    color: '#666',
     marginTop: 4,
   },
   statusCard: {
@@ -197,26 +173,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: '#eee',
   },
   statusHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
   cityName: {
     fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
+    fontWeight: '500',
+    color: '#333',
   },
   statusText: {
     fontSize: 14,
-    color: "#666",
+    color: '#666',
   },
   errorText: {
     fontSize: 14,
-    color: "#f44336",
+    color: '#f44336',
     marginTop: 4,
   },
 });

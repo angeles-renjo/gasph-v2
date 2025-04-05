@@ -32,7 +32,7 @@ export function StationListItem({ station }: StationListItemProps) {
               name='chevron-right'
               size={16}
               color={Colors.placeholderGray}
-            />{' '}
+            />
             {/* Use theme color */}
           </View>
         </Card>
