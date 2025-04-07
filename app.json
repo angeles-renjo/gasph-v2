@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -20,6 +20,9 @@
         "NSLocationWhenInUseUsageDescription": "GasPH needs access to your location to find gas stations near you and show the most relevant fuel prices.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "GasPH needs access to your location to find gas stations near you and show the most relevant fuel prices.",
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "googleMapsApiKey": "process.env.GOOGLE_MAPS_API_KEY"
       }
     },
     "android": {
@@ -33,7 +36,12 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.angelesrenjo.gasphv2"
+      "package": "com.angelesrenjo.gasphv2",
+      "config": {
+        "googleMaps": {
+          "apiKey": "process.env.GOOGLE_MAPS_API_KEY"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
@@ -46,7 +54,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow GasPH to use your location to find nearby gas stations and fuel prices."
+          "locationAlwaysAndWhenInUseUsageDescription": "Allow GasPH to use your location to find nearby gas stations and fuel prices."
         }
       ]
     ],
