@@ -55,6 +55,13 @@ export const queryKeys = {
         'fuelType',
         fuelType,
       ] as const,
+    // Add key for fetching DOE price for a specific station/fuel type
+    doePrice: (stationId: string, fuelType: string) =>
+      [
+        ...queryKeys.stations.detail(stationId), // Reuse detail key structure
+        'doePrice',
+        fuelType,
+      ] as const,
   },
   users: {
     all: ['users'] as const, // Keep this as an array
