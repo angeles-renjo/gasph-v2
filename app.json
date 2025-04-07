@@ -56,8 +56,7 @@
         {
           "locationAlwaysAndWhenInUseUsageDescription": "Allow GasPH to use your location to find nearby gas stations and fuel prices."
         }
-      ],
-      "react-native-maps"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
