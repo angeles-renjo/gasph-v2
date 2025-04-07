@@ -10,7 +10,7 @@ import { StationMapView } from '@/components/map/StationMapView';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import theme from '@/styles/theme';
-
+import { View } from '@/components/Themed';
 // Helper function to open app settings (copied from explore.tsx logic)
 const openAppSettings = () => {
   if (Platform.OS === 'ios') {
@@ -86,12 +86,11 @@ export default function MapScreen() {
 
   // Render map once location is available
   return (
-    <SafeAreaView
+    <View
       style={[
         styles.container,
         { backgroundColor: theme.Colors[colorScheme].background }, // Apply dynamic background color
       ]}
-      edges={['top', 'bottom']}
     >
       {/* Render map directly, StationMapView handles its own loading/initial state */}
       <StationMapView
@@ -100,7 +99,7 @@ export default function MapScreen() {
         isLoading={stationsLoading || stationsRefetching} // Indicate loading on the map
         defaultFuelType={fuelTypeForMap} // Pass the determined fuel type
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
