@@ -105,14 +105,15 @@ const styles = StyleSheet.create({
   },
   doeTableRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-between', // Back to space-between
+    width: '100%', // Ensure row takes full width
     backgroundColor: Colors.backgroundGray,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.xs,
   },
   doeTableCell: {
-    flex: 1,
+    width: '33%', // Give each cell a third of the width
     alignItems: 'center',
   },
   doeTableHeader: {

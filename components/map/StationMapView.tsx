@@ -1,35 +1,40 @@
-import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
-import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
-import { useRouter } from 'expo-router';
-import { GasStation } from '@/hooks/queries/stations/useNearbyStations'; // Assuming type export
-import { LocationData } from '@/hooks/useLocation'; // Assuming type export
-import theme from '@/styles/theme'; // Import theme
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, Modal } from 'react-native'; // Added Modal import
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps'; // Removed Callout import
+// Removed useRouter import as navigation will be in Modal
+import { GasStation } from '@/hooks/queries/stations/useNearbyStations';
+import { LocationData } from '@/hooks/useLocation';
+import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
+import { StationInfoModal } from './StationInfoModal'; // Import the modal component
+import theme from '@/styles/theme';
 
 interface StationMapViewProps {
   stations: GasStation[];
   initialLocation: LocationData;
-  isLoading?: boolean; // To potentially show loading state on the map itself
+  isLoading?: boolean; // Map loading, not price loading
+  defaultFuelType: FuelType | null;
 }
 
 export function StationMapView({
   stations,
   initialLocation,
   isLoading = false,
+  defaultFuelType,
 }: StationMapViewProps) {
-  const router = useRouter();
+  const [selectedStationData, setSelectedStationData] =
+    useState<GasStation | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   const initialRegion = initialLocation
     ? {
         latitude: initialLocation.latitude,
         longitude: initialLocation.longitude,
-        latitudeDelta: 0.1, // Start with a reasonable zoom level
+        latitudeDelta: 0.1,
         longitudeDelta: 0.1,
       }
     : undefined;
 
   if (!initialRegion) {
-    // Handle case where location isn't ready (though MapScreen should handle primary loading)
     return (
       <View style={styles.loadingContainer}>
         <Text>Initializing map...</Text>
@@ -37,47 +42,64 @@ export function StationMapView({
     );
   }
 
+  const handleMarkerPress = (station: GasStation) => {
+    setSelectedStationData(station);
+    setIsModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalVisible(false);
+    setSelectedStationData(null); // Clear selected data when closing
+  };
+
   return (
-    <MapView
-      style={styles.map}
-      provider={PROVIDER_GOOGLE}
-      initialRegion={initialRegion}
-      showsUserLocation={!initialLocation.isDefaultLocation}
-      showsMyLocationButton={!initialLocation.isDefaultLocation}
-      loadingEnabled={isLoading}
-      loadingIndicatorColor={theme.Colors.primary}
-      loadingBackgroundColor='#ffffff'
-    >
-      {stations.map((station) => (
-        <Marker
-          key={station.id}
-          coordinate={{
-            latitude: station.latitude,
-            longitude: station.longitude,
-          }}
-          title={station.name}
-          description={station.brand}
-          pinColor={theme.Colors.primary} // Use theme color for pins
-        >
-          <Callout
-            tooltip={false}
-            onPress={() => router.push(`/station/${station.id}`)}
+    // Use React.Fragment or View as root because Modal must be sibling to MapView
+    <View style={styles.container}>
+      <MapView
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={initialRegion}
+        showsUserLocation={!initialLocation.isDefaultLocation}
+        showsMyLocationButton={!initialLocation.isDefaultLocation}
+        loadingEnabled={isLoading}
+        loadingIndicatorColor={theme.Colors.primary}
+        loadingBackgroundColor='#ffffff'
+        onPress={handleCloseModal} // Close modal if map is pressed
+      >
+        {stations.map((station) => (
+          <Marker
+            key={station.id}
+            coordinate={{
+              latitude: station.latitude,
+              longitude: station.longitude,
+            }}
+            pinColor={theme.Colors.primary}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent map press from firing
+              handleMarkerPress(station);
+            }}
           >
-            <View style={styles.calloutContainer}>
-              <Text style={styles.calloutTitle} numberOfLines={1}>
-                {station.name}
-              </Text>
-              <Text style={styles.calloutBrand}>{station.brand}</Text>
-              <Text style={styles.calloutAction}>View Details {' >'}</Text>
-            </View>
-          </Callout>
-        </Marker>
-      ))}
-    </MapView>
+            {/* No Callout needed here */}
+          </Marker>
+        ))}
+      </MapView>
+
+      {/* Render the Modal */}
+      <StationInfoModal
+        station={selectedStationData}
+        fuelType={defaultFuelType}
+        isVisible={isModalVisible}
+        onClose={handleCloseModal}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    // Added container style
+    flex: 1,
+  },
   map: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -86,24 +108,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  calloutContainer: {
-    width: 180,
-    padding: 8,
-  },
-  calloutTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 2,
-    color: theme.Colors.darkGray,
-  },
-  calloutBrand: {
-    fontSize: 12,
-    color: theme.Colors.textGray,
-    marginBottom: 4,
-  },
-  calloutAction: {
-    fontSize: 12,
-    color: theme.Colors.primary, // Use theme color
-    fontWeight: '500',
-  },
+  // Removed unused callout styles
 });
