@@ -22,7 +22,7 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
-        "googleMapsApiKey": "process.env.GOOGLE_MAPS_API_KEY"
+        "googleMapsApiKey": "process.env.GOOGLE_MAPS_API_KEY_IOS"
       }
     },
     "android": {
@@ -39,7 +39,7 @@
       "package": "com.angelesrenjo.gasphv2",
       "config": {
         "googleMaps": {
-          "apiKey": "process.env.GOOGLE_MAPS_API_KEY"
+          "apiKey": "process.env.GOOGLE_MAPS_API_KEY_ANDROID"
         }
       }
     },
