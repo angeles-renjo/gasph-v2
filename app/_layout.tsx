@@ -1,71 +1,84 @@
-import "expo-dev-client";
-import { useEffect } from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import * as SplashScreen from "expo-splash-screen";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
-import { queryClient } from "@/lib/query-client";
-import { useAuth } from "@/hooks/useAuth";
-import { useAuthStore } from "@/hooks/stores/useAuthStore";
+import 'expo-dev-client';
+import { useEffect } from 'react';
+// Re-add useRouter, useSegments, useRootNavigationState
+import {
+  Stack,
+  useRouter,
+  useSegments,
+  useRootNavigationState,
+} from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import * as SplashScreen from 'expo-splash-screen';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { queryClient } from '@/lib/query-client';
+import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/hooks/stores/useAuthStore';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 // Separate auth-aware navigation component
 function AuthenticatedNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAuth(); // Need loading state again
   const segments = useSegments();
   const router = useRouter();
+  const rootNavigationState = useRootNavigationState(); // Hook to check router readiness
 
   useEffect(() => {
-    if (loading) return;
-
-    const inAuthGroup = segments[0] === "(tabs)";
-    const inAuthScreens = segments[0] === "auth";
-
-    if (!user && inAuthGroup) {
-      router.replace("/auth/sign-in");
-    } else if (user && inAuthScreens) {
-      router.replace("/");
+    // Wait for auth loading AND router navigation state to be ready
+    if (loading || !rootNavigationState?.key) {
+      return;
     }
-  }, [user, loading, segments]);
 
+    const inAuthGroup = segments[0] === '(tabs)';
+    const inAuthScreens = segments[0] === 'auth';
+
+    // Imperative navigation logic
+    if (!user && inAuthGroup) {
+      router.replace('/auth/sign-in');
+    } else if (user && inAuthScreens) {
+      router.replace('/');
+    }
+  }, [user, loading, segments, rootNavigationState, router]); // Add dependencies
+
+  // Always render the full Stack navigator structure
   return (
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: "#2a9d8f",
+          backgroundColor: '#2a9d8f',
         },
-        headerTintColor: "#fff",
+        headerTintColor: '#fff',
         headerTitleStyle: {
-          fontWeight: "bold",
+          fontWeight: 'bold',
         },
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      {/* Define all screens directly, navigation logic is in useEffect */}
+      <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
       <Stack.Screen
-        name="station/[id]"
+        name='station/[id]'
         options={{
-          title: "Station Details",
-          presentation: "card",
+          title: 'Station Details',
+          presentation: 'card',
         }}
       />
       <Stack.Screen
-        name="auth/sign-in"
+        name='auth/sign-in'
         options={{
-          title: "Sign In",
-          presentation: "modal",
+          title: 'Sign In',
+          presentation: 'modal',
           headerShown: false,
         }}
       />
       <Stack.Screen
-        name="auth/sign-up"
+        name='auth/sign-up'
         options={{
-          title: "Sign Up",
-          presentation: "modal",
+          title: 'Sign Up',
+          presentation: 'modal',
           headerShown: false,
         }}
       />
@@ -87,10 +100,8 @@ function SplashScreenHandler({ children }: { children: React.ReactNode }) {
     }
   }, [loading, initialized]);
 
-  if (loading || !initialized) {
-    return null;
-  }
-
+  // Always render children, even if loading/uninitialized
+  // The splash screen covers the content until hidden
   return children;
 }
 
@@ -102,21 +113,21 @@ export default function RootLayout() {
       persistOptions={{
         persister: createAsyncStoragePersister({
           storage: AsyncStorage,
-          key: "GASPH_QUERY_CACHE",
+          key: 'GASPH_QUERY_CACHE',
           throttleTime: 1000,
         }),
         dehydrateOptions: {
           shouldDehydrateQuery: (query) => {
             const queryKey = query.queryKey as string[];
             return (
-              !queryKey.includes("realtime") && !queryKey.includes("session")
+              !queryKey.includes('realtime') && !queryKey.includes('session')
             );
           },
         },
       }}
     >
       <SafeAreaProvider>
-        <StatusBar style="auto" />
+        <StatusBar style='auto' />
         <SplashScreenHandler>
           <AuthenticatedNavigator />
         </SplashScreenHandler>
