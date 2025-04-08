@@ -20,6 +20,7 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/Button';
+import { FilterControlBubble } from '@/components/ui/FilterControlBubble'; // Import the new component
 import theme from '@/styles/theme';
 
 const FUEL_TYPES: FuelType[] = [
@@ -124,84 +125,9 @@ export default function BestPricesScreen() {
     </SafeAreaView>
   );
 
-  // Modernized fuel type filters
-  const renderFuelTypeFilters = () => (
-    <View style={styles.filterSection}>
-      <View style={styles.filterLabelContainer}>
-        <FontAwesome5 name='gas-pump' size={14} color={theme.Colors.primary} />
-        <Text style={styles.filterLabel}>Fuel Type</Text>
-      </View>
-      <View style={styles.chipContainer}>
-        <TouchableOpacity
-          style={[
-            styles.filterChip,
-            !selectedFuelType && styles.activeFilterChip,
-          ]}
-          onPress={() => handleFuelTypeSelect(undefined)}
-        >
-          <Text
-            style={[
-              styles.filterChipText,
-              !selectedFuelType && styles.activeFilterChipText,
-            ]}
-          >
-            All Types
-          </Text>
-        </TouchableOpacity>
+  // Removed renderFuelTypeFilters function
 
-        {FUEL_TYPES.map((fuelType) => (
-          <TouchableOpacity
-            key={fuelType}
-            style={[
-              styles.filterChip,
-              selectedFuelType === fuelType && styles.activeFilterChip,
-            ]}
-            onPress={() => handleFuelTypeSelect(fuelType)}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                selectedFuelType === fuelType && styles.activeFilterChipText,
-              ]}
-            >
-              {fuelType}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
-  // Modernized distance filters
-  const renderDistanceFilters = () => (
-    <View style={styles.filterSection}>
-      <View style={styles.filterLabelContainer}>
-        <FontAwesome5 name='route' size={14} color={theme.Colors.primary} />
-        <Text style={styles.filterLabel}>Distance</Text>
-      </View>
-      <View style={styles.distanceOptions}>
-        {DISTANCE_OPTIONS.map((distance) => (
-          <TouchableOpacity
-            key={distance}
-            style={[
-              styles.distanceChip,
-              maxDistance === distance && styles.activeDistanceChip,
-            ]}
-            onPress={() => handleDistanceChange(distance)}
-          >
-            <Text
-              style={[
-                styles.distanceChipText,
-                maxDistance === distance && styles.activeDistanceChipText,
-              ]}
-            >
-              {distance} km
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
+  // Removed renderDistanceFilters function
 
   // Modernized stats dashboard
   const renderStatsHeader = () => {
@@ -323,15 +249,18 @@ export default function BestPricesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      {/* Ensure 'top' edge is included */}
       <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
-
-      {/* filters */}
-      <View style={styles.filterContainer}>
-        {renderFuelTypeFilters()}
-        {renderDistanceFilters()}
-      </View>
-
-      {/* Main content */}
+      {/* Filter Bubble - Placed at the top of the layout */}
+      <FilterControlBubble
+        selectedFuelType={selectedFuelType}
+        onFuelTypeSelect={handleFuelTypeSelect}
+        fuelTypes={FUEL_TYPES}
+        selectedDistance={maxDistance}
+        onDistanceSelect={handleDistanceChange}
+        distanceOptions={DISTANCE_OPTIONS}
+      />
+      {/* Main content - Renders below the filter bubble */}
       {renderContent()}
     </SafeAreaView>
   );
@@ -349,87 +278,7 @@ const styles = StyleSheet.create({
 
   // Removed header styles again
 
-  // Enhanced filter styles
-  filterContainer: {
-    backgroundColor: theme.Colors.white,
-    paddingHorizontal: isSmallScreen ? theme.Spacing.md : theme.Spacing.xl,
-    paddingTop: theme.Spacing.sm,
-    paddingBottom: theme.Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.Colors.dividerGray,
-    shadowColor: theme.Colors.black,
-    shadowOpacity: 0.03,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 3,
-    elevation: 1,
-    zIndex: 5,
-  },
-  filterSection: {
-    marginBottom: theme.Spacing.md,
-  },
-  filterLabelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.Spacing.xs,
-  },
-  filterLabel: {
-    fontSize: theme.Typography.fontSizeSmall,
-    fontWeight: theme.Typography.fontWeightMedium,
-    color: theme.Colors.primary,
-    marginLeft: theme.Spacing.xs,
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  filterChip: {
-    paddingHorizontal: theme.Spacing.md,
-    paddingVertical: theme.Spacing.xs,
-    borderRadius: theme.BorderRadius.md,
-    backgroundColor: theme.Colors.lightGray2,
-    marginRight: theme.Spacing.xs,
-    marginBottom: theme.Spacing.xs,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  activeFilterChip: {
-    backgroundColor: theme.Colors.primaryLightTint,
-    borderColor: theme.Colors.primary,
-  },
-  filterChipText: {
-    fontSize: theme.Typography.fontSizeSmall,
-    color: theme.Colors.textGray,
-    fontWeight: theme.Typography.fontWeightRegular,
-  },
-  activeFilterChipText: {
-    color: theme.Colors.primary,
-    fontWeight: theme.Typography.fontWeightMedium,
-  },
-  distanceOptions: {
-    flexDirection: 'row',
-  },
-  distanceChip: {
-    paddingHorizontal: theme.Spacing.md,
-    paddingVertical: theme.Spacing.xs,
-    borderRadius: theme.BorderRadius.md,
-    backgroundColor: theme.Colors.lightGray2,
-    marginRight: theme.Spacing.xs,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  activeDistanceChip: {
-    backgroundColor: theme.Colors.primaryLightTint,
-    borderColor: theme.Colors.primary,
-  },
-  distanceChipText: {
-    fontSize: theme.Typography.fontSizeSmall,
-    color: theme.Colors.textGray,
-    fontWeight: theme.Typography.fontWeightRegular,
-  },
-  activeDistanceChipText: {
-    color: theme.Colors.primary,
-    fontWeight: theme.Typography.fontWeightMedium,
-  },
+  // Removed old filter styles (filterContainer, filterSection, etc.)
 
   // Enhanced stats styles
   statsContainer: {
@@ -490,7 +339,7 @@ const styles = StyleSheet.create({
   // Enhanced list styles
   listContent: {
     padding: isSmallScreen ? theme.Spacing.md : theme.Spacing.xl,
-    paddingTop: theme.Spacing.md,
+    paddingTop: theme.Spacing.md, // Keep padding top for list content
   },
 
   // Enhanced fallback styles

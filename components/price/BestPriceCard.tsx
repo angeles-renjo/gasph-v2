@@ -79,7 +79,7 @@ export function BestPriceCard({
       {/* Price Section - Most visually prominent */}
       <View style={styles.priceSection}>
         <View style={styles.fuelTypeContainer}>
-          <Text style={styles.fuelType}>{fuel_type}</Text>
+          <Text style={styles.fuelType}>{fuel_type ?? 'Unknown Fuel'}</Text>
         </View>
         <View style={styles.priceContainer}>
           <Text style={styles.price}>{price ? formatPrice(price) : '--'}</Text>
@@ -107,10 +107,10 @@ export function BestPriceCard({
         {/* Station Details */}
         <View style={styles.stationSection}>
           <Text style={styles.stationName} numberOfLines={1}>
-            {name}
+            {name ?? 'Unknown Station'}
           </Text>
           <Text style={styles.stationBrand}>
-            {brand} • {city}
+            {brand ?? 'Unknown Brand'} • {city ?? 'Unknown City'}
           </Text>
         </View>
 
@@ -130,23 +130,25 @@ export function BestPriceCard({
               size={14}
               color={Colors.textGray}
             />
+            {/* Apply fix here */}
             <Text style={styles.metricText}>
-              {confirmations_count}
+              {`${confirmations_count}`}{' '}
+              {/* Explicitly convert number to string */}
               {confirmations_count === 1 ? ' confirmation' : ' confirmations'}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* DOE Price Comparison - When available */}
-      {min_price && common_price && max_price && (
+      {/* DOE Price Comparison - When available - Ensure 0 is not rendered directly */}
+      {min_price !== null && common_price !== null && max_price !== null ? (
         <DOEPriceDisplay
           min_price={min_price}
           common_price={common_price}
           max_price={max_price}
           source_type={source_type}
         />
-      )}
+      ) : null}
 
       {/* Action Buttons */}
       <View style={styles.actionSection}>
@@ -183,7 +185,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
 
-  // Price section - enhanced visual prominence
   priceSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
