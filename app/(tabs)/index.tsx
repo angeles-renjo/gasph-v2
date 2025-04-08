@@ -10,7 +10,6 @@ import {
   Linking,
   Platform,
   Dimensions,
-  // Removed Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -62,7 +61,7 @@ export default function BestPricesScreen() {
     FuelType | undefined
   >();
   const [maxDistance, setMaxDistance] = useState<DistanceOption>(15);
-  // Removed scrollY state
+  // Removed scrollY state again
 
   const { data, isLoading, error, refetch, isRefetching } = useBestPrices({
     fuelType: selectedFuelType,
@@ -90,8 +89,6 @@ export default function BestPricesScreen() {
   const handleRefresh = async () => {
     await refetch();
   };
-
-  // Removed animated header values
 
   const renderLocationError = () => (
     <SafeAreaView style={styles.fullScreenContainer}>
@@ -301,7 +298,7 @@ export default function BestPricesScreen() {
         }
         ListHeaderComponent={renderStatsHeader()}
         showsVerticalScrollIndicator={false}
-        // Removed scrollEventThrottle and onScroll
+        // Removed scrollEventThrottle and onScroll again
       />
     );
   };
@@ -328,9 +325,7 @@ export default function BestPricesScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
 
-      {/* Removed custom animated header */}
-
-      {/* Modernized filters */}
+      {/* filters */}
       <View style={styles.filterContainer}>
         {renderFuelTypeFilters()}
         {renderDistanceFilters()}
@@ -352,7 +347,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.Colors.light.background,
   },
 
-  // Removed header styles (header, headerContent, title, locationContainer, locationText)
+  // Removed header styles again
 
   // Enhanced filter styles
   filterContainer: {
