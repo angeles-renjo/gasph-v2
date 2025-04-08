@@ -1,19 +1,19 @@
-import React, { useState } from 'react';
-
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  FlatList, // Re-added
+  FlatList,
   TouchableOpacity,
   RefreshControl,
-  ScrollView,
+  StatusBar,
+  StyleSheet,
   Linking,
   Platform,
-  StyleSheet,
+  Dimensions,
+  // Removed Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
-// Removed FlashList import
 import { useBestPrices, FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { useLocation } from '@/hooks/useLocation';
 import { BestPriceCard } from '@/components/price/BestPriceCard';
@@ -21,6 +21,7 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/Button';
+import theme from '@/styles/theme';
 
 const FUEL_TYPES: FuelType[] = [
   'Diesel',
@@ -28,10 +29,26 @@ const FUEL_TYPES: FuelType[] = [
   'RON 95',
   'RON 97',
   'RON 100',
+  'Diesel Plus',
 ];
 
 const DISTANCE_OPTIONS = [5, 15, 30] as const;
 type DistanceOption = (typeof DISTANCE_OPTIONS)[number];
+
+// Get screen dimensions for responsive layout
+const { width: screenWidth } = Dimensions.get('window');
+const isSmallScreen = screenWidth < 350;
+const isLargeScreen = screenWidth > 400;
+
+// Helper function for empty state message
+const getEmptyStateMessage = (
+  selectedFuelType: FuelType | undefined,
+  maxDistance: DistanceOption
+): string => {
+  return selectedFuelType
+    ? `No ${selectedFuelType} prices found within ${maxDistance} km. Try expanding your search or checking another fuel type.`
+    : `No fuel prices found within ${maxDistance} km. Try expanding your search distance.`;
+};
 
 export default function BestPricesScreen() {
   const {
@@ -45,13 +62,13 @@ export default function BestPricesScreen() {
     FuelType | undefined
   >();
   const [maxDistance, setMaxDistance] = useState<DistanceOption>(15);
+  // Removed scrollY state
 
-  // Update the useBestPrices call
   const { data, isLoading, error, refetch, isRefetching } = useBestPrices({
     fuelType: selectedFuelType,
     maxDistance,
     enabled: !!location,
-    providedLocation: location || undefined, // Convert null to undefined
+    providedLocation: location || undefined,
   });
 
   const handleFuelTypeSelect = (fuelType: FuelType | undefined) => {
@@ -74,15 +91,23 @@ export default function BestPricesScreen() {
     await refetch();
   };
 
+  // Removed animated header values
+
   const renderLocationError = () => (
     <SafeAreaView style={styles.fullScreenContainer}>
+      <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
       <View style={styles.fallbackContainer}>
-        <FontAwesome5 name='map-marker-alt' size={60} color='#cccccc' />
+        <View style={styles.iconContainer}>
+          <FontAwesome5
+            name='map-marker-alt'
+            size={64}
+            color={theme.Colors.primary}
+            style={styles.fallbackIcon}
+          />
+        </View>
         <Text style={styles.fallbackTitle}>Location Access Required</Text>
         <Text style={styles.fallbackMessage}>
           GasPH needs your location to find the best fuel prices near you.
-          Without location access, we can't show you personalized price
-          recommendations.
         </Text>
         <View style={styles.fallbackButtonContainer}>
           <Button
@@ -102,13 +127,14 @@ export default function BestPricesScreen() {
     </SafeAreaView>
   );
 
-  const renderFilters = () => (
-    <View style={styles.filterContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.fuelTypeFilters}
-      >
+  // Modernized fuel type filters
+  const renderFuelTypeFilters = () => (
+    <View style={styles.filterSection}>
+      <View style={styles.filterLabelContainer}>
+        <FontAwesome5 name='gas-pump' size={14} color={theme.Colors.primary} />
+        <Text style={styles.filterLabel}>Fuel Type</Text>
+      </View>
+      <View style={styles.chipContainer}>
         <TouchableOpacity
           style={[
             styles.filterChip,
@@ -145,34 +171,74 @@ export default function BestPricesScreen() {
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
-
-      <View style={styles.distanceFilterContainer}>
-        <Text style={styles.distanceLabel}>Distance</Text>
-        <View style={styles.distanceOptions}>
-          {DISTANCE_OPTIONS.map((distance) => (
-            <TouchableOpacity
-              key={distance}
-              style={[
-                styles.distanceChip,
-                maxDistance === distance && styles.activeDistanceChip,
-              ]}
-              onPress={() => handleDistanceChange(distance)}
-            >
-              <Text
-                style={[
-                  styles.distanceChipText,
-                  maxDistance === distance && styles.activeDistanceChipText,
-                ]}
-              >
-                {distance} km
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       </View>
     </View>
   );
+
+  // Modernized distance filters
+  const renderDistanceFilters = () => (
+    <View style={styles.filterSection}>
+      <View style={styles.filterLabelContainer}>
+        <FontAwesome5 name='route' size={14} color={theme.Colors.primary} />
+        <Text style={styles.filterLabel}>Distance</Text>
+      </View>
+      <View style={styles.distanceOptions}>
+        {DISTANCE_OPTIONS.map((distance) => (
+          <TouchableOpacity
+            key={distance}
+            style={[
+              styles.distanceChip,
+              maxDistance === distance && styles.activeDistanceChip,
+            ]}
+            onPress={() => handleDistanceChange(distance)}
+          >
+            <Text
+              style={[
+                styles.distanceChipText,
+                maxDistance === distance && styles.activeDistanceChipText,
+              ]}
+            >
+              {distance} km
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  // Modernized stats dashboard
+  const renderStatsHeader = () => {
+    if (!data?.stats) return null;
+
+    return (
+      <View style={styles.statsContainer}>
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Stations Found</Text>
+            <Text style={styles.statValue}>{data.stats.count}</Text>
+          </View>
+
+          {data.stats.lowestPrice != null && (
+            <View style={[styles.statItem, styles.statItemHighlight]}>
+              <Text style={styles.statLabelHighlight}>Best Price</Text>
+              <Text style={styles.statValueHighlight}>
+                ₱{data.stats.lowestPrice.toFixed(2)}
+              </Text>
+            </View>
+          )}
+
+          {data.stats.averagePrice != null && (
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Average Price</Text>
+              <Text style={styles.statValue}>
+                ₱{data.stats.averagePrice.toFixed(2)}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -183,11 +249,7 @@ export default function BestPricesScreen() {
       return (
         <EmptyState
           title='No Prices Found'
-          message={
-            selectedFuelType
-              ? `No ${selectedFuelType} prices found within ${maxDistance} km. Try expanding your search or checking another fuel type.`
-              : `No fuel prices found within ${maxDistance} km. Try expanding your search distance.`
-          }
+          message={getEmptyStateMessage(selectedFuelType, maxDistance)}
           icon='gas-pump'
           onAction={{
             label: 'Reset Filters',
@@ -201,48 +263,45 @@ export default function BestPricesScreen() {
     }
 
     return (
-      // Reverted to FlatList
       <FlatList
         data={data.prices}
-        // Ensure unique key by combining station ID and fuel type
         keyExtractor={(item) => `${item.id}-${item.fuel_type}`}
-        // Removed estimatedItemSize
-        renderItem={({ item }) => (
-          <BestPriceCard
-            id={item.id} // Changed from station_id
-            name={item.name} // Changed from station_name
-            brand={item.brand} // Changed from station_brand
-            fuel_type={item.fuel_type}
-            price={item.price}
-            distance={item.distance}
-            city={item.city} // Changed from station_city
-            confirmations_count={item.confirmations_count} // Keep this if it exists on BestPrice
-            // Pass the DOE price fields
-            min_price={item.min_price}
-            common_price={item.common_price}
-            max_price={item.max_price}
-            source_type={item.source_type} // Pass source_type
-          />
-        )}
+        renderItem={({ item }) => {
+          const lowestPrice = data?.stats?.lowestPrice; // Use lowest price from stats
+          return (
+            <BestPriceCard
+              id={item.id}
+              name={item.name}
+              brand={item.brand}
+              fuel_type={item.fuel_type}
+              price={item.price}
+              distance={item.distance}
+              city={item.city}
+              confirmations_count={item.confirmations_count}
+              min_price={item.min_price}
+              common_price={item.common_price}
+              max_price={item.max_price}
+              source_type={item.source_type}
+              isLowestPrice={
+                lowestPrice !== null &&
+                item.price !== null && // Add null check for item.price
+                item.price === lowestPrice
+              }
+            />
+          );
+        }}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={handleRefresh}
+            colors={[theme.Colors.primary]}
+            tintColor={theme.Colors.primary}
+          />
         }
-        ListHeaderComponent={
-          data.stats && (
-            <View style={styles.statsContainer}>
-              <Text style={styles.statsLabel}>
-                Found {data.stats.count} stations
-              </Text>
-              {/* Add null check for lowestPrice */}
-              {data.stats.lowestPrice != null && (
-                <Text style={styles.statsPrice}>
-                  Lowest: ₱{data.stats.lowestPrice.toFixed(2)}
-                </Text>
-              )}
-            </View>
-          )
-        }
+        ListHeaderComponent={renderStatsHeader()}
+        showsVerticalScrollIndicator={false}
+        // Removed scrollEventThrottle and onScroll
       />
     );
   };
@@ -267,23 +326,17 @@ export default function BestPricesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Best Fuel Prices Near You</Text>
-        {location && (
-          <View style={styles.locationContainer}>
-            <FontAwesome5 name='map-marker-alt' size={16} color='#2a9d8f' />
-            <Text style={styles.locationText}>Your Area</Text>
-            {/* Add null check for averagePrice */}
-            {data?.stats?.averagePrice != null && (
-              <Text style={styles.statsText}>
-                • Avg: ₱{data.stats.averagePrice.toFixed(2)}
-              </Text>
-            )}
-          </View>
-        )}
+      <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
+
+      {/* Removed custom animated header */}
+
+      {/* Modernized filters */}
+      <View style={styles.filterContainer}>
+        {renderFuelTypeFilters()}
+        {renderDistanceFilters()}
       </View>
 
-      {renderFilters()}
+      {/* Main content */}
       {renderContent()}
     </SafeAreaView>
   );
@@ -292,179 +345,201 @@ export default function BestPricesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.Colors.light.background,
   },
   fullScreenContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.Colors.light.background,
   },
-  fallbackContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  fallbackTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 20,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  fallbackMessage: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 30,
-    lineHeight: 22,
-  },
-  fallbackButtonContainer: {
-    width: '100%',
-    paddingHorizontal: 20,
-  },
-  fallbackButton: {
-    marginBottom: 12,
-  },
-  header: {
-    padding: 16,
-    backgroundColor: '#fff',
+
+  // Removed header styles (header, headerContent, title, locationContainer, locationText)
+
+  // Enhanced filter styles
+  filterContainer: {
+    backgroundColor: theme.Colors.white,
+    paddingHorizontal: isSmallScreen ? theme.Spacing.md : theme.Spacing.xl,
+    paddingTop: theme.Spacing.sm,
+    paddingBottom: theme.Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: theme.Colors.dividerGray,
+    shadowColor: theme.Colors.black,
+    shadowOpacity: 0.03,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 1,
+    zIndex: 5,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
+  filterSection: {
+    marginBottom: theme.Spacing.md,
   },
-  locationContainer: {
+  filterLabelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: theme.Spacing.xs,
   },
-  locationText: {
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 6,
+  filterLabel: {
+    fontSize: theme.Typography.fontSizeSmall,
+    fontWeight: theme.Typography.fontWeightMedium,
+    color: theme.Colors.primary,
+    marginLeft: theme.Spacing.xs,
   },
-  statsText: {
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 4,
-  },
-  filterContainer: {
-    backgroundColor: '#fff',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  fuelTypeFilters: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    marginRight: 8,
+    paddingHorizontal: theme.Spacing.md,
+    paddingVertical: theme.Spacing.xs,
+    borderRadius: theme.BorderRadius.md,
+    backgroundColor: theme.Colors.lightGray2,
+    marginRight: theme.Spacing.xs,
+    marginBottom: theme.Spacing.xs,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   activeFilterChip: {
-    backgroundColor: '#2a9d8f',
+    backgroundColor: theme.Colors.primaryLightTint,
+    borderColor: theme.Colors.primary,
   },
   filterChipText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.Typography.fontSizeSmall,
+    color: theme.Colors.textGray,
+    fontWeight: theme.Typography.fontWeightRegular,
   },
   activeFilterChipText: {
-    color: '#fff',
-    fontWeight: '500',
-  },
-  distanceFilterContainer: {
-    paddingHorizontal: 16,
-  },
-  distanceLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
+    color: theme.Colors.primary,
+    fontWeight: theme.Typography.fontWeightMedium,
   },
   distanceOptions: {
     flexDirection: 'row',
   },
   distanceChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    marginRight: 8,
+    paddingHorizontal: theme.Spacing.md,
+    paddingVertical: theme.Spacing.xs,
+    borderRadius: theme.BorderRadius.md,
+    backgroundColor: theme.Colors.lightGray2,
+    marginRight: theme.Spacing.xs,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   activeDistanceChip: {
-    backgroundColor: '#f4a261',
+    backgroundColor: theme.Colors.primaryLightTint,
+    borderColor: theme.Colors.primary,
   },
   distanceChipText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.Typography.fontSizeSmall,
+    color: theme.Colors.textGray,
+    fontWeight: theme.Typography.fontWeightRegular,
   },
   activeDistanceChipText: {
-    color: '#fff',
-    fontWeight: '500',
+    color: theme.Colors.primary,
+    fontWeight: theme.Typography.fontWeightMedium,
   },
-  listContent: {
-    padding: 16,
-  },
+
+  // Enhanced stats styles
   statsContainer: {
-    backgroundColor: '#fff',
-    padding: 12,
-    marginBottom: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    backgroundColor: theme.Colors.white,
+    marginBottom: theme.Spacing.md,
+    borderRadius: theme.BorderRadius.lg,
+    padding: isSmallScreen ? theme.Spacing.md : theme.Spacing.xl,
     elevation: 2,
+    shadowColor: theme.Colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
-  statsLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+  statsRow: {
+    flexDirection: isSmallScreen ? 'column' : 'row',
+    justifyContent: 'space-between',
+    alignItems: isSmallScreen ? 'flex-start' : 'center',
   },
-  statsPrice: {
-    fontSize: 14,
-    color: '#2a9d8f',
-    fontWeight: '600',
+  statItem: {
+    alignItems: isSmallScreen ? 'flex-start' : 'center',
+    flex: isSmallScreen ? 0 : 1,
+    marginBottom: isSmallScreen ? theme.Spacing.md : 0,
+    padding: theme.Spacing.md,
+    borderRadius: theme.BorderRadius.md,
   },
-  emptyContainer: {
+  statItemHighlight: {
+    backgroundColor: theme.Colors.primaryLightTint,
+    borderWidth: 1,
+    borderColor: theme.Colors.primary,
+  },
+  statLabel: {
+    fontSize: theme.Typography.fontSizeSmall,
+    color: theme.Colors.textGray,
+    marginBottom: theme.Spacing.xxs,
+    fontWeight: theme.Typography.fontWeightMedium,
+  },
+  statLabelHighlight: {
+    fontSize: theme.Typography.fontSizeSmall,
+    color: theme.Colors.primary,
+    marginBottom: theme.Spacing.xxs,
+    fontWeight: theme.Typography.fontWeightMedium,
+  },
+  statValue: {
+    fontSize: isSmallScreen
+      ? theme.Typography.fontSizeLarge
+      : theme.Typography.fontSizeXLarge,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: theme.Colors.darkGray,
+  },
+  statValueHighlight: {
+    fontSize: isSmallScreen
+      ? theme.Typography.fontSizeLarge
+      : theme.Typography.fontSizeXLarge,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: theme.Colors.primary,
+  },
+
+  // Enhanced list styles
+  listContent: {
+    padding: isSmallScreen ? theme.Spacing.md : theme.Spacing.xl,
+    paddingTop: theme.Spacing.md,
+  },
+
+  // Enhanced fallback styles
+  fallbackContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: theme.Spacing.xxl,
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  errorContainer: {
-    flex: 1,
+  iconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: theme.Colors.primaryLightTint,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    marginBottom: theme.Spacing.xl,
+    shadowColor: theme.Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  errorText: {
-    fontSize: 16,
-    color: '#666',
+  fallbackIcon: {
+    opacity: 0.9,
+  },
+  fallbackTitle: {
+    fontSize: theme.Typography.fontSizeXLarge,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: theme.Colors.darkGray,
+    marginBottom: theme.Spacing.md,
     textAlign: 'center',
-    marginTop: 12,
   },
-  retryButton: {
-    marginTop: 16,
+  fallbackMessage: {
+    fontSize: theme.Typography.fontSizeMedium,
+    color: theme.Colors.textGray,
+    textAlign: 'center',
+    marginBottom: theme.Spacing.xl,
+    lineHeight: 22,
+  },
+  fallbackButtonContainer: {
+    width: '100%',
+  },
+  fallbackButton: {
+    marginBottom: theme.Spacing.md,
   },
 });
