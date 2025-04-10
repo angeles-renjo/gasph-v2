@@ -1,118 +1,177 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  Pressable,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { TouchableCard } from '@/components/ui/Card';
 import { formatPrice, formatDistance } from '@/utils/formatters';
-import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
-import { DOEPriceDisplay } from './DOEPriceDisplay'; // Import the new component
+import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
+import { DOEPriceDisplay } from './DOEPriceDisplay';
 import type { BestPrice } from '@/hooks/queries/prices/useBestPrices';
 
-// Props now extends from our BestPrice type
+// Get screen dimensions for responsive layout
+const { width: screenWidth } = Dimensions.get('window');
+const isSmallScreen = screenWidth < 350;
+const isLargeScreen = screenWidth > 400;
+
+// Props extends from BestPrice type
 export interface BestPriceCardProps
   extends Pick<
-    // Use properties from BestPrice (which extends GasStation)
     BestPrice,
-    | 'id' // Changed from station_id
-    | 'name' // Changed from station_name
-    | 'brand' // Changed from station_brand
+    | 'id'
+    | 'name'
+    | 'brand'
     | 'fuel_type'
     | 'price'
     | 'distance'
-    | 'city' // Changed from station_city
+    | 'city'
     | 'confirmations_count'
-    // DOE fields
     | 'min_price'
     | 'common_price'
     | 'max_price'
-    | 'week_of' // Optional: might be useful for context later
-    | 'source_type' // Add source_type
-  > {}
-
-// Removed formatSourceTypeLabel helper function
+    | 'week_of'
+    | 'source_type'
+  > {
+  isLowestPrice?: boolean;
+  isSelected?: boolean; // Add isSelected prop
+  onPress?: () => void; // Add onPress prop
+}
 
 export function BestPriceCard({
-  id, // Changed from station_id
-  name, // Changed from station_name
-  brand, // Changed from station_brand
+  id,
+  name,
+  brand,
   fuel_type,
   price,
-  distance = 0, // Keep distance, assuming it's correctly passed or defaulted
-  city, // Changed from station_city
+  distance = 0,
+  city,
   confirmations_count = 0,
-  // Destructure new DOE props, providing defaults (null)
   min_price = null,
   common_price = null,
   max_price = null,
-  source_type = null, // Destructure source_type
+  source_type = null,
+  isLowestPrice = false,
+  isSelected = false, // Default isSelected to false
+  onPress, // Receive onPress handler
 }: BestPriceCardProps) {
   const router = useRouter();
 
   const navigateToStation = () => {
-    router.push(`/station/${id}`); // Use id here
+    router.push(`/station/${id}`);
   };
+
+  const openDirections = () => {
+    // This would open directions in a maps app
+    console.log(`Opening directions to station ${id}`);
+  };
+
+  // Calculate if this price is below average (for highlighting)
+  const isBelowAverage = common_price && price && price < common_price;
 
   return (
     <TouchableCard
-      style={styles.card}
+      style={styles.card} // Use base style only
       variant='elevated'
-      onPress={navigateToStation}
+      onPress={onPress} // Use the passed onPress handler for selection
+      isSelected={isSelected} // Pass isSelected directly to TouchableCard
     >
-      <View style={styles.priceRow}>
+      {/* Price Section - Most visually prominent */}
+      <View style={styles.priceSection}>
         <View style={styles.fuelTypeContainer}>
-          <Text style={styles.fuelType}>{fuel_type}</Text>
+          <Text style={styles.fuelType}>{fuel_type ?? 'Unknown Fuel'}</Text>
         </View>
-        {/* Display community price or placeholder */}
-        <Text style={styles.price}>{price ? formatPrice(price) : '--'}</Text>
+        <View style={styles.priceContainer}>
+          <Text style={styles.price}>{price ? formatPrice(price) : '--'}</Text>
+          {isLowestPrice && (
+            <View style={styles.savingsBadge}>
+              <FontAwesome5
+                name='arrow-down'
+                size={10}
+                color={Colors.success}
+                style={styles.savingsIcon}
+              />
+              <Text style={styles.savingsBadgeText}>Best Value</Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      {/* Use the extracted DOEPriceDisplay component */}
-      <DOEPriceDisplay
-        min_price={min_price}
-        common_price={common_price}
-        max_price={max_price}
-        source_type={source_type}
-      />
-
-      <View style={styles.stationRow}>
-        <Text style={styles.stationName} numberOfLines={1}>
-          {name}
-        </Text>
-        <Text style={styles.stationBrand}>{brand}</Text>
-      </View>
-      {/* Add Confirmation display back */}
-      <View style={styles.confirmationRow}>
-        <FontAwesome5 name='check-circle' size={14} color='#666' />
-        <Text style={styles.confirmationText}>
-          {confirmations_count}
-          <Text> </Text> {/* Explicit Text for space */}
-          {confirmations_count === 1 ? 'confirmation' : 'confirmations'}
-        </Text>
-      </View>
-      <View style={styles.infoRow}>
-        <View style={styles.infoItem}>
-          <FontAwesome5 name='map-marker-alt' size={14} color='#666' />
-          <Text style={styles.infoText}>
-            {city}
-            <Text> </Text> {/* Explicit Text for space */}
+      {/* Content Container - Adaptive layout based on screen size */}
+      <View
+        style={[
+          styles.contentContainer,
+          isLargeScreen ? styles.wideLayout : styles.standardLayout,
+        ]}
+      >
+        {/* Station Details */}
+        <View style={styles.stationSection}>
+          <Text style={styles.stationName} numberOfLines={1}>
+            {name ?? 'Unknown Station'}
+          </Text>
+          <Text style={styles.stationBrand}>
+            {brand ?? 'Unknown Brand'} • {city ?? 'Unknown City'}
           </Text>
         </View>
-        <View style={styles.infoItem}>
-          <FontAwesome5 name='route' size={14} color='#666' />
-          <Text style={styles.infoText}>{formatDistance(distance)}</Text>
+
+        {/* Metrics Section */}
+        <View style={styles.metricsSection}>
+          <View style={styles.metricItem}>
+            <FontAwesome5
+              name='map-marker-alt'
+              size={14}
+              color={Colors.textGray}
+            />
+            <Text style={styles.metricText}>{formatDistance(distance)}</Text>
+          </View>
+          <View style={styles.metricItem}>
+            <FontAwesome5
+              name='check-circle'
+              size={14}
+              color={Colors.textGray}
+            />
+            {/* Apply fix here */}
+            <Text style={styles.metricText}>
+              {`${confirmations_count}`}{' '}
+              {/* Explicitly convert number to string */}
+              {confirmations_count === 1 ? ' confirmation' : ' confirmations'}
+            </Text>
+          </View>
         </View>
       </View>
-      <View style={styles.buttonContainer}>
+
+      {/* DOE Price Comparison - When available - Ensure 0 is not rendered directly */}
+      {min_price !== null && common_price !== null && max_price !== null ? (
+        <DOEPriceDisplay
+          min_price={min_price}
+          common_price={common_price}
+          max_price={max_price}
+          source_type={source_type}
+        />
+      ) : null}
+
+      {/* Action Buttons */}
+      <View style={styles.actionSection}>
         <TouchableOpacity
-          style={styles.directionButton}
+          style={styles.actionButton}
           onPress={navigateToStation}
+          activeOpacity={0.7}
         >
-          <FontAwesome5 name='info-circle' size={14} color='#2a9d8f' />
-          <Text style={styles.buttonText}>Details</Text>
+          <FontAwesome5 name='info-circle' size={16} color={Colors.primary} />
+          <Text style={styles.actionButtonText}>Details</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.directionButton}>
-          <FontAwesome5 name='directions' size={14} color='#2a9d8f' />
-          <Text style={styles.buttonText}>Directions</Text>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={openDirections}
+          activeOpacity={0.7}
+        >
+          <FontAwesome5 name='directions' size={16} color={Colors.primary} />
+          <Text style={styles.actionButtonText}>Directions</Text>
         </TouchableOpacity>
       </View>
     </TouchableCard>
@@ -121,129 +180,147 @@ export function BestPriceCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginVertical: Spacing.sm, // Use theme spacing
-    padding: Spacing.xl, // Use theme spacing
+    marginVertical: Spacing.md, // Increased margin for separation
+    padding: isSmallScreen ? Spacing.md : Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    elevation: 2,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
-  priceRow: {
+  // Removed selectedCard style definition from here
+  priceSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.sm, // Use theme spacing
+    marginBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dividerGray,
   },
   fuelTypeContainer: {
-    backgroundColor: Colors.primaryLightTint, // Use theme color
-    paddingHorizontal: Spacing.md, // Use theme spacing
-    paddingVertical: Spacing.xxs, // Use theme spacing
-    borderRadius: BorderRadius.lg_xl, // Use theme border radius
+    backgroundColor: Colors.primaryLightTint,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.lg_xl,
+    alignSelf: 'flex-start',
   },
   fuelType: {
-    fontSize: Typography.fontSizeMedium, // Use theme typography
-    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
-    color: Colors.primary, // Use theme color
+    fontSize: isSmallScreen
+      ? Typography.fontSizeSmall
+      : Typography.fontSizeMedium,
+    fontWeight: Typography.fontWeightSemiBold,
+    color: Colors.primary,
+  },
+  priceContainer: {
+    alignItems: 'flex-end',
   },
   price: {
-    fontSize: Typography.fontSizeXXLarge, // Use theme typography
-    fontWeight: Typography.fontWeightBold, // Use theme typography
-    color: Colors.primary, // Use theme color
+    fontSize: isSmallScreen
+      ? Typography.fontSizeXLarge
+      : Typography.fontSizeXXLarge,
+    fontWeight: Typography.fontWeightBold,
+    color: Colors.primary,
   },
-  // Removed styles related to DOE display as they are now in DOEPriceDisplay.tsx
-  // doeContainer, doeInfoRow, doeLabel, doeTypeBadge, doeTypeBadgeText, doeTableRow, doeTableCell, doeTableHeader, doeTableValue
-  stationRow: {
-    marginBottom: Spacing.xxs, // Use theme spacing
+  savingsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.successLightTint,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.xxxs,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.xxs,
+  },
+  savingsIcon: {
+    marginRight: 3,
+  },
+  savingsBadgeText: {
+    fontSize: Typography.fontSizeXXSmall,
+    fontWeight: Typography.fontWeightMedium,
+    color: Colors.success,
+  },
+
+  // Content container - adaptive based on screen size
+  contentContainer: {
+    marginBottom: Spacing.md,
+  },
+  standardLayout: {
+    flexDirection: 'column',
+  },
+  wideLayout: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  // Station section
+  stationSection: {
+    marginBottom: isLargeScreen ? 0 : Spacing.sm,
+    width: isLargeScreen ? '60%' : '100%',
   },
   stationName: {
-    fontSize: Typography.fontSizeLarge, // Use theme typography
-    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
-    color: Colors.darkGray, // Use theme color
-    marginBottom: Spacing.xxxs, // Use theme spacing
+    fontSize: Typography.fontSizeLarge,
+    fontWeight: Typography.fontWeightSemiBold,
+    color: Colors.darkGray,
+    marginBottom: Spacing.xxxs,
   },
   stationBrand: {
-    fontSize: Typography.fontSizeMedium, // Use theme typography
-    color: Colors.textGray, // Use theme color
+    fontSize: Typography.fontSizeSmall,
+    color: Colors.textGray,
   },
-  doeBenchmarkRow: {
-    // Note: This style seems unused in the component logic, keeping for now
+
+  // Metrics section
+  metricsSection: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    marginTop: Spacing.xxs, // Use theme spacing
-    marginBottom: Spacing.sm, // Use theme spacing
+    justifyContent: isLargeScreen ? 'flex-end' : 'flex-start',
+    width: isLargeScreen ? '40%' : '100%',
   },
-  doeBenchmarkLabel: {
-    // Note: This style seems unused
-    fontSize: Typography.fontSizeSmallMedium, // Use theme typography
-    color: Colors.textGray, // Use theme color
-    marginRight: Spacing.xxs, // Use theme spacing
-  },
-  doeBenchmarkText: {
-    // Note: This style seems unused
-    fontSize: Typography.fontSizeSmallMedium, // Use theme typography
-    color: Colors.textGray, // Use theme color
-    fontWeight: Typography.fontWeightMedium, // Use theme typography
-  },
-  confirmationRow: {
+  metricItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: Spacing.xxs, // Use theme spacing
-    marginBottom: Spacing.sm, // Use theme spacing
+    marginRight: Spacing.md,
+    marginBottom: isSmallScreen ? Spacing.xs : 0,
+    backgroundColor: Colors.lightGray2,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xxs,
+    borderRadius: BorderRadius.md,
   },
-  confirmationText: {
-    fontSize: Typography.fontSizeSmallMedium, // Use theme typography
-    color: Colors.textGray, // Use theme color
-    marginLeft: Spacing.xs, // Use theme spacing
+  metricText: {
+    fontSize: Typography.fontSizeSmall,
+    color: Colors.textGray,
+    marginLeft: Spacing.xs,
+    fontWeight: Typography.fontWeightMedium,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.inputPaddingHorizontal, // Use theme spacing
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  infoText: {
-    fontSize: Typography.fontSizeMedium, // Use theme typography
-    color: Colors.textGray, // Use theme color
-    marginLeft: Spacing.xs, // Use theme spacing
-  },
-  buttonContainer: {
+
+  // Action section
+  actionSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: Colors.dividerGray, // Use theme color
-    paddingTop: Spacing.inputPaddingHorizontal, // Use theme spacing
+    borderTopColor: Colors.dividerGray,
+    paddingTop: Spacing.sm,
+    marginTop: Spacing.xs,
   },
-  directionButton: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm, // Use theme spacing
-    paddingHorizontal: Spacing.inputPaddingHorizontal, // Use theme spacing
-  },
-  buttonText: {
-    color: Colors.primary, // Use theme color
-    fontWeight: Typography.fontWeightMedium, // Use theme typography
-    marginLeft: Spacing.xs, // Use theme spacing
-  },
-  reporterRow: {
-    // Note: This style seems unused
-    flexDirection: 'row',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.lightGray2,
+    minHeight: 44,
+    minWidth: 44,
+    flex: 1,
+    marginHorizontal: Spacing.xxs,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.sm, // Use theme spacing
-    borderTopWidth: 1,
-    borderTopColor: Colors.dividerGray, // Use theme color
-    paddingTop: Spacing.sm, // Use theme spacing
   },
-  reporterLabel: {
-    // Note: This style seems unused
-    fontSize: Typography.fontSizeSmall, // Use theme typography
-    color: Colors.textGray, // Use theme color
-    marginRight: Spacing.xxs, // Use theme spacing
-  },
-  reporterName: {
-    // Note: This style seems unused
-    fontSize: Typography.fontSizeSmall, // Use theme typography
-    fontWeight: Typography.fontWeightMedium, // Use theme typography
-    color: Colors.darkGray, // Use theme color
+  actionButtonText: {
+    color: Colors.primary,
+    fontWeight: Typography.fontWeightMedium,
+    marginLeft: Spacing.xs,
+    fontSize: Typography.fontSizeSmall,
   },
 });

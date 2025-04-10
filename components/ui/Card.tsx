@@ -41,12 +41,14 @@ export function Card({
 interface TouchableCardProps extends TouchableOpacityProps {
   style?: ViewStyle;
   variant?: 'default' | 'elevated' | 'outline';
+  isSelected?: boolean; // Add isSelected prop
 }
 
 export function TouchableCard({
   children,
   style,
   variant = 'default',
+  isSelected = false, // Receive isSelected prop
   ...props
 }: TouchableCardProps) {
   const getVariantStyle = (): ViewStyle => {
@@ -60,12 +62,16 @@ export function TouchableCard({
     }
   };
 
+  // Combine base, variant, custom, and conditional selected styles
+  const combinedStyle = [
+    styles.card,
+    getVariantStyle(),
+    style,
+    isSelected && styles.selected, // Apply selected style conditionally
+  ];
+
   return (
-    <TouchableOpacity
-      style={[styles.card, getVariantStyle(), style]}
-      activeOpacity={0.7}
-      {...props}
-    >
+    <TouchableOpacity style={combinedStyle} activeOpacity={0.7} {...props}>
       {children}
     </TouchableOpacity>
   );
@@ -101,5 +107,13 @@ const styles = StyleSheet.create({
     // borderRadius: BorderRadius.lg, // Already in card
     borderWidth: 1,
     borderColor: Colors.lightGray, // Use theme color
+  },
+  selected: {
+    // Define the style for the selected state
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    // Optional: Adjust shadow slightly if needed when selected, but be careful not to override variant styles unintentionally
+    // shadowOffset: { width: 0, height: 4 },
+    // shadowOpacity: 0.15,
   },
 });

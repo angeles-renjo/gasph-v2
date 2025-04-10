@@ -43,13 +43,14 @@ export function DOEPriceDisplay({
       {/* Row 1: Label + Badge */}
       <View style={styles.doeInfoRow}>
         <Text style={styles.doeLabel}>DOE:</Text>
-        {source_type && (
+        {/* Explicitly render null if source_type is falsy (e.g., null, undefined, '') */}
+        {source_type ? (
           <View style={styles.doeTypeBadge}>
             <Text style={styles.doeTypeBadgeText}>
               {formatSourceTypeLabel(source_type)}
             </Text>
           </View>
-        )}
+        ) : null}
       </View>
       {/* Row 2: Min/Common/Max Table */}
       <View style={styles.doeTableRow}>

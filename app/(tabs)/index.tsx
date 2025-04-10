@@ -1,19 +1,19 @@
-import React, { useState } from 'react';
-
+import React, { useState, useEffect } from 'react'; // Add useEffect back
 import {
   View,
   Text,
-  FlatList, // Re-added
+  FlatList,
   TouchableOpacity,
   RefreshControl,
-  ScrollView,
+  StatusBar,
+  StyleSheet,
   Linking,
   Platform,
-  StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
-// Removed FlashList import
+import { useRouter } from 'expo-router'; // Import useRouter
 import { useBestPrices, FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { useLocation } from '@/hooks/useLocation';
 import { BestPriceCard } from '@/components/price/BestPriceCard';
@@ -21,6 +21,9 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/Button';
+import { FilterControlBubble } from '@/components/ui/FilterControlBubble'; // Import the new component
+import theme from '@/styles/theme';
+import { formatDistance } from '@/utils/formatters'; // Import formatDistance
 
 const FUEL_TYPES: FuelType[] = [
   'Diesel',
@@ -28,10 +31,26 @@ const FUEL_TYPES: FuelType[] = [
   'RON 95',
   'RON 97',
   'RON 100',
+  'Diesel Plus',
 ];
 
 const DISTANCE_OPTIONS = [5, 15, 30] as const;
 type DistanceOption = (typeof DISTANCE_OPTIONS)[number];
+
+// Get screen dimensions for responsive layout
+const { width: screenWidth } = Dimensions.get('window');
+const isSmallScreen = screenWidth < 350;
+const isLargeScreen = screenWidth > 400;
+
+// Helper function for empty state message
+const getEmptyStateMessage = (
+  selectedFuelType: FuelType | undefined,
+  maxDistance: DistanceOption
+): string => {
+  return selectedFuelType
+    ? `No ${selectedFuelType} prices found within ${maxDistance} km. Try expanding your search or checking another fuel type.`
+    : `No fuel prices found within ${maxDistance} km. Try expanding your search distance.`;
+};
 
 export default function BestPricesScreen() {
   const {
@@ -45,14 +64,25 @@ export default function BestPricesScreen() {
     FuelType | undefined
   >();
   const [maxDistance, setMaxDistance] = useState<DistanceOption>(15);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null); // Add state for selected card ID
+  const router = useRouter(); // Get router instance
 
-  // Update the useBestPrices call
   const { data, isLoading, error, refetch, isRefetching } = useBestPrices({
     fuelType: selectedFuelType,
     maxDistance,
     enabled: !!location,
-    providedLocation: location || undefined, // Convert null to undefined
+    providedLocation: location || undefined,
   });
+
+  // Effect to select the first card when data loads and nothing is selected
+  useEffect(() => {
+    if (data?.prices && data.prices.length > 0 && selectedCardId === null) {
+      setSelectedCardId(data.prices[0].id);
+    }
+    // Reset selection if filters change and the selected card is no longer visible?
+    // For now, let's keep it simple and only select the first on initial load/data change when nothing is selected.
+    // Dependency array includes data and selectedCardId to re-evaluate when they change.
+  }, [data, selectedCardId]);
 
   const handleFuelTypeSelect = (fuelType: FuelType | undefined) => {
     setSelectedFuelType(fuelType === selectedFuelType ? undefined : fuelType);
@@ -76,13 +106,19 @@ export default function BestPricesScreen() {
 
   const renderLocationError = () => (
     <SafeAreaView style={styles.fullScreenContainer}>
+      <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
       <View style={styles.fallbackContainer}>
-        <FontAwesome5 name='map-marker-alt' size={60} color='#cccccc' />
+        <View style={styles.iconContainer}>
+          <FontAwesome5
+            name='map-marker-alt'
+            size={64}
+            color={theme.Colors.primary}
+            style={styles.fallbackIcon}
+          />
+        </View>
         <Text style={styles.fallbackTitle}>Location Access Required</Text>
         <Text style={styles.fallbackMessage}>
           GasPH needs your location to find the best fuel prices near you.
-          Without location access, we can't show you personalized price
-          recommendations.
         </Text>
         <View style={styles.fallbackButtonContainer}>
           <Button
@@ -102,77 +138,69 @@ export default function BestPricesScreen() {
     </SafeAreaView>
   );
 
-  const renderFilters = () => (
-    <View style={styles.filterContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.fuelTypeFilters}
-      >
-        <TouchableOpacity
-          style={[
-            styles.filterChip,
-            !selectedFuelType && styles.activeFilterChip,
-          ]}
-          onPress={() => handleFuelTypeSelect(undefined)}
-        >
-          <Text
-            style={[
-              styles.filterChipText,
-              !selectedFuelType && styles.activeFilterChipText,
-            ]}
-          >
-            All Types
-          </Text>
-        </TouchableOpacity>
+  // Removed renderFuelTypeFilters function
 
-        {FUEL_TYPES.map((fuelType) => (
-          <TouchableOpacity
-            key={fuelType}
-            style={[
-              styles.filterChip,
-              selectedFuelType === fuelType && styles.activeFilterChip,
-            ]}
-            onPress={() => handleFuelTypeSelect(fuelType)}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                selectedFuelType === fuelType && styles.activeFilterChipText,
-              ]}
-            >
-              {fuelType}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+  // Removed renderDistanceFilters function
 
-      <View style={styles.distanceFilterContainer}>
-        <Text style={styles.distanceLabel}>Distance</Text>
-        <View style={styles.distanceOptions}>
-          {DISTANCE_OPTIONS.map((distance) => (
+  // Modernized stats dashboard
+  const renderStatsHeader = () => {
+    // Ensure data and prices exist
+    if (!data?.stats || !data.prices || data.prices.length === 0) return null;
+
+    // Find the nearest station from the current list
+    const nearestStation = data.prices.reduce(
+      (nearest, current) => {
+        // Handle potential undefined distance
+        const currentDistance = current.distance ?? Infinity;
+        const nearestDistance = nearest?.distance ?? Infinity;
+        return currentDistance < nearestDistance ? current : nearest;
+      },
+      data.prices[0] // Start with the first item as initial nearest
+    );
+
+    return (
+      <View style={styles.statsContainer}>
+        <View style={styles.statsRow}>
+          {/* Display Nearest Station - Make it pressable */}
+          {nearestStation && nearestStation.distance != null ? (
             <TouchableOpacity
-              key={distance}
-              style={[
-                styles.distanceChip,
-                maxDistance === distance && styles.activeDistanceChip,
-              ]}
-              onPress={() => handleDistanceChange(distance)}
+              style={styles.statItem}
+              onPress={() => router.push(`/station/${nearestStation.id}`)}
+              activeOpacity={0.7}
             >
-              <Text
-                style={[
-                  styles.distanceChipText,
-                  maxDistance === distance && styles.activeDistanceChipText,
-                ]}
-              >
-                {distance} km
+              <Text style={styles.statLabel}>Nearest Station</Text>
+              <Text style={styles.statValue} numberOfLines={1}>
+                {nearestStation.name} ({formatDistance(nearestStation.distance)}
+                )
               </Text>
             </TouchableOpacity>
-          ))}
+          ) : (
+            // Fallback or hide if no nearest station found (shouldn't happen if prices exist)
+            <View style={styles.statItem} /> // Render an empty item to maintain layout
+          )}
+
+          {/* Display Best Price */}
+          {data.stats.lowestPrice != null && (
+            <View style={[styles.statItem, styles.statItemHighlight]}>
+              <Text style={styles.statLabelHighlight}>Best Price</Text>
+              <Text style={styles.statValueHighlight}>
+                ₱{data.stats.lowestPrice.toFixed(2)}
+              </Text>
+            </View>
+          )}
+
+          {data.stats.averagePrice != null && (
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Average Price</Text>
+              <Text style={styles.statValue}>
+                ₱{data.stats.averagePrice.toFixed(2)}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -183,11 +211,7 @@ export default function BestPricesScreen() {
       return (
         <EmptyState
           title='No Prices Found'
-          message={
-            selectedFuelType
-              ? `No ${selectedFuelType} prices found within ${maxDistance} km. Try expanding your search or checking another fuel type.`
-              : `No fuel prices found within ${maxDistance} km. Try expanding your search distance.`
-          }
+          message={getEmptyStateMessage(selectedFuelType, maxDistance)}
           icon='gas-pump'
           onAction={{
             label: 'Reset Filters',
@@ -201,48 +225,54 @@ export default function BestPricesScreen() {
     }
 
     return (
-      // Reverted to FlatList
       <FlatList
         data={data.prices}
-        // Ensure unique key by combining station ID and fuel type
         keyExtractor={(item) => `${item.id}-${item.fuel_type}`}
-        // Removed estimatedItemSize
-        renderItem={({ item }) => (
-          <BestPriceCard
-            id={item.id} // Changed from station_id
-            name={item.name} // Changed from station_name
-            brand={item.brand} // Changed from station_brand
-            fuel_type={item.fuel_type}
-            price={item.price}
-            distance={item.distance}
-            city={item.city} // Changed from station_city
-            confirmations_count={item.confirmations_count} // Keep this if it exists on BestPrice
-            // Pass the DOE price fields
-            min_price={item.min_price}
-            common_price={item.common_price}
-            max_price={item.max_price}
-            source_type={item.source_type} // Pass source_type
-          />
-        )}
+        renderItem={({ item }) => {
+          const lowestPrice = data?.stats?.lowestPrice;
+          const isSelected = item.id === selectedCardId; // Check if this card is selected
+
+          const handlePress = () => {
+            setSelectedCardId(isSelected ? null : item.id); // Select or deselect on press
+            router.push(`/station/${item.id}`); // Navigate on press
+          };
+
+          return (
+            <BestPriceCard
+              id={item.id}
+              name={item.name}
+              brand={item.brand}
+              fuel_type={item.fuel_type}
+              price={item.price}
+              distance={item.distance}
+              city={item.city}
+              confirmations_count={item.confirmations_count}
+              min_price={item.min_price}
+              common_price={item.common_price}
+              max_price={item.max_price}
+              source_type={item.source_type}
+              isLowestPrice={
+                lowestPrice !== null &&
+                item.price !== null &&
+                item.price === lowestPrice
+              }
+              isSelected={isSelected} // Pass the selection state
+              onPress={handlePress} // Pass the press handler
+            />
+          );
+        }}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={handleRefresh}
+            colors={[theme.Colors.primary]}
+            tintColor={theme.Colors.primary}
+          />
         }
-        ListHeaderComponent={
-          data.stats && (
-            <View style={styles.statsContainer}>
-              <Text style={styles.statsLabel}>
-                Found {data.stats.count} stations
-              </Text>
-              {/* Add null check for lowestPrice */}
-              {data.stats.lowestPrice != null && (
-                <Text style={styles.statsPrice}>
-                  Lowest: ₱{data.stats.lowestPrice.toFixed(2)}
-                </Text>
-              )}
-            </View>
-          )
-        }
+        ListHeaderComponent={renderStatsHeader()}
+        showsVerticalScrollIndicator={false}
+        // Removed scrollEventThrottle and onScroll again
       />
     );
   };
@@ -267,23 +297,18 @@ export default function BestPricesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Best Fuel Prices Near You</Text>
-        {location && (
-          <View style={styles.locationContainer}>
-            <FontAwesome5 name='map-marker-alt' size={16} color='#2a9d8f' />
-            <Text style={styles.locationText}>Your Area</Text>
-            {/* Add null check for averagePrice */}
-            {data?.stats?.averagePrice != null && (
-              <Text style={styles.statsText}>
-                • Avg: ₱{data.stats.averagePrice.toFixed(2)}
-              </Text>
-            )}
-          </View>
-        )}
-      </View>
-
-      {renderFilters()}
+      {/* Ensure 'top' edge is included */}
+      <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
+      {/* Filter Bubble - Placed at the top of the layout */}
+      <FilterControlBubble
+        selectedFuelType={selectedFuelType}
+        onFuelTypeSelect={handleFuelTypeSelect}
+        fuelTypes={FUEL_TYPES}
+        selectedDistance={maxDistance}
+        onDistanceSelect={handleDistanceChange}
+        distanceOptions={DISTANCE_OPTIONS}
+      />
+      {/* Main content - Renders below the filter bubble */}
       {renderContent()}
     </SafeAreaView>
   );
@@ -292,179 +317,121 @@ export default function BestPricesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.Colors.light.background,
   },
   fullScreenContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.Colors.light.background,
   },
+
+  // Removed header styles again
+
+  // Removed old filter styles (filterContainer, filterSection, etc.)
+
+  // Enhanced stats styles
+  statsContainer: {
+    backgroundColor: theme.Colors.white,
+    marginBottom: theme.Spacing.md,
+    borderRadius: theme.BorderRadius.lg,
+    padding: isSmallScreen ? theme.Spacing.md : theme.Spacing.xl,
+    elevation: 2,
+    shadowColor: theme.Colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  statsRow: {
+    flexDirection: isSmallScreen ? 'column' : 'row',
+    justifyContent: 'space-between',
+    alignItems: isSmallScreen ? 'flex-start' : 'center',
+  },
+  statItem: {
+    alignItems: isSmallScreen ? 'flex-start' : 'center',
+    flex: isSmallScreen ? 0 : 1,
+    marginBottom: isSmallScreen ? theme.Spacing.md : 0,
+    padding: theme.Spacing.md,
+    borderRadius: theme.BorderRadius.md,
+  },
+  statItemHighlight: {
+    backgroundColor: theme.Colors.primaryLightTint,
+    borderWidth: 1,
+    borderColor: theme.Colors.primary,
+  },
+  statLabel: {
+    fontSize: theme.Typography.fontSizeSmall,
+    color: theme.Colors.textGray,
+    marginBottom: theme.Spacing.xxs,
+    fontWeight: theme.Typography.fontWeightMedium,
+  },
+  statLabelHighlight: {
+    fontSize: theme.Typography.fontSizeSmall,
+    color: theme.Colors.primary,
+    marginBottom: theme.Spacing.xxs,
+    fontWeight: theme.Typography.fontWeightMedium,
+  },
+  statValue: {
+    fontSize: isSmallScreen
+      ? theme.Typography.fontSizeLarge
+      : theme.Typography.fontSizeXLarge,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: theme.Colors.darkGray,
+  },
+  statValueHighlight: {
+    fontSize: isSmallScreen
+      ? theme.Typography.fontSizeLarge
+      : theme.Typography.fontSizeXLarge,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: theme.Colors.primary,
+  },
+
+  // Enhanced list styles
+  listContent: {
+    padding: isSmallScreen ? theme.Spacing.md : theme.Spacing.xl,
+    paddingTop: theme.Spacing.md, // Keep padding top for list content
+  },
+
+  // Enhanced fallback styles
   fallbackContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: theme.Spacing.xxl,
+  },
+  iconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: theme.Colors.primaryLightTint,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.Spacing.xl,
+    shadowColor: theme.Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  fallbackIcon: {
+    opacity: 0.9,
   },
   fallbackTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 20,
-    marginBottom: 10,
+    fontSize: theme.Typography.fontSizeXLarge,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: theme.Colors.darkGray,
+    marginBottom: theme.Spacing.md,
     textAlign: 'center',
   },
   fallbackMessage: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: theme.Typography.fontSizeMedium,
+    color: theme.Colors.textGray,
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: theme.Spacing.xl,
     lineHeight: 22,
   },
   fallbackButtonContainer: {
     width: '100%',
-    paddingHorizontal: 20,
   },
   fallbackButton: {
-    marginBottom: 12,
-  },
-  header: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationText: {
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 6,
-  },
-  statsText: {
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 4,
-  },
-  filterContainer: {
-    backgroundColor: '#fff',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  fuelTypeFilters: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    marginRight: 8,
-  },
-  activeFilterChip: {
-    backgroundColor: '#2a9d8f',
-  },
-  filterChipText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  activeFilterChipText: {
-    color: '#fff',
-    fontWeight: '500',
-  },
-  distanceFilterContainer: {
-    paddingHorizontal: 16,
-  },
-  distanceLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
-  },
-  distanceOptions: {
-    flexDirection: 'row',
-  },
-  distanceChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    marginRight: 8,
-  },
-  activeDistanceChip: {
-    backgroundColor: '#f4a261',
-  },
-  distanceChipText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  activeDistanceChipText: {
-    color: '#fff',
-    fontWeight: '500',
-  },
-  listContent: {
-    padding: 16,
-  },
-  statsContainer: {
-    backgroundColor: '#fff',
-    padding: 12,
-    marginBottom: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  statsLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  statsPrice: {
-    fontSize: 14,
-    color: '#2a9d8f',
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  retryButton: {
-    marginTop: 16,
+    marginBottom: theme.Spacing.md,
   },
 });

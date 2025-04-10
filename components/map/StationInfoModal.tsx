@@ -309,8 +309,12 @@ const styles = StyleSheet.create({
     // Style for individual buttons
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Colors.lightGray2, // Add background
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md, // Add border radius
+    flex: 0.45, // Allow buttons to share space but not fill entirely
+    justifyContent: 'center', // Center content
   },
   buttonText: {
     // Style for button text

@@ -7,6 +7,24 @@ import { formatDistance } from '@/utils/formatters';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 import { Database } from '@/utils/supabase/types';
 
+// Helper function to format amenity names for display
+const formatAmenityName = (name: string): string => {
+  const words = name.split('_');
+  return words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+// Simple mapping for amenity icons
+const amenityIconMap: { [key: string]: string } = {
+  convenience_store: 'store',
+  restroom: 'restroom',
+  car_wash: 'car', // Use 'car' icon as a free alternative
+  atm: 'money-bill-wave',
+  air_water: 'gas-pump', // Or perhaps 'air-freshener'? Choose best fit
+  // Add more mappings as needed
+};
+
 type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
   distance?: number;
   activePrices?: {
@@ -26,12 +44,16 @@ export function StationCard({ station }: StationCardProps) {
     router.push(`/station/${station.id}`);
   };
 
-  // Convert JSON amenities to array of strings
-  const amenities = station.amenities
-    ? Object.keys(station.amenities as Record<string, boolean>)
-        .filter((key) => (station.amenities as Record<string, boolean>)[key])
-        .slice(0, 3)
+  // Get all amenities with a true value
+  const trueAmenities = station.amenities
+    ? Object.entries(station.amenities as Record<string, boolean>)
+        .filter(([, value]) => value)
+        .map(([key]) => key)
     : [];
+  const trueAmenitiesCount = trueAmenities.length;
+
+  // Get the first 3 available amenities to display icons for
+  const amenitiesToDisplay = trueAmenities.slice(0, 3);
 
   return (
     <TouchableCard
@@ -40,7 +62,8 @@ export function StationCard({ station }: StationCardProps) {
       onPress={navigateToStation}
     >
       <View style={styles.header}>
-        <View>
+        {/* Apply flex: 1 to this container */}
+        <View style={styles.nameAndBrandContainer}>
           <Text style={styles.stationName} numberOfLines={1}>
             {station.name}
           </Text>
@@ -60,24 +83,31 @@ export function StationCard({ station }: StationCardProps) {
         {station.address}, {station.city}
       </Text>
 
-      {amenities.length > 0 && (
+      {amenitiesToDisplay.length > 0 && (
         <View style={styles.amenitiesContainer}>
-          {amenities.map((amenity, index) => (
+          {amenitiesToDisplay.map((amenity) => (
             <View key={amenity} style={styles.amenityBadge}>
-              <Text style={styles.amenityText}>
-                {amenity.charAt(0).toUpperCase() + amenity.slice(1)}
-              </Text>
+              {amenityIconMap[amenity] ? ( // Changed && to ?
+                <FontAwesome5
+                  name={amenityIconMap[amenity]}
+                  size={Typography.fontSizeSmall} // Match text size
+                  color={Colors.primary}
+                  style={styles.amenityIcon}
+                />
+              ) : (
+                // Fallback to text if icon is not defined
+                <Text style={styles.amenityText}>
+                  {formatAmenityName(amenity)}
+                </Text>
+              )}
             </View>
           ))}
 
-          {Object.keys(station.amenities as Record<string, boolean>).length >
-            3 && (
+          {/* Show '+X more' only if there are more than 3 TRUE amenities */}
+          {trueAmenitiesCount > 3 && (
             <View style={styles.amenityBadge}>
               <Text style={styles.amenityText}>
-                +
-                {Object.keys(station.amenities as Record<string, boolean>)
-                  .length - 3}{' '}
-                more
+                +{trueAmenitiesCount - 3} more
               </Text>
             </View>
           )}
@@ -100,12 +130,12 @@ export function StationCard({ station }: StationCardProps) {
           style={styles.actionButton}
           onPress={navigateToStation}
         >
-          <FontAwesome5 name='info-circle' size={14} color='#2a9d8f' />
+          <FontAwesome5 name='info-circle' size={14} color={Colors.primary} />
           <Text style={styles.buttonText}>Details</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton}>
-          <FontAwesome5 name='directions' size={14} color='#2a9d8f' />
+          <FontAwesome5 name='directions' size={14} color={Colors.primary} />
           <Text style={styles.buttonText}>Directions</Text>
         </TouchableOpacity>
       </View>
@@ -116,24 +146,29 @@ export function StationCard({ station }: StationCardProps) {
 const styles = StyleSheet.create({
   card: {
     marginVertical: Spacing.sm, // Use theme spacing
-    padding: Spacing.xl, // Use theme spacing
+    padding: Spacing.lg_xl, // Increase padding (from xl: 16 to lg_xl: 20)
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.xs, // Use theme spacing
+    marginBottom: Spacing.sm, // Slightly increase margin below header
+  },
+  nameAndBrandContainer: {
+    flex: 1, // Allow this container to take available space
+    marginRight: Spacing.sm, // Add some margin before the distance
   },
   stationName: {
-    fontSize: Typography.fontSizeLarge, // Use theme typography
-    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
+    fontSize: Typography.fontSizeXLarge, // Make name larger
+    fontWeight: Typography.fontWeightBold, // Make name bolder
     color: Colors.darkGray, // Use theme color
-    width: '85%', // Keep width constraint
+    marginBottom: Spacing.xxs, // Reduce space below name
+    // Removed width: '85%' to allow natural expansion
   },
   stationBrand: {
-    fontSize: Typography.fontSizeMedium, // Use theme typography
+    fontSize: Typography.fontSizeSmall, // Make brand smaller
     color: Colors.textGray, // Use theme color
-    marginBottom: Spacing.xs, // Use theme spacing
+    // Removed marginBottom: Spacing.xs
   },
   distanceContainer: {
     backgroundColor: Colors.lightGray2, // Use theme color
@@ -157,12 +192,17 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   amenityBadge: {
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: Colors.primaryLightTint, // Use theme color
     paddingHorizontal: Spacing.sm, // Use theme spacing
     paddingVertical: Spacing.xxs, // Use theme spacing
     borderRadius: BorderRadius.lg, // Use theme border radius
     marginRight: Spacing.xs, // Use theme spacing
     marginBottom: Spacing.xs, // Use theme spacing
+  },
+  amenityIcon: {
+    marginRight: Spacing.xxs, // Add space between icon and text
   },
   amenityText: {
     fontSize: Typography.fontSizeSmall, // Use theme typography
@@ -200,12 +240,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.dividerGray, // Use theme color
     paddingTop: Spacing.inputPaddingHorizontal, // Use theme spacing
+    marginTop: Spacing.sm, // Add margin above buttons
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.xs, // Use theme spacing
-    paddingHorizontal: Spacing.md, // Use theme spacing
+    backgroundColor: Colors.lightGray2, // Add background
+    paddingVertical: Spacing.sm, // Increase vertical padding
+    paddingHorizontal: Spacing.md, // Keep horizontal padding
+    borderRadius: BorderRadius.md, // Add border radius
+    flex: 1, // Allow buttons to share space
+    justifyContent: 'center', // Center content
+    marginHorizontal: Spacing.xs, // Add horizontal margin between buttons
   },
   buttonText: {
     color: Colors.primary, // Use theme color

@@ -1,13 +1,14 @@
 import { Tabs } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// Removed SafeAreaView import as it's not used
+import { View } from '@/components/Themed';
 
 export default function TabsLayout() {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: '#2a9d8f',
@@ -21,6 +22,7 @@ export default function TabsLayout() {
           headerTintColor: '#fff',
           headerTitleStyle: {
             fontWeight: 'bold',
+            // Removed fontSize: theme.Typography.fontSizeLarge
           },
         }}
       >
@@ -72,6 +74,6 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-    </SafeAreaView>
+    </View>
   );
 }
