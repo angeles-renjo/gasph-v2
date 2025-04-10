@@ -7,6 +7,14 @@ import { formatDistance } from '@/utils/formatters';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 import { Database } from '@/utils/supabase/types';
 
+// Helper function to format amenity names for display
+const formatAmenityName = (name: string): string => {
+  const words = name.split('_');
+  return words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 // Simple mapping for amenity icons
 const amenityIconMap: { [key: string]: string } = {
   convenience_store: 'store',
@@ -36,12 +44,16 @@ export function StationCard({ station }: StationCardProps) {
     router.push(`/station/${station.id}`);
   };
 
-  // Convert JSON amenities to array of strings
-  const amenities = station.amenities
-    ? Object.keys(station.amenities as Record<string, boolean>)
-        .filter((key) => (station.amenities as Record<string, boolean>)[key])
-        .slice(0, 3)
+  // Get all amenities with a true value
+  const trueAmenities = station.amenities
+    ? Object.entries(station.amenities as Record<string, boolean>)
+        .filter(([, value]) => value)
+        .map(([key]) => key)
     : [];
+  const trueAmenitiesCount = trueAmenities.length;
+
+  // Get the first 3 available amenities to display icons for
+  const amenitiesToDisplay = trueAmenities.slice(0, 3);
 
   return (
     <TouchableCard
@@ -70,29 +82,31 @@ export function StationCard({ station }: StationCardProps) {
         {station.address}, {station.city}
       </Text>
 
-      {amenities.length > 0 && (
+      {amenitiesToDisplay.length > 0 && (
         <View style={styles.amenitiesContainer}>
-          {amenities.map((amenity) => (
+          {amenitiesToDisplay.map((amenity) => (
             <View key={amenity} style={styles.amenityBadge}>
-              {amenityIconMap[amenity] && (
+              {amenityIconMap[amenity] ? ( // Changed && to ?
                 <FontAwesome5
                   name={amenityIconMap[amenity]}
                   size={Typography.fontSizeSmall} // Match text size
                   color={Colors.primary}
                   style={styles.amenityIcon}
                 />
+              ) : (
+                // Fallback to text if icon is not defined
+                <Text style={styles.amenityText}>
+                  {formatAmenityName(amenity)}
+                </Text>
               )}
             </View>
           ))}
 
-          {Object.keys(station.amenities as Record<string, boolean>).length >
-            3 && (
+          {/* Show '+X more' only if there are more than 3 TRUE amenities */}
+          {trueAmenitiesCount > 3 && (
             <View style={styles.amenityBadge}>
               <Text style={styles.amenityText}>
-                +
-                {Object.keys(station.amenities as Record<string, boolean>)
-                  .length - 3}{' '}
-                more
+                +{trueAmenitiesCount - 3} more
               </Text>
             </View>
           )}
