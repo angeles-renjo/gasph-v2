@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { FilterControlBubble } from '@/components/ui/FilterControlBubble'; // Import the new component
 import theme from '@/styles/theme';
+import { formatDistance } from '@/utils/formatters'; // Import formatDistance
 
 const FUEL_TYPES: FuelType[] = [
   'Diesel',
@@ -143,16 +144,42 @@ export default function BestPricesScreen() {
 
   // Modernized stats dashboard
   const renderStatsHeader = () => {
-    if (!data?.stats) return null;
+    // Ensure data and prices exist
+    if (!data?.stats || !data.prices || data.prices.length === 0) return null;
+
+    // Find the nearest station from the current list
+    const nearestStation = data.prices.reduce(
+      (nearest, current) => {
+        // Handle potential undefined distance
+        const currentDistance = current.distance ?? Infinity;
+        const nearestDistance = nearest?.distance ?? Infinity;
+        return currentDistance < nearestDistance ? current : nearest;
+      },
+      data.prices[0] // Start with the first item as initial nearest
+    );
 
     return (
       <View style={styles.statsContainer}>
         <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Stations Found</Text>
-            <Text style={styles.statValue}>{data.stats.count}</Text>
-          </View>
+          {/* Display Nearest Station - Make it pressable */}
+          {nearestStation && nearestStation.distance != null ? (
+            <TouchableOpacity
+              style={styles.statItem}
+              onPress={() => router.push(`/station/${nearestStation.id}`)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.statLabel}>Nearest Station</Text>
+              <Text style={styles.statValue} numberOfLines={1}>
+                {nearestStation.name} ({formatDistance(nearestStation.distance)}
+                )
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            // Fallback or hide if no nearest station found (shouldn't happen if prices exist)
+            <View style={styles.statItem} /> // Render an empty item to maintain layout
+          )}
 
+          {/* Display Best Price */}
           {data.stats.lowestPrice != null && (
             <View style={[styles.statItem, styles.statItemHighlight]}>
               <Text style={styles.statLabelHighlight}>Best Price</Text>
