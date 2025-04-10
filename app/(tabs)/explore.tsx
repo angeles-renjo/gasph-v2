@@ -29,6 +29,12 @@ import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Database } from '@/utils/supabase/types';
 import { Button } from '@/components/ui/Button';
+import theme, {
+  Colors,
+  Spacing,
+  Typography,
+  BorderRadius,
+} from '@/styles/theme'; // Import theme constants
 
 type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
   distance?: number;
@@ -43,6 +49,17 @@ const POPULAR_BRANDS = [
   'CleanFuel',
 ];
 
+/*************  ✨ Windsurf Command ⭐  *************/
+/**
+ * ExploreScreen component provides a user interface for exploring nearby gas stations.
+ * It fetches location data and displays stations within a specified radius.
+ * Users can search for stations by name, brand, or address, and filter results by popular brands.
+ * The screen handles location errors and displays a loading indicator while fetching data.
+ * It manages user permissions and shows notifications when using a default location.
+ * The component also allows refreshing the station list and shows an empty state if no stations are found.
+ */
+
+/*******  954ba215-9b9a-4676-9e28-0a5d8331f29e  *******/
 export default function ExploreScreen() {
   const {
     getLocationWithFallback,
@@ -172,6 +189,7 @@ export default function ExploreScreen() {
             <TextInput
               style={styles.searchInput}
               placeholder='Search stations, brands, or addresses'
+              placeholderTextColor={Colors.placeholderGray} // Add prop here
               value={searchQuery}
               onChangeText={setSearchQuery}
               clearButtonMode='while-editing'
@@ -255,85 +273,91 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.backgroundGray2, // Use theme color
   },
   defaultLocationBanner: {
-    backgroundColor: '#e76f51',
+    backgroundColor: Colors.secondary, // Use theme color (secondary or warning)
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: Spacing.sm, // Use theme spacing
+    paddingHorizontal: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   bannerIcon: {
-    marginRight: 8,
+    marginRight: Spacing.sm, // Use theme spacing
   },
   bannerText: {
     flex: 1,
-    color: '#fff',
-    fontSize: 12,
+    color: Colors.white, // Use theme color
+    fontSize: Typography.fontSizeSmall, // Use theme typography
   },
   bannerButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    marginLeft: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)', // Keep semi-transparent white
+    paddingVertical: Spacing.xxs, // Use theme spacing
+    paddingHorizontal: Spacing.sm, // Use theme spacing
+    borderRadius: BorderRadius.sm, // Use theme border radius
+    marginLeft: Spacing.sm, // Use theme spacing
   },
   bannerButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    color: Colors.white, // Use theme color
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
   },
   searchContainer: {
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: Colors.white, // Use theme color
+    padding: Spacing.xl, // Use theme spacing
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.dividerGray, // Use theme color
   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingHorizontal: Spacing.inputPaddingHorizontal, // Use theme spacing
+    borderRadius: BorderRadius.xl, // Make more rounded
+    borderWidth: 3,
+    borderColor: Colors.dividerGray, // Use subtle border color
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: Spacing.sm, // Use theme spacing
+    color: Colors.iconGray, // Use specific icon color
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#333',
+    paddingVertical: Spacing.md, // Use theme spacing
+    fontSize: Typography.fontSizeLarge, // Use theme typography
+    color: Colors.darkGray, // Use theme color
+    // placeholderTextColor is a TextInput prop, not a style
   },
   brandFilterContainer: {
-    backgroundColor: '#fff',
-    paddingVertical: 12,
+    backgroundColor: Colors.white, // Use theme color
+    paddingVertical: Spacing.inputPaddingHorizontal, // Use theme spacing
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.dividerGray, // Use theme color
   },
   brandList: {
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.xl, // Use theme spacing
   },
   brandChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    marginRight: 8,
+    paddingHorizontal: Spacing.inputPaddingHorizontal, // Use theme spacing
+    paddingVertical: Spacing.xs, // Use theme spacing
+    borderRadius: BorderRadius.round, // Make pill-shaped
+    backgroundColor: 'transparent', // Remove background fill for unselected
+    marginRight: Spacing.md, // Increase space between chips
+    borderWidth: 1, // Keep border
+    borderColor: Colors.mediumGray, // Use a slightly darker border for unselected
   },
   selectedBrandChip: {
-    backgroundColor: '#2a9d8f',
+    backgroundColor: Colors.primaryLightTint, // Use light tint for selected background
+    borderColor: Colors.primary, // Keep primary border for selected
   },
   brandChipText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: Typography.fontSizeMedium, // Use theme typography
+    color: Colors.textGray, // Use theme color for unselected text
   },
   selectedBrandChipText: {
-    color: '#fff',
-    fontWeight: '500',
+    color: Colors.primary, // Use primary color for selected text
+    fontWeight: Typography.fontWeightMedium, // Use theme typography
   },
   stationList: {
-    padding: 16,
+    padding: Spacing.xl, // Use theme spacing
   },
 });

@@ -7,6 +7,16 @@ import { formatDistance } from '@/utils/formatters';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 import { Database } from '@/utils/supabase/types';
 
+// Simple mapping for amenity icons
+const amenityIconMap: { [key: string]: string } = {
+  convenience_store: 'store',
+  restroom: 'restroom',
+  car_wash: 'car', // Use 'car' icon as a free alternative
+  atm: 'money-bill-wave',
+  air_water: 'gas-pump', // Or perhaps 'air-freshener'? Choose best fit
+  // Add more mappings as needed
+};
+
 type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
   distance?: number;
   activePrices?: {
@@ -62,11 +72,16 @@ export function StationCard({ station }: StationCardProps) {
 
       {amenities.length > 0 && (
         <View style={styles.amenitiesContainer}>
-          {amenities.map((amenity, index) => (
+          {amenities.map((amenity) => (
             <View key={amenity} style={styles.amenityBadge}>
-              <Text style={styles.amenityText}>
-                {amenity.charAt(0).toUpperCase() + amenity.slice(1)}
-              </Text>
+              {amenityIconMap[amenity] && (
+                <FontAwesome5
+                  name={amenityIconMap[amenity]}
+                  size={Typography.fontSizeSmall} // Match text size
+                  color={Colors.primary}
+                  style={styles.amenityIcon}
+                />
+              )}
             </View>
           ))}
 
@@ -100,12 +115,12 @@ export function StationCard({ station }: StationCardProps) {
           style={styles.actionButton}
           onPress={navigateToStation}
         >
-          <FontAwesome5 name='info-circle' size={14} color='#2a9d8f' />
+          <FontAwesome5 name='info-circle' size={14} color={Colors.primary} />
           <Text style={styles.buttonText}>Details</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton}>
-          <FontAwesome5 name='directions' size={14} color='#2a9d8f' />
+          <FontAwesome5 name='directions' size={14} color={Colors.primary} />
           <Text style={styles.buttonText}>Directions</Text>
         </TouchableOpacity>
       </View>
@@ -116,24 +131,25 @@ export function StationCard({ station }: StationCardProps) {
 const styles = StyleSheet.create({
   card: {
     marginVertical: Spacing.sm, // Use theme spacing
-    padding: Spacing.xl, // Use theme spacing
+    padding: Spacing.lg_xl, // Increase padding (from xl: 16 to lg_xl: 20)
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing.xs, // Use theme spacing
+    marginBottom: Spacing.sm, // Slightly increase margin below header
   },
   stationName: {
-    fontSize: Typography.fontSizeLarge, // Use theme typography
-    fontWeight: Typography.fontWeightSemiBold, // Use theme typography
+    fontSize: Typography.fontSizeXLarge, // Make name larger
+    fontWeight: Typography.fontWeightBold, // Make name bolder
     color: Colors.darkGray, // Use theme color
+    marginBottom: Spacing.xxs, // Reduce space below name
     width: '85%', // Keep width constraint
   },
   stationBrand: {
-    fontSize: Typography.fontSizeMedium, // Use theme typography
+    fontSize: Typography.fontSizeSmall, // Make brand smaller
     color: Colors.textGray, // Use theme color
-    marginBottom: Spacing.xs, // Use theme spacing
+    // Removed marginBottom: Spacing.xs
   },
   distanceContainer: {
     backgroundColor: Colors.lightGray2, // Use theme color
@@ -157,12 +173,17 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.inputPaddingHorizontal, // Use theme spacing
   },
   amenityBadge: {
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: Colors.primaryLightTint, // Use theme color
     paddingHorizontal: Spacing.sm, // Use theme spacing
     paddingVertical: Spacing.xxs, // Use theme spacing
     borderRadius: BorderRadius.lg, // Use theme border radius
     marginRight: Spacing.xs, // Use theme spacing
     marginBottom: Spacing.xs, // Use theme spacing
+  },
+  amenityIcon: {
+    marginRight: Spacing.xxs, // Add space between icon and text
   },
   amenityText: {
     fontSize: Typography.fontSizeSmall, // Use theme typography
@@ -200,12 +221,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.dividerGray, // Use theme color
     paddingTop: Spacing.inputPaddingHorizontal, // Use theme spacing
+    marginTop: Spacing.sm, // Add margin above buttons
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.xs, // Use theme spacing
-    paddingHorizontal: Spacing.md, // Use theme spacing
+    backgroundColor: Colors.lightGray2, // Add background
+    paddingVertical: Spacing.sm, // Increase vertical padding
+    paddingHorizontal: Spacing.md, // Keep horizontal padding
+    borderRadius: BorderRadius.md, // Add border radius
+    flex: 1, // Allow buttons to share space
+    justifyContent: 'center', // Center content
+    marginHorizontal: Spacing.xs, // Add horizontal margin between buttons
   },
   buttonText: {
     color: Colors.primary, // Use theme color
