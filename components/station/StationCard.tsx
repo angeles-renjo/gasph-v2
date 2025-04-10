@@ -62,7 +62,8 @@ export function StationCard({ station }: StationCardProps) {
       onPress={navigateToStation}
     >
       <View style={styles.header}>
-        <View>
+        {/* Apply flex: 1 to this container */}
+        <View style={styles.nameAndBrandContainer}>
           <Text style={styles.stationName} numberOfLines={1}>
             {station.name}
           </Text>
@@ -153,12 +154,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: Spacing.sm, // Slightly increase margin below header
   },
+  nameAndBrandContainer: {
+    flex: 1, // Allow this container to take available space
+    marginRight: Spacing.sm, // Add some margin before the distance
+  },
   stationName: {
     fontSize: Typography.fontSizeXLarge, // Make name larger
     fontWeight: Typography.fontWeightBold, // Make name bolder
     color: Colors.darkGray, // Use theme color
     marginBottom: Spacing.xxs, // Reduce space below name
-    width: '85%', // Keep width constraint
+    // Removed width: '85%' to allow natural expansion
   },
   stationBrand: {
     fontSize: Typography.fontSizeSmall, // Make brand smaller
