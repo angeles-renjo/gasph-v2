@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Add useEffect back
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useRouter } from 'expo-router'; // Import useRouter
 import { useBestPrices, FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { useLocation } from '@/hooks/useLocation';
 import { BestPriceCard } from '@/components/price/BestPriceCard';
@@ -62,7 +63,8 @@ export default function BestPricesScreen() {
     FuelType | undefined
   >();
   const [maxDistance, setMaxDistance] = useState<DistanceOption>(15);
-  // Removed scrollY state again
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null); // Add state for selected card ID
+  const router = useRouter(); // Get router instance
 
   const { data, isLoading, error, refetch, isRefetching } = useBestPrices({
     fuelType: selectedFuelType,
@@ -70,6 +72,16 @@ export default function BestPricesScreen() {
     enabled: !!location,
     providedLocation: location || undefined,
   });
+
+  // Effect to select the first card when data loads and nothing is selected
+  useEffect(() => {
+    if (data?.prices && data.prices.length > 0 && selectedCardId === null) {
+      setSelectedCardId(data.prices[0].id);
+    }
+    // Reset selection if filters change and the selected card is no longer visible?
+    // For now, let's keep it simple and only select the first on initial load/data change when nothing is selected.
+    // Dependency array includes data and selectedCardId to re-evaluate when they change.
+  }, [data, selectedCardId]);
 
   const handleFuelTypeSelect = (fuelType: FuelType | undefined) => {
     setSelectedFuelType(fuelType === selectedFuelType ? undefined : fuelType);
@@ -190,7 +202,14 @@ export default function BestPricesScreen() {
         data={data.prices}
         keyExtractor={(item) => `${item.id}-${item.fuel_type}`}
         renderItem={({ item }) => {
-          const lowestPrice = data?.stats?.lowestPrice; // Use lowest price from stats
+          const lowestPrice = data?.stats?.lowestPrice;
+          const isSelected = item.id === selectedCardId; // Check if this card is selected
+
+          const handlePress = () => {
+            setSelectedCardId(isSelected ? null : item.id); // Select or deselect on press
+            router.push(`/station/${item.id}`); // Navigate on press
+          };
+
           return (
             <BestPriceCard
               id={item.id}
@@ -207,9 +226,11 @@ export default function BestPricesScreen() {
               source_type={item.source_type}
               isLowestPrice={
                 lowestPrice !== null &&
-                item.price !== null && // Add null check for item.price
+                item.price !== null &&
                 item.price === lowestPrice
               }
+              isSelected={isSelected} // Pass the selection state
+              onPress={handlePress} // Pass the press handler
             />
           );
         }}
