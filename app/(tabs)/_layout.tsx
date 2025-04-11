@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
-// Removed SafeAreaView import as it's not used
 import { View } from '@/components/Themed';
 
 export default function TabsLayout() {
@@ -15,6 +14,11 @@ export default function TabsLayout() {
           tabBarInactiveTintColor: '#333333',
           tabBarStyle: {
             paddingBottom: 5,
+            // Removed justifyContent
+          },
+          tabBarItemStyle: {
+            // Add this style
+            flex: 1, // Make each item flexible
           },
           headerStyle: {
             backgroundColor: '#2a9d8f',
@@ -22,10 +26,10 @@ export default function TabsLayout() {
           headerTintColor: '#fff',
           headerTitleStyle: {
             fontWeight: 'bold',
-            // Removed fontSize: theme.Typography.fontSizeLarge
           },
         }}
       >
+        {/* Common Tabs */}
         <Tabs.Screen
           name='index'
           options={{
@@ -45,7 +49,7 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name='map' // New map tab
+          name='map'
           options={{
             title: 'Map',
             tabBarIcon: ({ color, size }) => (
@@ -62,15 +66,17 @@ export default function TabsLayout() {
             ),
           }}
         />
+        {/* Always include the Admin Tab Screen */}
         <Tabs.Screen
           name='admin'
           options={{
             title: 'Admin',
-            headerShown: false, // Add this line to hide the tab header
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <FontAwesome5 name='shield-alt' size={size} color={color} />
             ),
-            tabBarButton: isAdmin ? undefined : () => null,
+            // Conditionally hide the tab link itself based on GitHub issue #518
+            href: isAdmin ? undefined : null,
           }}
         />
       </Tabs>
