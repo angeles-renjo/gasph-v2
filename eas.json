@@ -12,36 +12,18 @@
       },
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "SUPABASE_URL": "process.env.SUPABASE_URL",
-        "SUPABASE_ANON_KEY": "process.env.SUPABASE_ANON_KEY",
-        "GOOGLE_MAPS_API_KEY_ANDROID": "process.env.GOOGLE_MAPS_API_KEY_ANDROID",
-        "GOOGLE_MAPS_API_KEY_IOS": "process.env.GOOGLE_MAPS_API_KEY_IOS"
       }
     },
     "preview": {
       "android": {
         "buildType": "apk"
       },
-      "distribution": "internal",
-      "env": {
-        "SUPABASE_URL": "process.env.SUPABASE_URL",
-        "SUPABASE_ANON_KEY": "process.env.SUPABASE_ANON_KEY",
-        "GOOGLE_MAPS_API_KEY_ANDROID": "process.env.GOOGLE_MAPS_API_KEY_ANDROID",
-        "GOOGLE_MAPS_API_KEY_IOS": "process.env.GOOGLE_MAPS_API_KEY_IOS"
-      }
+      "distribution": "internal"
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
-      },
-      "env": {
-        "SUPABASE_URL": "process.env.SUPABASE_URL",
-        "SUPABASE_ANON_KEY": "process.env.SUPABASE_ANON_KEY",
-        "GOOGLE_MAPS_API_KEY_ANDROID": "process.env.GOOGLE_MAPS_API_KEY_ANDROID",
-        "GOOGLE_MAPS_API_KEY_IOS": " process.env.GOOGLE_MAPS_API_KEY_IOS"
       }
     }
   },
