@@ -20,4 +20,5 @@ export const SUPPORTED_CITIES: string[] = [
   'San Juan',
   'Taguig',
   'Valenzuela',
+  'Legazpi',
 ];
