@@ -126,7 +126,6 @@ export function StationMapView({
 
 const styles = StyleSheet.create({
   container: {
-    // Added container style
     flex: 1,
   },
   map: {

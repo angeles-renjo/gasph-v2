@@ -106,7 +106,5 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // Removed backgroundColor here, applied dynamically above
   },
-  // Removed content and title styles as the map fills the screen
 });

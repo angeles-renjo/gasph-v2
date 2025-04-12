@@ -9,8 +9,8 @@ export interface LocationData {
 
 // Default location coordinates for Metro Manila (Quezon City - center point)
 const DEFAULT_LOCATION: LocationData = {
-  latitude: 14.5826,
-  longitude: 120.9787,
+  latitude: 13.1391,
+  longitude: 123.7438,
   isDefaultLocation: true,
 };
 
