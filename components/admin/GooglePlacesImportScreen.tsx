@@ -54,10 +54,10 @@ export function GooglePlacesImportScreen() {
   const {
     apiKey,
     setApiKey,
-    isPending,
+    isPending, // This now reflects the bulk import status
     importStatuses,
     overallProgress,
-    importGasStations,
+    startBulkImport, // Use the new bulk import function
     // Custom hook managing the state and logic for importing stations from Google Places
   } = useImportStations();
   // Get the current color scheme for dynamic styling
@@ -79,13 +79,13 @@ export function GooglePlacesImportScreen() {
             onChangeText={setApiKey}
             placeholder='Enter your API key'
             secureTextEntry
-            editable={!isPending} // Changed from isImporting
+            editable={!isPending} // Use the updated isPending state
           />
           <Button
-            title={isPending ? 'Importing...' : 'Start Import'} // Changed from isImporting
-            onPress={importGasStations}
-            disabled={!apiKey.trim() || isPending} // Changed from isImporting
-            loading={isPending} // Changed from isImporting
+            title={isPending ? 'Importing All Cities...' : 'Start Bulk Import'} // Update title
+            onPress={startBulkImport} // Call the bulk import function
+            disabled={!apiKey.trim() || isPending} // Use the updated isPending state
+            loading={isPending} // Use the updated isPending state
             style={styles.importButton}
           />
         </Card>

@@ -31,18 +31,15 @@ export function ErrorDisplay({
         containerStyle,
       ]}
     >
-      <FontAwesome5
-        name='exclamation-triangle'
-        size={40}
-        color={Colors.danger}
-      {/* Use theme color */}
-      <Text style={[styles.title, titleStyle]}>{title}</Text>
-      <Text style={[styles.message, messageStyle]}>{message}</Text>
-      {onRetry && (
-        <View style={styles.buttonContainer}>
-          <Button title='Try Again' onPress={onRetry} variant='primary' />
-        </View>
-      )}
+      <FontAwesome5 name='exclamation-triangle' size={40} color={Colors.danger}>
+        <Text style={[styles.title, titleStyle]}>{title}</Text>
+        <Text style={[styles.message, messageStyle]}>{message}</Text>
+        {onRetry && (
+          <View style={styles.buttonContainer}>
+            <Button title='Try Again' onPress={onRetry} variant='primary' />
+          </View>
+        )}
+      </FontAwesome5>
     </View>
   );
 }

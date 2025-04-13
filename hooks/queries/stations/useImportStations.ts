@@ -21,6 +21,7 @@ import type {
 // Types
 interface ImportStationsState {
   apiKey: string;
+  isBulkImporting: boolean; // Added state for bulk import process
   importStatuses: ImportStatus[]; // This will need adjustment for dynamic cities
   overallProgress: OverallProgress;
 }
@@ -136,6 +137,7 @@ export function useImportStations() {
   const queryClient = useQueryClient();
   const [state, setState] = useState<ImportStationsState>({
     apiKey: '',
+    isBulkImporting: false, // Initialize bulk import state
     // TODO: Initialize importStatuses dynamically based on available cities/regions later
     importStatuses: NCR_CITIES.map((city) => ({ city, status: 'pending' })),
     overallProgress: { total: 0, processed: 0, imported: 0 },
@@ -318,13 +320,74 @@ export function useImportStations() {
     }
   };
 
+  // New function to handle bulk import for all cities
+  const startBulkImport = async () => {
+    if (!state.apiKey.trim()) {
+      Alert.alert('Error', 'Please enter a valid API key');
+      return;
+    }
+
+    // Reset overall progress and set bulk importing state
+    setState((prev) => ({
+      ...prev,
+      isBulkImporting: true,
+      overallProgress: { total: 0, processed: 0, imported: 0 },
+      // Reset individual city statuses to pending
+      importStatuses: prev.importStatuses.map((s) => ({
+        ...s,
+        status: 'pending',
+        stationsFound: undefined,
+        stationsImported: undefined,
+        error: undefined,
+      })),
+    }));
+
+    const bulkProgress: ImportProgress = {
+      totalStations: 0,
+      processedCount: 0,
+      importedStations: 0,
+    };
+    let hasError = false;
+
+    // Process cities sequentially
+    for (const cityStatus of state.importStatuses) {
+      try {
+        // Pass a *copy* of the progress object or manage updates carefully
+        // Here, we'll update the shared bulkProgress object directly
+        await processCityImport(cityStatus.city, state.apiKey, bulkProgress);
+      } catch (error) {
+        // Error is already logged and status updated in processCityImport
+        console.error(`Bulk import failed for city: ${cityStatus.city}`);
+        hasError = true;
+        // Decide whether to stop or continue on error
+        // break; // Uncomment to stop on the first error
+      }
+    }
+
+    // Update final state after all cities are processed
+    setState((prev) => ({ ...prev, isBulkImporting: false }));
+
+    if (hasError) {
+      Alert.alert(
+        'Bulk Import Partially Failed',
+        `Some cities encountered errors. Processed ${bulkProgress.processedCount} potential stations. Upserted ${bulkProgress.importedStations} stations overall. Check console for details.`
+      );
+    } else {
+      Alert.alert(
+        'Bulk Import Complete',
+        `Successfully processed all cities. Processed ${bulkProgress.processedCount} potential stations. Upserted ${bulkProgress.importedStations} stations overall.`
+      );
+    }
+  };
+
   return {
     apiKey: state.apiKey,
     setApiKey,
-    // Consider refining isPending based on which mutation is active
-    isPending: importMutation.isPending || searchStationsMutation.isPending,
+    // isPending should reflect the overall bulk import status now
+    isPending: state.isBulkImporting,
     importStatuses: state.importStatuses,
     overallProgress: state.overallProgress,
-    importGasStations, // This function needs adjustment to take a city parameter
+    importGasStations, // Keep the single-city import function
+    startBulkImport, // Add the new bulk import function
   };
 }
