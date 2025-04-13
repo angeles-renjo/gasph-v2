@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // Removed Themed View import as SafeAreaView is used as the root
 import { useColorScheme } from '@/components/useColorScheme'; // Import useColorScheme
 import { useLocation } from '@/hooks/useLocation';
-import { useNearbyStations } from '@/hooks/queries/stations/useNearbyStations';
+import { useAllStations } from '@/hooks/queries/stations/useAllStations'; // Import the new hook
 import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
 import { StationMapView } from '@/components/map/StationMapView';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -45,13 +45,7 @@ export default function MapScreen() {
     error: stationsError,
     refetch: refetchStations,
     isRefetching: stationsRefetching,
-  } = useNearbyStations({
-    // If using default location (permission denied/error), fetch all stations (radiusKm: undefined signals no limit)
-    // Otherwise, fetch within 15km radius
-    radiusKm: locationData.isDefaultLocation ? undefined : 15, // Use undefined instead of null
-    enabled: !!locationData, // Only fetch when location is available
-    providedLocation: locationData,
-  });
+  } = useAllStations(); // Use the new hook (no parameters needed)
 
   // Handle initial location loading
   if (locationLoading && !locationData) {
