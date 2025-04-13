@@ -76,7 +76,7 @@ export function MapPriceCalloutCard({
                 doePrice?.common_price !== undefined ? (
                 // Display DOE Common Price
                 <Text style={styles.priceText}>
-                  {formatPrice(doePrice.common_price)}{' '}
+                  {formatPrice(doePrice.common_price)}
                   <Text style={styles.sourceText}>(DOE)</Text>
                 </Text>
               ) : doePrice?.min_price !== null &&

@@ -70,7 +70,6 @@ export function GooglePlacesImportScreen() {
         { backgroundColor: Colors[colorScheme].background },
       ]}
     >
-      {' '}
       {/* Apply dynamic background */}
       <View style={styles.content}>
         <Card style={styles.inputCard}>

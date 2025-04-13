@@ -46,7 +46,9 @@ export default function MapScreen() {
     refetch: refetchStations,
     isRefetching: stationsRefetching,
   } = useNearbyStations({
-    radiusKm: 15, // Use a reasonable radius
+    // If using default location (permission denied/error), fetch all stations (radiusKm: undefined signals no limit)
+    // Otherwise, fetch within 15km radius
+    radiusKm: locationData.isDefaultLocation ? undefined : 15, // Use undefined instead of null
     enabled: !!locationData, // Only fetch when location is available
     providedLocation: locationData,
   });

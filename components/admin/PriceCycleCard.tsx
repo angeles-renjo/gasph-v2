@@ -75,7 +75,6 @@ export function PriceCycleCard({
           <Text style={styles.title}>Cycle #{cycle.cycle_number}</Text>
           {cycle.created_at && (
             <Text style={styles.importDate}>
-              {' '}
               {/* Reuse style */}
               Created: {formatDate(cycle.created_at)}
             </Text>

@@ -35,7 +35,6 @@ export function ErrorDisplay({
         name='exclamation-triangle'
         size={40}
         color={Colors.danger}
-      />{' '}
       {/* Use theme color */}
       <Text style={[styles.title, titleStyle]}>{title}</Text>
       <Text style={[styles.message, messageStyle]}>{message}</Text>

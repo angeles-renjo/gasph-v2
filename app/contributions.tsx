@@ -57,7 +57,7 @@ export default function ContributionsScreen() {
           <Text style={styles.price}>₱{item.price.toFixed(2)}</Text>
         </View>
         <Text style={styles.confirmations}>
-          {item.confirmations_count}{' '}
+          {item.confirmations_count}
           {item.confirmations_count === 1 ? 'confirmation' : 'confirmations'}
         </Text>
       </View>
