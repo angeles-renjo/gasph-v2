@@ -81,7 +81,13 @@ const StationMarker = React.memo(
           e.stopPropagation();
           onPress(station);
         }}
-        tracksViewChanges={Platform.OS === 'android' ? isSelected : false}
+        // Force re-render if selected (Android) or if there's a price to display.
+        // This ensures the price text updates when the station data changes.
+        tracksViewChanges={
+          Platform.OS === 'android'
+            ? isSelected || station.price !== null
+            : station.price !== null
+        }
       >
         {/* Revised Dot/Ring Marker Style */}
         <View style={styles.markerContainer}>
