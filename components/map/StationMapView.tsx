@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useRef,
-  useMemo,
-  useCallback,
-  useEffect,
-} from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -31,6 +25,7 @@ import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { StationInfoModal } from './StationInfoModal';
 import theme from '@/styles/theme';
 import mapStyle from '@/styles/mapStyle.json';
+import { formatPrice } from '@/utils/formatters'; // Import correct formatter
 
 // --- Constants for Map Views ---
 const PHILIPPINES_CENTER = { latitude: 12.8797, longitude: 121.774 }; // Approx center
@@ -57,7 +52,7 @@ type ClusterProperties = GeoJsonProperties & {
   point_count_abbreviated: number | string;
 };
 
-// Define properties expected for an individual point (original station data)
+// Define properties expected for an individual point (original station data - now includes optional price)
 type PointProperties = GasStation & GeoJsonProperties;
 
 interface StationMarkerProps {
@@ -70,6 +65,12 @@ const StationMarker = React.memo(
   ({ point, isSelected, onPress }: StationMarkerProps) => {
     // Access station data from properties
     const station = point.properties;
+    // Determine display text for individual marker
+    const priceText =
+      station.price !== null && station.price !== undefined
+        ? formatPrice(station.price)
+        : '--';
+
     return (
       <Marker
         key={`station-${station.id}`} // Use station id from properties
@@ -89,6 +90,8 @@ const StationMarker = React.memo(
             style={[styles.markerRing, isSelected && styles.selectedMarkerRing]}
           />
           <View style={styles.marker} />
+          {/* Display price text on individual marker */}
+          <Text style={styles.stationPriceText}>{priceText}</Text>
         </Animated.View>
       </Marker>
     );
@@ -97,73 +100,82 @@ const StationMarker = React.memo(
 
 interface ClusterMarkerProps {
   point: Feature<Point, ClusterProperties>; // Use GeoJSON Feature type
+  bestPrice: number | null; // Add best price prop
   onPress: (clusterId: number) => void;
 }
 
-const ClusterMarker = React.memo(({ point, onPress }: ClusterMarkerProps) => {
-  // Check if properties exist before destructuring
-  const properties = point.properties;
-  if (!properties) return null; // Should not happen if data is correct
+const ClusterMarker = React.memo(
+  ({ point, bestPrice, onPress }: ClusterMarkerProps) => {
+    // Check if properties exist before destructuring
+    const properties = point.properties;
+    if (!properties) return null; // Should not happen if data is correct
 
-  // Use point_count for calculation, point_count_abbreviated for display
-  const {
-    point_count,
-    point_count_abbreviated: countDisplay,
-    cluster_id: clusterId,
-  } = properties;
-  const { coordinates } = point.geometry;
+    // Use point_count for calculation, point_count_abbreviated for display
+    const {
+      point_count,
+      point_count_abbreviated: countDisplay,
+      cluster_id: clusterId,
+    } = properties;
+    const { coordinates } = point.geometry;
 
-  // Slightly larger style for clusters, similar to station marker
-  const clusterSize = 28 + Math.min(point_count, 10); // Use point_count (number)
-  const ringSize = clusterSize - 4;
-  const dotSize = 12;
+    // Determine display text: formatted price or '--'
+    const displayText = bestPrice !== null ? formatPrice(bestPrice) : '--'; // Use formatPrice
 
-  return (
-    <Marker
-      key={`cluster-${clusterId}`}
-      coordinate={{
-        latitude: coordinates[1],
-        longitude: coordinates[0],
-      }}
-      anchor={{ x: 0.5, y: 0.5 }}
-      onPress={(e) => {
-        e.stopPropagation();
-        onPress(clusterId);
-      }}
-      tracksViewChanges={false} // Clusters generally don't need frequent updates
-    >
-      <View
-        style={[styles.markerWrap, { width: clusterSize, height: clusterSize }]}
+    // Slightly larger style for clusters, similar to station marker
+    const clusterSize = 28 + Math.min(point_count, 10); // Use point_count (number)
+    const ringSize = clusterSize - 4;
+    const dotSize = 12;
+
+    return (
+      <Marker
+        key={`cluster-${clusterId}`}
+        coordinate={{
+          latitude: coordinates[1],
+          longitude: coordinates[0],
+        }}
+        anchor={{ x: 0.5, y: 0.5 }}
+        onPress={(e) => {
+          e.stopPropagation();
+          onPress(clusterId);
+        }}
+        tracksViewChanges={false} // Clusters generally don't need frequent updates
       >
         <View
           style={[
-            styles.markerRing,
-            {
-              width: ringSize,
-              height: ringSize,
-              borderRadius: ringSize / 2,
-              backgroundColor: 'rgba(42, 157, 143, 0.4)', // Slightly darker cluster ring
-              borderColor: 'rgba(42, 157, 143, 0.6)',
-            },
+            styles.markerWrap,
+            { width: clusterSize, height: clusterSize },
           ]}
-        />
-        <View
-          style={[
-            styles.marker,
-            {
-              width: dotSize,
-              height: dotSize,
-              borderRadius: dotSize / 2,
-              backgroundColor: theme.Colors.primary, // Reverted to primary
-            },
-          ]}
-        />
-        <Text style={styles.clusterText}>{countDisplay}</Text>
-        {/* Display abbreviated count */}
-      </View>
-    </Marker>
-  );
-});
+        >
+          <View
+            style={[
+              styles.markerRing,
+              {
+                width: ringSize,
+                height: ringSize,
+                borderRadius: ringSize / 2,
+                backgroundColor: 'rgba(42, 157, 143, 0.4)', // Slightly darker cluster ring
+                borderColor: 'rgba(42, 157, 143, 0.6)',
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.marker,
+              {
+                width: dotSize,
+                height: dotSize,
+                borderRadius: dotSize / 2,
+                backgroundColor: theme.Colors.primary, // Reverted to primary
+              },
+            ]}
+          />
+          {/* Display best price or '--' */}
+          <Text style={styles.clusterText}>{displayText}</Text>
+        </View>
+      </Marker>
+    );
+  }
+);
 // --- End Memoized Marker Components ---
 
 export function StationMapView({
@@ -245,6 +257,38 @@ export function StationMapView({
   );
   // --- End Use Clusterer Hook ---
 
+  // --- Calculate Best Price per Cluster ---
+  const clusterBestPrices = useMemo(() => {
+    const bestPrices = new Map<number, number | null>();
+    if (!superclusterInstance) {
+      return bestPrices;
+    }
+
+    points.forEach((point) => {
+      if (isPointCluster(point)) {
+        const clusterId = point.properties.cluster_id;
+        const leaves = superclusterInstance.getLeaves(
+          clusterId,
+          Infinity // Get all leaves within the cluster
+        ) as Feature<Point, PointProperties>[]; // Assert type for leaves
+
+        let minPrice: number | null = null;
+        leaves.forEach((leaf) => {
+          const price = leaf.properties.price; // Access price from station properties
+          if (price !== null && price !== undefined) {
+            if (minPrice === null || price < minPrice) {
+              minPrice = price;
+            }
+          }
+        });
+        bestPrices.set(clusterId, minPrice);
+      }
+    });
+
+    return bestPrices;
+  }, [points, superclusterInstance]);
+  // --- End Calculate Best Price ---
+
   // --- Handlers ---
   const handleMarkerPress = useCallback((station: GasStation) => {
     setSelectedStationData(station);
@@ -313,10 +357,13 @@ export function StationMapView({
         {points.map((point) => {
           if (isPointCluster(point)) {
             // Render Cluster Marker
+            const clusterId = point.properties.cluster_id;
+            const bestPrice = clusterBestPrices.get(clusterId) ?? null;
             return (
               <ClusterMarker
-                key={`cluster-${point.properties.cluster_id}`}
+                key={`cluster-${clusterId}`}
                 point={point}
+                bestPrice={bestPrice} // Pass calculated best price
                 onPress={handleClusterPress}
               />
             );
@@ -391,12 +438,21 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: theme.Colors.primary,
   },
+  // --- Station Price Text Style ---
+  stationPriceText: {
+    position: 'absolute',
+    fontSize: 8, // Smaller font for individual price
+    fontWeight: 'bold',
+    color: theme.Colors.white, // White text on marker dot
+    textAlign: 'center',
+  },
   // --- Cluster Specific Styles ---
   clusterText: {
-    fontSize: 10,
+    fontSize: 9, // Slightly smaller to fit price potentially
     fontWeight: 'bold',
     color: theme.Colors.white, // White text on cluster dot
     textAlign: 'center',
     position: 'absolute', // Position over the dot
+    // Adjust position slightly if needed based on font size change
   },
 });

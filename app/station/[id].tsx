@@ -168,6 +168,14 @@ export default function StationDetailScreen() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.stations.fuelTypePrices(id, selectedFuelType),
       });
+      // --- Invalidate the map query ---
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.stations.listWithPrice(selectedFuelType),
+      });
+      // Also invalidate for the 'none' case if that's relevant, or potentially all listWithPrice keys
+      // For simplicity, let's just invalidate the specific one for now.
+      // If users switch fuel types often, invalidating all might be better:
+      // await queryClient.invalidateQueries({ queryKey: ['stations', 'listWithPrice'] });
 
       // Success feedback
       setReportModalVisible(false);

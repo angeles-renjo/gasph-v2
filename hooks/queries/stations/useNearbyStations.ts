@@ -21,6 +21,7 @@ export interface GasStation {
   created_at: string;
   updated_at: string;
   distance?: number;
+  price?: number | null; // Added optional price field for map clustering
 }
 
 interface UseNearbyStationsOptions {

@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // Removed Themed View import as SafeAreaView is used as the root
 import { useColorScheme } from '@/components/useColorScheme'; // Import useColorScheme
 import { useLocation } from '@/hooks/useLocation';
-import { useAllStations } from '@/hooks/queries/stations/useAllStations'; // Import the new hook
+// import { useAllStations } from '@/hooks/queries/stations/useAllStations'; // No longer needed
+import { useStationsWithPrices } from '@/hooks/queries/stations/useStationsWithPrices'; // Import the new hook
 import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
 import { StationMapView } from '@/components/map/StationMapView';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -45,7 +46,7 @@ export default function MapScreen() {
     error: stationsError,
     refetch: refetchStations,
     isRefetching: stationsRefetching,
-  } = useAllStations(); // Use the new hook (no parameters needed)
+  } = useStationsWithPrices(fuelTypeForMap); // Use the new hook, passing the fuel type
 
   // Handle initial location loading
   if (locationLoading && !locationData) {
