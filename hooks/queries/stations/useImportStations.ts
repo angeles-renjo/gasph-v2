@@ -75,6 +75,18 @@ const processStationDetails = async (
       return null;
     }
 
+    // --- NEW CHECK ---
+    // Verify from detailed types that it's actually a gas station
+    if (!details.types || !details.types.includes('gas_station')) {
+      console.log(
+        `Skipping non-gas station entity: ${station.name} (${
+          station.place_id
+        }) - Types: ${details.types?.join(', ')}`
+      );
+      return null;
+    }
+    // --- END NEW CHECK ---
+
     // Ensure required fields exist
     if (!details.formatted_address || !details.geometry?.location) {
       console.warn(

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Modal,
   View,
@@ -16,23 +15,9 @@ import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 import { useStationFuelTypePrices } from '@/hooks/queries/stations/useStationFuelTypePrices';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
-import { PriceCardProps } from '@/components/price/PriceCard'; // Used for community price type
 import { DOEPriceDisplay } from '@/components/price/DOEPriceDisplay'; // Import DOE display
 import { formatPrice } from '@/utils/formatters';
-import theme, {
-  Colors,
-  Spacing,
-  Typography,
-  BorderRadius,
-} from '@/styles/theme';
-
-// Define expected DOE price structure
-interface DoePriceData {
-  common_price: number | null;
-  min_price: number | null;
-  max_price: number | null;
-  source_type: string | null;
-}
+import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme';
 
 interface StationInfoModalProps {
   station: GasStation | null;
@@ -66,11 +51,14 @@ export function StationInfoModal({
     queryFn: async () => {
       if (!station?.id || !fuelType) return null;
 
+      // Convert fuelType to uppercase for the query
+      const upperCaseFuelType = fuelType.toUpperCase();
+
       const { data, error } = await supabase
         .from('doe_price_view')
         .select('common_price, min_price, max_price, source_type')
         .eq('gas_station_id', station.id)
-        .eq('fuel_type', fuelType)
+        .eq('fuel_type', upperCaseFuelType) // Use uppercase version
         .maybeSingle();
 
       if (error) {
