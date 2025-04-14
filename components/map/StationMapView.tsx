@@ -63,9 +63,7 @@ interface StationMarkerProps {
 
 const StationMarker = React.memo(
   ({ point, isSelected, onPress }: StationMarkerProps) => {
-    // Access station data from properties
     const station = point.properties;
-    // Determine display text for individual marker
     const priceText =
       station.price !== null && station.price !== undefined
         ? formatPrice(station.price)
@@ -73,58 +71,63 @@ const StationMarker = React.memo(
 
     return (
       <Marker
-        key={`station-${station.id}`} // Use station id from properties
+        key={`station-${station.id}`}
         coordinate={{
           latitude: station.latitude,
           longitude: station.longitude,
         }}
-        anchor={{ x: 0.5, y: 0.5 }}
+        anchor={{ x: 0.5, y: 0.5 }} // Center anchor
         onPress={(e) => {
           e.stopPropagation();
           onPress(station);
         }}
-        tracksViewChanges={Platform.OS === 'android' ? isSelected : false} // Optimize marker re-renders
+        tracksViewChanges={Platform.OS === 'android' ? isSelected : false}
       >
-        <Animated.View style={[styles.markerWrap]}>
-          <Animated.View
-            style={[styles.markerRing, isSelected && styles.selectedMarkerRing]}
-          />
-          <View style={styles.marker} />
-          {/* Display price text on individual marker */}
-          <Text style={styles.stationPriceText}>{priceText}</Text>
-        </Animated.View>
+        {/* Revised Dot/Ring Marker Style */}
+        <View style={styles.markerContainer}>
+          <View style={[styles.markerWrap]}>
+            <Animated.View
+              style={[
+                styles.markerRing,
+                isSelected && styles.selectedMarkerRing,
+              ]}
+            />
+            <View style={styles.marker} />
+          </View>
+          <Text
+            style={[
+              styles.markerPriceText,
+              isSelected && styles.selectedMarkerPriceText,
+            ]}
+          >
+            {priceText}
+          </Text>
+        </View>
       </Marker>
     );
   }
 );
 
 interface ClusterMarkerProps {
-  point: Feature<Point, ClusterProperties>; // Use GeoJSON Feature type
-  bestPrice: number | null; // Add best price prop
+  point: Feature<Point, ClusterProperties>;
+  bestPrice: number | null;
   onPress: (clusterId: number) => void;
+  // isSelected: boolean; // Add if cluster selection state is needed
 }
 
 const ClusterMarker = React.memo(
-  ({ point, bestPrice, onPress }: ClusterMarkerProps) => {
-    // Check if properties exist before destructuring
+  ({ point, bestPrice, onPress /*, isSelected */ }: ClusterMarkerProps) => {
     const properties = point.properties;
-    if (!properties) return null; // Should not happen if data is correct
+    if (!properties) return null;
 
-    // Use point_count for calculation, point_count_abbreviated for display
-    const {
-      point_count,
-      point_count_abbreviated: countDisplay,
-      cluster_id: clusterId,
-    } = properties;
+    const { cluster_id: clusterId, point_count } = properties;
     const { coordinates } = point.geometry;
+    const displayText = bestPrice !== null ? formatPrice(bestPrice) : '--';
 
-    // Determine display text: formatted price or '--'
-    const displayText = bestPrice !== null ? formatPrice(bestPrice) : '--'; // Use formatPrice
-
-    // Slightly larger style for clusters, similar to station marker
-    const clusterSize = 28 + Math.min(point_count, 10); // Use point_count (number)
-    const ringSize = clusterSize - 4;
-    const dotSize = 12;
+    // Optional: Adjust size based on point_count if desired
+    // const clusterSize = 28 + Math.min(point_count, 10);
+    // const ringSize = clusterSize - 4;
+    // const dotSize = 12;
 
     return (
       <Marker
@@ -133,44 +136,41 @@ const ClusterMarker = React.memo(
           latitude: coordinates[1],
           longitude: coordinates[0],
         }}
-        anchor={{ x: 0.5, y: 0.5 }}
+        anchor={{ x: 0.5, y: 0.5 }} // Center anchor
         onPress={(e) => {
           e.stopPropagation();
           onPress(clusterId);
         }}
-        tracksViewChanges={false} // Clusters generally don't need frequent updates
+        tracksViewChanges={false}
       >
-        <View
-          style={[
-            styles.markerWrap,
-            { width: clusterSize, height: clusterSize },
-          ]}
-        >
+        {/* Use similar Dot/Ring Style for Clusters */}
+        <View style={styles.markerContainer}>
           <View
             style={[
-              styles.markerRing,
-              {
-                width: ringSize,
-                height: ringSize,
-                borderRadius: ringSize / 2,
-                backgroundColor: 'rgba(42, 157, 143, 0.4)', // Slightly darker cluster ring
-                borderColor: 'rgba(42, 157, 143, 0.6)',
-              },
+              styles.markerWrap /*, { width: clusterSize, height: clusterSize } */,
             ]}
-          />
-          <View
+          >
+            <Animated.View
+              style={[
+                styles.markerRing,
+                // isSelected && styles.selectedMarkerRing, // Apply selection style if needed
+                // { width: ringSize, height: ringSize, borderRadius: ringSize / 2 } // Apply dynamic size if needed
+              ]}
+            />
+            <View
+              style={[
+                styles.marker /*, { width: dotSize, height: dotSize, borderRadius: dotSize / 2 } */,
+              ]}
+            />
+          </View>
+          <Text
             style={[
-              styles.marker,
-              {
-                width: dotSize,
-                height: dotSize,
-                borderRadius: dotSize / 2,
-                backgroundColor: theme.Colors.primary, // Reverted to primary
-              },
+              styles.markerPriceText,
+              // isSelected && styles.selectedMarkerPriceText, // Apply selection style if needed
             ]}
-          />
-          {/* Display best price or '--' */}
-          <Text style={styles.clusterText}>{displayText}</Text>
+          >
+            {displayText}
+          </Text>
         </View>
       </Marker>
     );
@@ -408,51 +408,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // --- Marker Styles ---
+  // --- Revised Marker Styles ---
+  markerContainer: {
+    alignItems: 'center', // Center the dot/ring and the text below
+  },
   markerWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    // Default size, clusters might override
-    width: 30,
+    width: 30, // Default size
     height: 30,
+    marginBottom: 2, // Space between marker and text
   },
   markerRing: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(42, 157, 143, 0.3)',
+    backgroundColor: theme.Colors.white, // Default white background
     position: 'absolute',
-    borderWidth: 1,
-    borderColor: 'rgba(42, 157, 143, 0.5)',
+    borderWidth: 2, // Make border slightly thicker
+    borderColor: theme.Colors.primary, // Default primary border
   },
   selectedMarkerRing: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(42, 157, 143, 0.5)',
-    borderColor: theme.Colors.primary,
+    // Style for selected state
+    backgroundColor: theme.Colors.primary, // Primary background when selected
+    borderColor: theme.Colors.darkGray, // Darker border when selected
   },
   marker: {
+    // Central dot
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: theme.Colors.primary,
+    backgroundColor: theme.Colors.primary, // Primary color dot
   },
-  // --- Station Price Text Style ---
-  stationPriceText: {
-    position: 'absolute',
-    fontSize: 8, // Smaller font for individual price
-    fontWeight: 'bold',
-    color: theme.Colors.white, // White text on marker dot
-    textAlign: 'center',
+  markerPriceText: {
+    // Style for the price text below the marker
+    fontSize: theme.Typography.fontSizeSmall,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: theme.Colors.primary,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)', // Semi-transparent white background
+    paddingHorizontal: theme.Spacing.xs,
+    paddingVertical: 1,
+    borderRadius: theme.BorderRadius.sm,
+    overflow: 'hidden', // Clip background to border radius
   },
-  // --- Cluster Specific Styles ---
-  clusterText: {
-    fontSize: 9, // Slightly smaller to fit price potentially
-    fontWeight: 'bold',
-    color: theme.Colors.white, // White text on cluster dot
-    textAlign: 'center',
-    position: 'absolute', // Position over the dot
-    // Adjust position slightly if needed based on font size change
+  selectedMarkerPriceText: {
+    // Optional: Style changes for text when marker is selected
+    // e.g., color: theme.Colors.white, backgroundColor: 'rgba(0, 0, 0, 0.5)'
   },
+  // --- End Revised Marker Styles ---
 });
