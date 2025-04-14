@@ -16,6 +16,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import { queryClient } from '@/lib/query-client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/hooks/stores/useAuthStore';
+import { Colors } from '@/styles/theme'; // Import Colors
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -49,9 +50,9 @@ function AuthenticatedNavigator() {
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#2a9d8f',
+          backgroundColor: Colors.primary, // Use theme primary color
         },
-        headerTintColor: '#fff',
+        headerTintColor: Colors.white, // Use theme white color
         headerTitleStyle: {
           fontWeight: 'bold',
         },

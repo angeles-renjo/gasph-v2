@@ -1,7 +1,8 @@
 import { Tabs } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { useAuth } from '@/hooks/useAuth';
-import { View } from '@/components/Themed';
+import { useAuth } from '@/hooks/useAuth'; // Corrected import path
+import { View } from '@/components/Themed'; // Corrected import path
+import { Colors } from '@/styles/theme'; // Import Colors
 
 export default function TabsLayout() {
   const { isAdmin } = useAuth();
@@ -10,8 +11,8 @@ export default function TabsLayout() {
     <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: '#2a9d8f',
-          tabBarInactiveTintColor: '#333333',
+          tabBarActiveTintColor: Colors.primary, // Use theme primary color
+          tabBarInactiveTintColor: Colors.gray, // Use theme gray color
           tabBarStyle: {
             paddingBottom: 5,
             // Removed justifyContent
@@ -21,9 +22,9 @@ export default function TabsLayout() {
             flex: 1, // Make each item flexible
           },
           headerStyle: {
-            backgroundColor: '#2a9d8f',
+            backgroundColor: Colors.primary, // Use theme primary color
           },
-          headerTintColor: '#fff',
+          headerTintColor: Colors.white, // Use theme white color
           headerTitleStyle: {
             fontWeight: 'bold',
           },
