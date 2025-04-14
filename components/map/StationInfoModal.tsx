@@ -5,17 +5,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Linking, // Import Linking
-  Platform, // Import Platform
+  Linking,
+  Platform,
+  ScrollView, // Import ScrollView for potentially long content
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { FontAwesome5 } from '@expo/vector-icons'; // Import icons
+import { Feather } from '@expo/vector-icons'; // Use Feather icons
+import { useRouter } from 'expo-router'; // Import useRouter
 import { supabase } from '@/utils/supabase/supabase';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 import { useStationFuelTypePrices } from '@/hooks/queries/stations/useStationFuelTypePrices';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
-import { DOEPriceDisplay } from '@/components/price/DOEPriceDisplay'; // Import DOE display
 import { formatPrice } from '@/utils/formatters';
 import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme';
 
@@ -24,11 +25,20 @@ interface StationInfoModalProps {
   fuelType: FuelType | null;
   isVisible: boolean;
   onClose: () => void;
+  // Add a prop for the selected fuel type name if needed for display
+  // fuelTypeName?: string;
 }
+
+// Helper to format DOE source type
+const formatDoeSourceType = (sourceType: string | null | undefined) => {
+  if (!sourceType) return 'N/A';
+  if (sourceType === 'BRAND_SPECIFIC') return 'Brand Specific';
+  return sourceType.replace('_', ' ') ?? 'N/A';
+};
 
 export function StationInfoModal({
   station,
-  fuelType,
+  fuelType, // e.g., 'diesel', 'gasoline_95'
   isVisible,
   onClose,
 }: StationInfoModalProps) {
@@ -39,28 +49,27 @@ export function StationInfoModal({
     error: communityError,
   } = useStationFuelTypePrices(station?.id ?? null, fuelType);
 
+  // Get the latest price report (usually the one with most confirmations or most recent)
   const latestCommunityPrice = communityPriceData?.[0];
 
   // --- Fetch DOE Price ---
   const {
     data: doePriceDataResult,
-    isLoading: doeLoading,
+    isLoading: isDoeLoading, // Renamed for clarity
     error: doeError,
   } = useQuery({
     queryKey: queryKeys.stations.doePrice(station?.id ?? '', fuelType ?? ''),
     queryFn: async () => {
       if (!station?.id || !fuelType) return null;
-
-      // Convert fuelType to uppercase for the query
-      const upperCaseFuelType = fuelType.toUpperCase();
-
+      // Assuming fuelType is like 'diesel', 'gasoline_95' etc.
+      // Adjust if your DB expects different format (e.g., uppercase)
+      const dbFuelType = fuelType.toUpperCase(); // Adjust if needed
       const { data, error } = await supabase
         .from('doe_price_view')
         .select('common_price, min_price, max_price, source_type')
         .eq('gas_station_id', station.id)
-        .eq('fuel_type', upperCaseFuelType) // Use uppercase version
+        .eq('fuel_type', dbFuelType)
         .maybeSingle();
-
       if (error) {
         console.error('Error fetching DOE price view:', error);
         throw error;
@@ -68,12 +77,18 @@ export function StationInfoModal({
       return data;
     },
     enabled: !!station && !!fuelType,
-    staleTime: 60 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // Cache for 1 hour
   });
 
   // --- Display Logic ---
-  const isLoading = communityLoading || doeLoading;
-  const hasError = !!communityError || !!doeError;
+  const isCommunityLoading = communityLoading; // Keep existing name
+  const hasDoeError = !!doeError;
+  const hasCommunityError = !!communityError;
+  const showNoOfficialData =
+    !isDoeLoading && !hasDoeError && !doePriceDataResult; // Show if loaded, no error, but no data
+
+  // --- Router ---
+  const router = useRouter();
 
   // --- Directions Handler ---
   const handleDirections = () => {
@@ -84,21 +99,38 @@ export function StationInfoModal({
       android: 'geo:0,0?q=',
     });
     const latLng = `${latitude},${longitude}`;
-    const label = encodeURIComponent(name); // Encode station name for URL
+    const label = encodeURIComponent(name);
     const url = Platform.select({
       ios: `${scheme}${label}@${latLng}`,
       android: `${scheme}${latLng}(${label})`,
     });
-
-    if (url) {
-      Linking.openURL(url);
-    }
+    if (url) Linking.openURL(url);
   };
 
-  // Render nothing if no station is selected
-  if (!station) {
+  // --- Navigate to Station Details ---
+  const handleNavigateToStation = () => {
+    if (!station) return;
+    onClose(); // Close the modal first
+    router.push(`/station/${station.id}`);
+  };
+
+  // Render nothing if no station is selected or modal is not visible
+  if (!station || !isVisible) {
     return null;
   }
+
+  const renderPriceBlock = (
+    label: string,
+    value: number | null | undefined,
+    highlight = false
+  ) => (
+    <View style={[styles.priceBlock, highlight && styles.priceBlockHighlight]}>
+      <Text style={styles.priceBlockLabel}>{label}</Text>
+      <Text style={styles.priceBlockValue}>
+        {value !== null && value !== undefined ? formatPrice(value) : '--'}
+      </Text>
+    </View>
+  );
 
   return (
     <Modal
@@ -107,78 +139,210 @@ export function StationInfoModal({
       visible={isVisible}
       onRequestClose={onClose}
     >
-      <TouchableOpacity // Allow closing modal by tapping background
+      <TouchableOpacity
         style={styles.centeredView}
         activeOpacity={1}
-        onPressOut={onClose}
+        onPressOut={onClose} // Close when tapping outside the modal content
       >
+        {/* Prevent taps inside the modal from closing it */}
         <View style={styles.modalView} onStartShouldSetResponder={() => true}>
-          {/* Prevent taps inside modal from closing it */}
-          <Text style={styles.modalTitle}>{station.name}</Text>
-          <Text style={styles.modalBrand}>{station.brand}</Text>
-          <Text style={styles.modalAddress}>{station.address}</Text>
-
-          <View style={styles.divider} />
-
-          {fuelType && (
-            <View style={styles.priceSection}>
-              <Text style={styles.priceTitle}>Price for {fuelType}:</Text>
-              {isLoading && (
-                <ActivityIndicator
-                  size='large'
-                  color={Colors.primary}
-                  style={styles.loader}
+          {/* Header */}
+          <View style={styles.headerContainer}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.modalTitle}>{station.name}</Text>
+              <View style={styles.addressContainer}>
+                <Feather
+                  name='map-pin'
+                  size={14}
+                  color={Colors.primary} // Use theme color
+                  style={styles.addressIcon}
                 />
-              )}
-              {hasError && !isLoading && (
-                <Text style={styles.errorTextLarge}>Error loading price</Text>
-              )}
-              {!isLoading && !hasError && (
-                <View style={styles.priceDisplayContainer}>
-                  {/* Display Community Price or '--' */}
-                  <View style={styles.priceItem}>
-                    <Text style={styles.priceValue}>
-                      {latestCommunityPrice?.price !== null &&
-                      latestCommunityPrice?.price !== undefined
-                        ? formatPrice(latestCommunityPrice.price)
-                        : '--'}
-                    </Text>
-                    <Text style={styles.priceSource}>(Community)</Text>
+                <Text style={styles.modalAddress} numberOfLines={2}>
+                  {station.address}
+                </Text>
+              </View>
+            </View>
+            {/* Close Button - Positioned Absolutely */}
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Feather name='x' size={18} color={Colors.textGray} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Scrollable Content Area - Wrapped for Navigation */}
+          <TouchableOpacity
+            activeOpacity={0.8} // Provide visual feedback on tap
+            onPress={handleNavigateToStation}
+          >
+            <ScrollView
+              contentContainerStyle={styles.scrollContentContainer}
+              scrollEnabled={false} // Disable scroll for the wrapper touchable
+            >
+              {/* Price Section */}
+              {fuelType && (
+                <>
+                  <Text style={styles.sectionTitle}>
+                    Price for {fuelType.replace('_', ' ')}
+                  </Text>
+
+                  {/* DOE Badge & Warning Row */}
+                  <View style={styles.badgeWarningRow}>
+                    <View style={styles.doeBadge}>
+                      <Text style={styles.doeBadgeText}>
+                        DOE:{' '}
+                        {formatDoeSourceType(doePriceDataResult?.source_type)}
+                      </Text>
+                    </View>
+                    {showNoOfficialData && (
+                      <View style={styles.warningContainer}>
+                        <Feather
+                          name='alert-circle'
+                          size={12}
+                          color={Colors.warning} // Use theme warning color
+                          style={styles.warningIcon}
+                        />
+                        <Text style={styles.warningText}>
+                          No official data available
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
-                  {/* Display DOE Price using DOEPriceDisplay */}
-                  <DOEPriceDisplay
-                    min_price={doePriceDataResult?.min_price ?? null}
-                    common_price={doePriceDataResult?.common_price ?? null}
-                    max_price={doePriceDataResult?.max_price ?? null}
-                    source_type={doePriceDataResult?.source_type ?? null}
-                  />
-                </View>
-              )}
-            </View>
-          )}
-          {!fuelType && (
-            <Text style={styles.infoText}>
-              Select a default fuel type in settings to see prices.
-            </Text>
-          )}
+                  {/* DOE Price Grid / Loader / Error */}
+                  {isDoeLoading && (
+                    <ActivityIndicator
+                      size='small' // Smaller indicator inline
+                      color={Colors.primary}
+                      style={styles.inlineLoader}
+                    />
+                  )}
+                  {hasDoeError && !isDoeLoading && (
+                    <Text style={styles.errorTextSmall}>
+                      Error loading DOE prices
+                    </Text>
+                  )}
+                  {!isDoeLoading && !hasDoeError && doePriceDataResult && (
+                    <View style={styles.priceGridContainer}>
+                      {renderPriceBlock('Min', doePriceDataResult?.min_price)}
+                      {renderPriceBlock(
+                        'Common',
+                        doePriceDataResult?.common_price,
+                        true
+                      )}
+                      {renderPriceBlock('Max', doePriceDataResult?.max_price)}
+                    </View>
+                  )}
+                  {/* Render empty grid if no official data */}
+                  {showNoOfficialData && (
+                    <View style={styles.priceGridContainer}>
+                      {renderPriceBlock('Min', null)}
+                      {renderPriceBlock('Common', null, true)}
+                      {renderPriceBlock('Max', null)}
+                    </View>
+                  )}
 
-          {/* Buttons Container */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.actionButton} onPress={onClose}>
-              <FontAwesome5 name='times' size={16} color={Colors.primary} />
-              <Text style={styles.buttonText}>Close</Text>
+                  {/* Separator */}
+                  <View style={styles.separator} />
+
+                  {/* Community Reported Section */}
+                  <View style={styles.communitySection}>
+                    <View style={styles.communityHeader}>
+                      <Text style={styles.communityTitle}>
+                        Community Reported:
+                      </Text>
+                      {latestCommunityPrice && (
+                        <View style={styles.confirmationsContainer}>
+                          <Feather
+                            name='thumbs-up'
+                            size={12}
+                            color={Colors.primary} // Use theme color
+                            style={styles.confirmationIcon}
+                          />
+                          <Text style={styles.confirmationsText}>
+                            {latestCommunityPrice.confirmations_count}{' '}
+                            confirmations
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Community Loader / Error / Price */}
+                    {isCommunityLoading && (
+                      <ActivityIndicator
+                        size='small'
+                        color={Colors.primary}
+                        style={styles.inlineLoader}
+                      />
+                    )}
+                    {hasCommunityError && !isCommunityLoading && (
+                      <Text style={styles.errorTextSmall}>
+                        Error loading community price
+                      </Text>
+                    )}
+                    {!isCommunityLoading && !hasCommunityError && (
+                      <View style={styles.communityPriceRow}>
+                        <Text style={styles.communityPriceValue}>
+                          {latestCommunityPrice?.price !== null &&
+                          latestCommunityPrice?.price !== undefined
+                            ? formatPrice(latestCommunityPrice.price)
+                            : '--'}
+                        </Text>
+                        {latestCommunityPrice && (
+                          <Text style={styles.communityReporterText}>
+                            reported by {latestCommunityPrice.username}
+                          </Text>
+                        )}
+                        {!latestCommunityPrice && (
+                          <Text style={styles.communityReporterText}>
+                            No reports yet
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                </>
+              )}
+
+              {/* Message if no fuel type selected */}
+              {!fuelType && (
+                <Text style={styles.infoText}>
+                  Select a default fuel type in settings to see prices.
+                </Text>
+              )}
+              {/* Message if no fuel type selected */}
+              {!fuelType && (
+                <Text style={styles.infoText}>
+                  Select a default fuel type in settings to see prices.
+                </Text>
+              )}
+            </ScrollView>
+          </TouchableOpacity>
+
+          {/* Footer */}
+          <View style={styles.footerContainer}>
+            <TouchableOpacity
+              style={[styles.footerButton, styles.closeFooterButton]}
+              onPress={onClose}
+            >
+              <Feather name='x' size={16} color={Colors.darkGray} />
+              <Text
+                style={[styles.footerButtonText, styles.closeFooterButtonText]}
+              >
+                Close
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.footerButton, styles.directionsFooterButton]}
               onPress={handleDirections}
             >
-              <FontAwesome5
-                name='directions'
-                size={16}
-                color={Colors.primary}
-              />
-              <Text style={styles.buttonText}>Directions</Text>
+              <Feather name='map-pin' size={16} color={Colors.white} />
+              <Text
+                style={[
+                  styles.footerButtonText,
+                  styles.directionsFooterButtonText,
+                ]}
+              >
+                Directions
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -187,129 +351,254 @@ export function StationInfoModal({
   );
 }
 
+// --- Styles ---
 const styles = StyleSheet.create({
   centeredView: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dim background
+    justifyContent: 'center', // Center vertically
+    alignItems: 'center', // Center horizontally
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Dimmed background
   },
   modalView: {
-    margin: Spacing.lg,
-    backgroundColor: 'white',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
-    alignItems: 'center',
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '85%', // Limit height to prevent overflow on small screens
+    backgroundColor: Colors.white, // Use theme white
+    borderRadius: BorderRadius.xl, // Match web: rounded-xl
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
     elevation: 5,
-    width: '85%', // Adjust width
+  },
+  // --- Header ---
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.lg, // ~p-4
+    paddingTop: Spacing.lg, // ~p-4
+    paddingBottom: Spacing.md, // ~pb-3
+    // Approximation of bg-gradient-to-r from-emerald-50 to-teal-50
+    // Use a solid color for simplicity in RN unless expo-linear-gradient is added
+    backgroundColor: '#f0fdfa', // Fallback color as Colors.backgroundLightGreen doesn't exist
+    position: 'relative', // Needed for absolute positioning of close button
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginRight: Spacing.xl, // Ensure space for close button
   },
   modalTitle: {
-    fontSize: Typography.fontSizeXLarge,
-    fontWeight: Typography.fontWeightBold,
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
-    color: Colors.darkGray,
+    fontSize: Typography.fontSizeLarge, // Corrected: Use fontSizeLarge instead of fontSizeLg
+    fontWeight: Typography.fontWeightSemiBold, // Match web: font-semibold
+    color: Colors.darkGray, // Match web: text-gray-800
+    marginBottom: Spacing.xs, // Reduced margin
   },
-  modalBrand: {
-    fontSize: Typography.fontSizeLarge,
-    color: Colors.textGray,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
+  addressContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start', // Align icon with top of text
+    marginTop: Spacing.xxs, // Small top margin
+  },
+  addressIcon: {
+    marginRight: Spacing.xs, // Match web: gap-1
+    marginTop: 2, // Align icon slightly better with text line
   },
   modalAddress: {
-    fontSize: Typography.fontSizeSmall,
-    color: Colors.textGray,
-    textAlign: 'center',
-    marginBottom: Spacing.md,
+    flex: 1, // Allow text to wrap
+    fontSize: Typography.fontSizeSmall, // Corrected: Use fontSizeSmall instead of fontSizeSm
+    color: Colors.textGray, // Match web: text-gray-600
   },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.dividerGray,
-    width: '100%',
-    marginVertical: Spacing.md,
-  },
-  priceSection: {
+  closeButton: {
+    position: 'absolute',
+    right: Spacing.md, // Match web: right-4
+    top: Spacing.md, // Match web: top-4
+    // Match web: h-8 w-8 rounded-full bg-white/80 hover:bg-white
+    height: 32,
+    width: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.md,
-    width: '100%',
+    zIndex: 10, // Ensure it's above header background
   },
-  priceTitle: {
-    fontSize: Typography.fontSizeMedium,
-    fontWeight: Typography.fontWeightSemiBold,
-    color: Colors.darkGray,
-    marginBottom: Spacing.sm,
+  // --- Scrollable Content ---
+  scrollContentContainer: {
+    paddingHorizontal: Spacing.lg, // ~p-4
+    paddingBottom: Spacing.lg, // Add padding at the bottom
   },
-  loader: {
-    marginVertical: Spacing.md,
+  sectionTitle: {
+    fontSize: Typography.fontSizeLarge, // Corrected: Use fontSizeLarge instead of fontSizeLg
+    fontWeight: Typography.fontWeightMedium, // Match web: font-medium
+    color: Colors.darkGray, // Match web: text-gray-800
+    marginBottom: Spacing.sm, // Match web: mb-2
+    marginTop: Spacing.md, // Add space above section title
   },
-  priceDisplayContainer: {
-    alignItems: 'center',
-    width: '100%', // Ensure DOE display takes width
-  },
-  priceItem: {
+  badgeWarningRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    marginVertical: Spacing.xs,
-    marginBottom: Spacing.md, // Add space before DOE display
+    alignItems: 'center',
+    marginBottom: Spacing.md, // Match web: mb-4
+    flexWrap: 'wrap', // Allow wrapping on small screens
+    gap: Spacing.sm, // Match web: gap-2
   },
-  priceValue: {
-    fontSize: Typography.fontSizeXXLarge,
-    fontWeight: Typography.fontWeightBold,
-    color: Colors.primary,
+  doeBadge: {
+    // Match web: Badge variant="outline" className="text-xs bg-gray-100 text-gray-600 font-normal"
+    backgroundColor: Colors.backgroundGray, // Match web: bg-gray-100
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xxs + 1,
+    borderRadius: BorderRadius.sm, // Adjust as needed
+    borderWidth: 1,
+    borderColor: Colors.dividerGray, // Corrected: Use dividerGray instead of borderGray
   },
-  priceSource: {
-    fontSize: Typography.fontSizeXSmall,
-    color: Colors.textGray,
-    marginLeft: Spacing.xs,
-    fontStyle: 'italic',
+  doeBadgeText: {
+    fontSize: Typography.fontSizeXSmall, // Corrected: Use fontSizeXSmall instead of fontSizeXs
+    color: Colors.textGray, // Match web: text-gray-600
+    fontWeight: Typography.fontWeightRegular, // Corrected: Use fontWeightRegular instead of fontWeightNormal
   },
-  errorTextLarge: {
-    fontSize: Typography.fontSizeMedium,
-    color: Colors.error,
-    fontStyle: 'italic',
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  warningIcon: {
+    marginRight: Spacing.xxs, // Match web: mr-1
+  },
+  warningText: {
+    // Match web: text-amber-600 text-xs
+    color: Colors.warning, // Use theme warning color
+    fontSize: Typography.fontSizeXSmall, // Corrected: Use fontSizeXSmall instead of fontSizeXs
+  },
+  inlineLoader: {
     marginVertical: Spacing.md,
+    alignSelf: 'center',
+  },
+  errorTextSmall: {
+    fontSize: Typography.fontSizeSmall, // Corrected: Use fontSizeSmall instead of fontSizeSm
+    color: Colors.error,
+    textAlign: 'center',
+    marginVertical: Spacing.md,
+  },
+  priceGridContainer: {
+    flexDirection: 'row',
+    backgroundColor: Colors.backgroundGray, // Match web: bg-gray-50
+    borderRadius: BorderRadius.lg, // Match web: rounded-lg
+    overflow: 'hidden',
+    marginTop: Spacing.xs, // Add some top margin
+  },
+  priceBlock: {
+    flex: 1,
+    padding: Spacing.md, // Match web: p-3
+    alignItems: 'center',
+  },
+  priceBlockHighlight: {
+    backgroundColor: Colors.backgroundGray2, // Match web: bg-gray-100
+  },
+  priceBlockLabel: {
+    fontSize: Typography.fontSizeXSmall, // Corrected: Use fontSizeXSmall instead of fontSizeXs
+    color: Colors.textGray, // Match web: text-gray-500
+    marginBottom: Spacing.xxs, // Match web: mb-1
+  },
+  priceBlockValue: {
+    fontSize: Typography.fontSizeMedium, // Corrected: Use fontSizeMedium instead of fontSizeBase
+    fontWeight: Typography.fontWeightMedium, // Match web: font-medium
+    color: Colors.darkGray, // Match web: text-gray-800
+  },
+  separator: {
+    height: 1,
+    backgroundColor: Colors.dividerGray, // Match web: <Separator />
+    marginVertical: Spacing.lg, // Space around separator
+  },
+  // --- Community Section ---
+  communitySection: {
+    backgroundColor: '#f0fdfa', // Fallback color as Colors.backgroundLightGreen doesn't exist
+    borderRadius: BorderRadius.lg, // Match web: rounded-lg
+    padding: Spacing.lg, // Match web: p-4
+  },
+  communityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs, // Space below header
+  },
+  communityTitle: {
+    fontSize: Typography.fontSizeSmall, // Corrected: Use fontSizeSmall instead of fontSizeSm
+    color: Colors.textGray, // Match web: text-gray-600
+  },
+  confirmationsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  confirmationIcon: {
+    marginRight: Spacing.xxs, // Match web: gap-1
+  },
+  confirmationsText: {
+    fontSize: Typography.fontSizeXSmall, // Corrected: Use fontSizeXSmall instead of fontSizeXs
+    color: Colors.textGray, // Match web: text-gray-500
+  },
+  communityPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline', // Align text baselines
+    marginTop: Spacing.xs, // Match web: mt-1
+    flexWrap: 'wrap', // Allow wrapping
+  },
+  communityPriceValue: {
+    fontSize: Typography.fontSizeXLarge, // Corrected: Use fontSizeXLarge instead of fontSizeXl
+    fontWeight: Typography.fontWeightBold, // Match web: font-bold
+    color: Colors.primary, // Match web: text-emerald-600
+  },
+  communityReporterText: {
+    fontSize: Typography.fontSizeXSmall, // Corrected: Use fontSizeXSmall instead of fontSizeXs
+    color: Colors.textGray, // Match web: text-gray-500
+    marginLeft: Spacing.sm, // Match web: ml-2
+    flexShrink: 1, // Allow shrinking if needed
   },
   infoText: {
-    fontSize: Typography.fontSizeSmall,
+    fontSize: Typography.fontSizeSmall, // Corrected: Use fontSizeSmall instead of fontSizeSm
     color: Colors.textGray,
-    fontStyle: 'italic',
     textAlign: 'center',
-    marginVertical: Spacing.md,
+    marginVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
   },
-  buttonContainer: {
-    // Styles for button row
+  // --- Footer ---
+  footerContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around', // Space out buttons
-    width: '100%',
-    marginTop: Spacing.lg,
     borderTopWidth: 1,
     borderTopColor: Colors.dividerGray,
-    paddingTop: Spacing.md,
+    // Removed marginTop as spacing is handled by ScrollView padding
   },
-  actionButton: {
-    // Style for individual buttons
+  footerButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.lightGray2, // Add background
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md, // Add border radius
-    flex: 0.45, // Allow buttons to share space but not fill entirely
-    justifyContent: 'center', // Center content
+    justifyContent: 'center',
+    paddingVertical: Spacing.md, // Match web: p-4 (adjust vertical only)
   },
-  buttonText: {
-    // Style for button text
-    color: Colors.primary,
+  closeFooterButton: {
+    // Match web: variant="outline"
+    borderRightWidth: 1,
+    borderRightColor: Colors.dividerGray,
+    backgroundColor: Colors.white,
+    borderWidth: 1, // Add border
+    borderColor: Colors.dividerGray, // Corrected: Use dividerGray instead of borderGray
+    // Adjust padding slightly to account for border
+    paddingVertical: Spacing.md - 1,
+    // Ensure button is not cut off by main view border radius
+    borderBottomLeftRadius: BorderRadius.xl,
+  },
+  directionsFooterButton: {
+    // Match web: bg-emerald-600 hover:bg-emerald-700
+    backgroundColor: Colors.primary, // Use theme primary or a specific green
+    // Ensure button is not cut off by main view border radius
+    borderBottomRightRadius: BorderRadius.xl,
+  },
+  footerButtonText: {
+    marginLeft: Spacing.sm, // Match web: mr-2 (applied as marginLeft)
+    fontSize: Typography.fontSizeSmall, // Corrected: Use fontSizeSmall instead of fontSizeSm
     fontWeight: Typography.fontWeightMedium,
-    marginLeft: Spacing.sm,
-    fontSize: Typography.fontSizeMedium,
   },
-  // Removed closeButton and closeButtonText as they are replaced by actionButton styles
+  closeFooterButtonText: {
+    color: Colors.darkGray,
+  },
+  directionsFooterButtonText: {
+    color: Colors.white,
+  },
 });
