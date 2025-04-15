@@ -126,9 +126,10 @@ const ClusterMarker = React.memo(
     const properties = point.properties;
     if (!properties) return null;
 
-    const { cluster_id: clusterId, point_count } = properties;
+    const { cluster_id: clusterId, point_count } = properties; // Get count
     const { coordinates } = point.geometry;
-    const displayText = bestPrice !== null ? formatPrice(bestPrice) : '--';
+    const priceDisplayText = bestPrice !== null ? formatPrice(bestPrice) : '--'; // Keep price text separate
+    const countDisplayText = point_count.toString(); // Text for the count inside circle
 
     // Optional: Adjust size based on point_count if desired
     // const clusterSize = 28 + Math.min(point_count, 10);
@@ -162,20 +163,25 @@ const ClusterMarker = React.memo(
                 // isSelected && styles.selectedMarkerRing, // Apply selection style if needed
                 // { width: ringSize, height: ringSize, borderRadius: ringSize / 2 } // Apply dynamic size if needed
               ]}
-            />
-            <View
+            >
+              {/* Add Text for count inside the ring - Apply style later */}
+              <Text style={styles.clusterCountText}>{countDisplayText}</Text>
+            </Animated.View>
+            {/* Remove the inner dot View */}
+            {/* <View
               style={[
-                styles.marker /*, { width: dotSize, height: dotSize, borderRadius: dotSize / 2 } */,
+                styles.marker // , { width: dotSize, height: dotSize, borderRadius: dotSize / 2 } ,
               ]}
-            />
+            /> */}
           </View>
+          {/* Text below the marker (for price) */}
           <Text
             style={[
-              styles.markerPriceText,
+              styles.markerPriceText, // Keep this style for the price below
               // isSelected && styles.selectedMarkerPriceText, // Apply selection style if needed
             ]}
           >
-            {displayText}
+            {priceDisplayText} {/* Display the price text */}
           </Text>
         </View>
       </Marker>
@@ -421,18 +427,21 @@ const styles = StyleSheet.create({
   markerWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 30, // Default size
-    height: 30,
+    width: 34, // Increased size
+    height: 34, // Increased size
     marginBottom: 2, // Space between marker and text
   },
   markerRing: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 29, // Increased size (approx 1.2x)
+    height: 29, // Increased size (approx 1.2x)
+    borderRadius: 14.5, // Adjusted for new size
     backgroundColor: theme.Colors.white, // Default white background
     position: 'absolute',
     borderWidth: 2, // Make border slightly thicker
     borderColor: theme.Colors.primary, // Default primary border
+    // Add centering for the child Text element
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   selectedMarkerRing: {
     // Style for selected state
@@ -460,6 +469,13 @@ const styles = StyleSheet.create({
   selectedMarkerPriceText: {
     // Optional: Style changes for text when marker is selected
     // e.g., color: theme.Colors.white, backgroundColor: 'rgba(0, 0, 0, 0.5)'
+  },
+  clusterCountText: {
+    // Style for the count text inside the cluster circle
+    fontSize: theme.Typography.fontSizeSmall, // Adjust size as needed
+    fontWeight: theme.Typography.fontWeightBold,
+    color: theme.Colors.primary, // Use primary color for the count text
+    textAlign: 'center', // Ensure text is centered
   },
   // --- End Revised Marker Styles ---
 });
