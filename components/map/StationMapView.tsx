@@ -30,8 +30,17 @@ import { formatPrice } from '@/utils/formatters'; // Import correct formatter
 // --- Constants for Map Views ---
 const PHILIPPINES_CENTER = { latitude: 12.8797, longitude: 121.774 }; // Approx center
 const PHILIPPINES_DELTA = { latitudeDelta: 15, longitudeDelta: 15 }; // Zoom level for whole country view
-const USER_DELTA = { latitudeDelta: 0.1, longitudeDelta: 0.1 }; // Existing zoom for user location
+const USER_DELTA = { latitudeDelta: 0.1, longitudeDelta: 0.1 }; // Keep for potential future use?
 const CLUSTER_ZOOM_DELTA = { latitudeDelta: 0.02, longitudeDelta: 0.02 }; // Zoom level when clicking a cluster
+
+// ++ Add Bounding Box and Zoom Limits ++
+const PHILIPPINES_BOUNDS = {
+  // Looser bounds to allow slight over-panning before snapping back
+  sw: { latitude: 4.0, longitude: 116.0 }, // Approx Southwest corner
+  ne: { latitude: 21.5, longitude: 127.5 }, // Approx Northeast corner
+};
+const MIN_ZOOM_LEVEL = 6; // Prevent zooming out too far (Higher number = more zoomed in)
+const MAX_ZOOM_LEVEL = 18; // Optional: Limit max zoom
 
 const { width: INITIAL_MAP_WIDTH, height: INITIAL_MAP_HEIGHT } =
   Dimensions.get('window');
@@ -207,28 +216,79 @@ export function StationMapView({
     height: INITIAL_MAP_HEIGHT,
   });
 
-  // Calculate initial region based on whether we have user location or default
+  // Calculate initial region - ALWAYS focus on Philippines
   const calculatedInitialRegion = useMemo(() => {
-    if (!initialLocation) return undefined; // Handle case where initialLocation might be null/undefined briefly
     return {
-      latitude: initialLocation.isDefaultLocation
-        ? PHILIPPINES_CENTER.latitude
-        : initialLocation.latitude,
-      longitude: initialLocation.isDefaultLocation
-        ? PHILIPPINES_CENTER.longitude
-        : initialLocation.longitude,
-      ...(initialLocation.isDefaultLocation ? PHILIPPINES_DELTA : USER_DELTA),
+      ...PHILIPPINES_CENTER,
+      ...PHILIPPINES_DELTA,
     };
-  }, [initialLocation]);
+  }, []); // Dependency array empty as it only uses constants
 
   const [region, setRegion] = useState<Region | undefined>(
     calculatedInitialRegion
   );
 
-  // Update region state when map moves
+  // Update region state and enforce bounds when map moves
   const onRegionChangeComplete = useCallback((newRegion: Region) => {
-    setRegion(newRegion);
-  }, []);
+    let targetLat = newRegion.latitude;
+    let targetLng = newRegion.longitude;
+    let needsAdjustment = false;
+
+    // --- Boundary Clamping Logic ---
+    // Prevent zooming out too far (using delta as a fallback/complement to minZoomLevel)
+    if (
+      newRegion.latitudeDelta > PHILIPPINES_DELTA.latitudeDelta + 5 || // Allow slightly more than initial delta
+      newRegion.longitudeDelta > PHILIPPINES_DELTA.longitudeDelta + 5
+    ) {
+      targetLat = PHILIPPINES_CENTER.latitude;
+      targetLng = PHILIPPINES_CENTER.longitude;
+      // Use a reasonable delta if zoom is too far out
+      newRegion.latitudeDelta = PHILIPPINES_DELTA.latitudeDelta;
+      newRegion.longitudeDelta = PHILIPPINES_DELTA.longitudeDelta;
+      needsAdjustment = true;
+    } else {
+      // Clamp Latitude
+      if (newRegion.latitude < PHILIPPINES_BOUNDS.sw.latitude) {
+        targetLat = PHILIPPINES_BOUNDS.sw.latitude;
+        needsAdjustment = true;
+      } else if (newRegion.latitude > PHILIPPINES_BOUNDS.ne.latitude) {
+        targetLat = PHILIPPINES_BOUNDS.ne.latitude;
+        needsAdjustment = true;
+      }
+
+      // Clamp Longitude
+      if (newRegion.longitude < PHILIPPINES_BOUNDS.sw.longitude) {
+        targetLng = PHILIPPINES_BOUNDS.sw.longitude;
+        needsAdjustment = true;
+      } else if (newRegion.longitude > PHILIPPINES_BOUNDS.ne.longitude) {
+        targetLng = PHILIPPINES_BOUNDS.ne.longitude;
+        needsAdjustment = true;
+      }
+    }
+    // --- End Clamping Logic ---
+
+    const currentTargetRegion = {
+      latitude: targetLat,
+      longitude: targetLng,
+      latitudeDelta: newRegion.latitudeDelta, // Keep user's zoom level if within delta limits
+      longitudeDelta: newRegion.longitudeDelta,
+    };
+
+    // Update the state regardless (needed for clusterer)
+    setRegion(currentTargetRegion);
+
+    // Animate back smoothly only if adjustments were needed
+    if (needsAdjustment && mapViewRef.current) {
+      // --- Animate back towards the center ---
+      const centerFocusedRegion = {
+        latitude: PHILIPPINES_CENTER.latitude, // Target the center latitude
+        longitude: PHILIPPINES_CENTER.longitude, // Target the center longitude
+        latitudeDelta: currentTargetRegion.latitudeDelta, // Keep the current zoom level (unless it was adjusted above)
+        longitudeDelta: currentTargetRegion.longitudeDelta, // Keep the current zoom level (unless it was adjusted above)
+      };
+      mapViewRef.current.animateToRegion(centerFocusedRegion, 200); // Slightly longer animation for centering
+    }
+  }, []); // Dependencies: PHILIPPINES_BOUNDS, PHILIPPINES_CENTER, PHILIPPINES_DELTA
 
   // Update map dimensions on layout
   const onMapLayout = useCallback((event: LayoutChangeEvent) => {
@@ -352,11 +412,11 @@ export function StationMapView({
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={calculatedInitialRegion} // Use the calculated one
-        region={region} // Control region for clustering updates
+        // region={region} // DO NOT control region directly when animating in onRegionChangeComplete
         onRegionChangeComplete={onRegionChangeComplete}
         onLayout={onMapLayout} // Get map dimensions
-        showsUserLocation={!initialLocation?.isDefaultLocation} // Check initialLocation exists
-        showsMyLocationButton={!initialLocation?.isDefaultLocation}
+        showsUserLocation={false} // ++ Disable user location dot ++
+        showsMyLocationButton={false} // ++ Disable location button ++
         loadingEnabled={isLoading}
         loadingIndicatorColor={theme.Colors.primary}
         loadingBackgroundColor={theme.Colors.white}
@@ -365,6 +425,11 @@ export function StationMapView({
         showsTraffic={false}
         toolbarEnabled={false}
         onPress={handleCloseModal}
+        // ++ Add Zoom Limits and disable rotation/pitch ++
+        minZoomLevel={MIN_ZOOM_LEVEL}
+        maxZoomLevel={MAX_ZOOM_LEVEL} // Optional
+        rotateEnabled={false}
+        pitchEnabled={false}
       >
         {points.map((point) => {
           if (isPointCluster(point)) {
