@@ -192,13 +192,9 @@ export default function ExploreScreen() {
               placeholderTextColor={Colors.placeholderGray} // Add prop here
               value={searchQuery}
               onChangeText={setSearchQuery}
-              clearButtonMode='while-editing'
+              clearButtonMode='while-editing' // Rely on this for iOS clear button
             />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <FontAwesome5 name='times-circle' size={16} color='#999' />
-              </TouchableOpacity>
-            )}
+            {/* Removed custom TouchableOpacity clear button to avoid duplication on iOS */}
           </View>
         </View>
 
