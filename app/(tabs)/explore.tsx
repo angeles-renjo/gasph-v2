@@ -5,7 +5,7 @@ const openAppSettings = () => {
     Linking.openSettings();
   }
 };
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,13 +28,7 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Database } from '@/utils/supabase/types';
-import { Button } from '@/components/ui/Button';
-import theme, {
-  Colors,
-  Spacing,
-  Typography,
-  BorderRadius,
-} from '@/styles/theme'; // Import theme constants
+import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme'; // Import theme constants
 
 type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
   distance?: number;
