@@ -31,6 +31,7 @@ import {
 
 // Import moved styles
 import { styles } from '@/styles/screens/admin/AdminReportsScreen.styles';
+import { Colors } from '@/styles/theme'; // Import Colors for dynamic styling
 
 // --- Hooks and Types previously defined here are now imported ---
 
@@ -223,45 +224,67 @@ export default function AdminReportsScreen() {
     const comments =
       typeof reportedData.comments === 'string' ? reportedData.comments : null;
 
-    // Remove dynamic color variables for now to test TS error
-    // const currentTextColor = Colors[colorScheme ?? 'light'].text;
-    // const secondaryTextColor = Colors[colorScheme ?? 'light'].text;
-    // const cardBackgroundColor = Colors[colorScheme ?? 'light'].background;
-    // const borderColor = Colors.dividerGray;
+    // Define dynamic colors based on the current color scheme
+    const themeColors = Colors[colorScheme ?? 'light'];
+    const currentTextColor = themeColors.text;
+    // Using textGray for secondary text elements as it's defined in common colors
+    const secondaryTextColor = Colors.textGray;
+    const cardBackgroundColor = themeColors.background;
+    const borderColor = Colors.dividerGray; // Common color
 
     return (
-      // Remove dynamic inline styles temporarily
-      <Card style={styles.reportCard}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.reportType}>
+      <Card
+        style={{ ...styles.reportCard, backgroundColor: cardBackgroundColor }}
+      >
+        {/* Apply dynamic border color to header */}
+        <View style={[styles.cardHeader, { borderBottomColor: borderColor }]}>
+          {/* Apply dynamic text color */}
+          <Text style={[styles.reportType, { color: currentTextColor }]}>
             {item.report_type.toUpperCase()}
           </Text>
-          <Text style={styles.reportDate}>
+          {/* Apply dynamic secondary text color */}
+          <Text style={[styles.reportDate, { color: secondaryTextColor }]}>
             {formatDistanceToNow(new Date(item.created_at), {
               addSuffix: true,
             })}
           </Text>
         </View>
-        <Text style={styles.userInfo}>
+        {/* Apply dynamic secondary text color */}
+        <Text style={[styles.userInfo, { color: secondaryTextColor }]}>
           By: {item.profile?.username ?? 'Unknown User'} (
           {item.user_id?.substring(0, 8)}...)
         </Text>
 
         {item.report_type === 'add' && (
           <>
-            <Text style={styles.detailLabel}>Suggested Name:</Text>
-            <Text style={styles.detailValue}>{name}</Text>
-            <Text style={styles.detailLabel}>Suggested Brand:</Text>
-            <Text style={styles.detailValue}>{brand}</Text>
-            <Text style={styles.detailLabel}>Location:</Text>
-            <Text style={styles.detailValue}>
+            {/* Apply dynamic text color */}
+            <Text style={[styles.detailLabel, { color: currentTextColor }]}>
+              Suggested Name:
+            </Text>
+            <Text style={[styles.detailValue, { color: currentTextColor }]}>
+              {name}
+            </Text>
+            <Text style={[styles.detailLabel, { color: currentTextColor }]}>
+              Suggested Brand:
+            </Text>
+            <Text style={[styles.detailValue, { color: currentTextColor }]}>
+              {brand}
+            </Text>
+            <Text style={[styles.detailLabel, { color: currentTextColor }]}>
+              Location:
+            </Text>
+            <Text style={[styles.detailValue, { color: currentTextColor }]}>
               Lat: {item.latitude?.toFixed(5)}, Lng:{' '}
               {item.longitude?.toFixed(5)}
             </Text>
             {comments && (
               <>
-                <Text style={styles.detailLabel}>Comments:</Text>
-                <Text style={styles.detailValue}>{comments}</Text>
+                <Text style={[styles.detailLabel, { color: currentTextColor }]}>
+                  Comments:
+                </Text>
+                <Text style={[styles.detailValue, { color: currentTextColor }]}>
+                  {comments}
+                </Text>
               </>
             )}
           </>
@@ -269,16 +292,24 @@ export default function AdminReportsScreen() {
 
         {(item.report_type === 'update' || item.report_type === 'delete') && (
           <>
-            <Text style={styles.detailLabel}>Station ID:</Text>
-            <Text style={styles.detailValue}>{item.station_id}</Text>
-            <Text style={styles.detailLabel}>Reason:</Text>
-            <Text style={styles.detailValue}>
+            {/* Apply dynamic text color */}
+            <Text style={[styles.detailLabel, { color: currentTextColor }]}>
+              Station ID:
+            </Text>
+            <Text style={[styles.detailValue, { color: currentTextColor }]}>
+              {item.station_id}
+            </Text>
+            <Text style={[styles.detailLabel, { color: currentTextColor }]}>
+              Reason:
+            </Text>
+            <Text style={[styles.detailValue, { color: currentTextColor }]}>
               {item.reason ?? 'No reason provided'}
             </Text>
           </>
         )}
 
-        <View style={styles.buttonContainer}>
+        {/* Apply dynamic border color to button container */}
+        <View style={[styles.buttonContainer, { borderTopColor: borderColor }]}>
           <Button
             title='Reject'
             onPress={() => handleAction(item, 'reject')}
@@ -321,8 +352,15 @@ export default function AdminReportsScreen() {
         renderItem={renderReportItem}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={
-          // Remove dynamic style temporarily
-          <Text style={styles.emptyText}>No pending reports.</Text>
+          // Apply dynamic text color
+          <Text
+            style={[
+              styles.emptyText,
+              { color: Colors[colorScheme ?? 'light'].text },
+            ]}
+          >
+            No pending reports.
+          </Text>
         }
         refreshing={isLoading}
         onRefresh={refetch}
