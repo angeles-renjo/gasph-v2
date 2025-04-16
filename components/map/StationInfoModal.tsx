@@ -2,40 +2,44 @@ import {
   Modal,
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   Linking,
   Platform,
   ScrollView, // Import ScrollView for potentially long content
 } from 'react-native';
-import React, { useState } from 'react'; // Import useState
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react'; // Import useState
+// Removed useQuery import
 import { Feather } from '@expo/vector-icons'; // Use Feather icons
 import { useRouter } from 'expo-router'; // Import useRouter
-import { supabase } from '@/utils/supabase/supabase';
-import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 import { useStationFuelTypePrices } from '@/hooks/queries/stations/useStationFuelTypePrices';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { formatPrice } from '@/utils/formatters';
-import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme';
+import { Colors } from '@/styles/theme'; // Import Colors directly
 import ReportStationModal from '../station/ReportStationModal'; // Import the report modal
+
+// Import the new hook for DOE price
+import { useStationDoePrice } from '@/hooks/queries/stations/useStationDoePrice';
+// Import the moved styles
+import { styles } from '@/styles/components/map/StationInfoModal.styles';
 
 interface StationInfoModalProps {
   station: GasStation | null;
   fuelType: FuelType | null;
   isVisible: boolean;
   onClose: () => void;
-  // Add a prop for the selected fuel type name if needed for display
-  // fuelTypeName?: string;
 }
 
 // Helper to format DOE source type
 const formatDoeSourceType = (sourceType: string | null | undefined) => {
   if (!sourceType) return 'N/A';
   if (sourceType === 'BRAND_SPECIFIC') return 'Brand Specific';
-  return sourceType.replace('_', ' ') ?? 'N/A';
+  // Improved formatting for other types like 'RETAIL_OUTLET' -> 'Retail Outlet'
+  return sourceType
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase()); // Capitalize each word
 };
 
 export function StationInfoModal({
@@ -44,7 +48,7 @@ export function StationInfoModal({
   isVisible,
   onClose,
 }: StationInfoModalProps) {
-  const [isReportModalVisible, setIsReportModalVisible] = useState(false); // State for report modal
+  const [isReportModalVisible, setIsReportModalVisible] = useState(false);
 
   // --- Fetch Community Price ---
   const {
@@ -53,43 +57,22 @@ export function StationInfoModal({
     error: communityError,
   } = useStationFuelTypePrices(station?.id ?? null, fuelType);
 
-  // Get the latest price report (usually the one with most confirmations or most recent)
+  // Get the latest price report
   const latestCommunityPrice = communityPriceData?.[0];
 
-  // --- Fetch DOE Price ---
+  // --- Fetch DOE Price using the new hook ---
   const {
     data: doePriceDataResult,
-    isLoading: isDoeLoading, // Renamed for clarity
+    isLoading: isDoeLoading,
     error: doeError,
-  } = useQuery({
-    queryKey: queryKeys.stations.doePrice(station?.id ?? '', fuelType ?? ''),
-    queryFn: async () => {
-      if (!station?.id || !fuelType) return null;
-      // Assuming fuelType is like 'diesel', 'gasoline_95' etc.
-      // Adjust if your DB expects different format (e.g., uppercase)
-      const dbFuelType = fuelType.toUpperCase(); // Adjust if needed
-      const { data, error } = await supabase
-        .from('doe_price_view')
-        .select('common_price, min_price, max_price, source_type')
-        .eq('gas_station_id', station.id)
-        .eq('fuel_type', dbFuelType)
-        .maybeSingle();
-      if (error) {
-        console.error('Error fetching DOE price view:', error);
-        throw error;
-      }
-      return data;
-    },
-    enabled: !!station && !!fuelType,
-    staleTime: 60 * 60 * 1000, // Cache for 1 hour
-  });
+  } = useStationDoePrice(station?.id, fuelType); // Use the new hook
 
   // --- Display Logic ---
-  const isCommunityLoading = communityLoading; // Keep existing name
+  const isCommunityLoading = communityLoading;
   const hasDoeError = !!doeError;
   const hasCommunityError = !!communityError;
   const showNoOfficialData =
-    !isDoeLoading && !hasDoeError && !doePriceDataResult; // Show if loaded, no error, but no data
+    !isDoeLoading && !hasDoeError && !doePriceDataResult;
 
   // --- Router ---
   const router = useRouter();
@@ -317,12 +300,6 @@ export function StationInfoModal({
                   Select a default fuel type in settings to see prices.
                 </Text>
               )}
-              {/* Message if no fuel type selected */}
-              {!fuelType && (
-                <Text style={styles.infoText}>
-                  Select a default fuel type in settings to see prices.
-                </Text>
-              )}
             </ScrollView>
           </TouchableOpacity>
 
@@ -385,265 +362,4 @@ export function StationInfoModal({
   );
 }
 
-// --- Styles ---
-const styles = StyleSheet.create({
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center', // Center vertically
-    alignItems: 'center', // Center horizontally
-    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Dimmed background
-  },
-  modalView: {
-    width: '90%',
-    maxWidth: 400,
-    maxHeight: '85%', // Limit height to prevent overflow on small screens
-    backgroundColor: Colors.white, // Use theme white
-    borderRadius: BorderRadius.xl, // Match web: rounded-xl
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  // --- Header ---
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: Spacing.lg, // ~p-4
-    paddingTop: Spacing.lg, // ~p-4
-    paddingBottom: Spacing.md, // ~pb-3
-    // Approximation of bg-gradient-to-r from-emerald-50 to-teal-50
-    // Use a solid color for simplicity in RN unless expo-linear-gradient is added
-    backgroundColor: '#f0fdfa', // Fallback color as Colors.backgroundLightGreen doesn't exist
-    position: 'relative', // Needed for absolute positioning of close button
-  },
-  headerTextContainer: {
-    flex: 1,
-    marginRight: Spacing.xl, // Ensure space for close button
-  },
-  modalTitle: {
-    fontSize: Typography.fontSizeLarge, // Corrected: Use fontSizeLarge instead of fontSizeLg
-    fontWeight: Typography.fontWeightSemiBold, // Match web: font-semibold
-    color: Colors.darkGray, // Match web: text-gray-800
-    marginBottom: Spacing.xs, // Reduced margin
-  },
-  addressContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start', // Align icon with top of text
-    marginTop: Spacing.xxs, // Small top margin
-  },
-  addressIcon: {
-    marginRight: Spacing.xs, // Match web: gap-1
-    marginTop: 2, // Align icon slightly better with text line
-  },
-  modalAddress: {
-    flex: 1, // Allow text to wrap
-    fontSize: Typography.fontSizeSmall, // Corrected: Use fontSizeSmall instead of fontSizeSm
-    color: Colors.textGray, // Match web: text-gray-600
-  },
-  closeButton: {
-    position: 'absolute',
-    right: Spacing.md, // Match web: right-4
-    top: Spacing.md, // Match web: top-4
-    // Match web: h-8 w-8 rounded-full bg-white/80 hover:bg-white
-    height: 32,
-    width: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10, // Ensure it's above header background
-  },
-  // --- Scrollable Content ---
-  scrollContentContainer: {
-    paddingHorizontal: Spacing.lg, // ~p-4
-    paddingBottom: Spacing.lg, // Add padding at the bottom
-  },
-  sectionTitle: {
-    fontSize: Typography.fontSizeLarge, // Corrected: Use fontSizeLarge instead of fontSizeLg
-    fontWeight: Typography.fontWeightMedium, // Match web: font-medium
-    color: Colors.darkGray, // Match web: text-gray-800
-    marginBottom: Spacing.sm, // Match web: mb-2
-    marginTop: Spacing.md, // Add space above section title
-  },
-  badgeWarningRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md, // Match web: mb-4
-    flexWrap: 'wrap', // Allow wrapping on small screens
-    gap: Spacing.sm, // Match web: gap-2
-  },
-  doeBadge: {
-    // Match web: Badge variant="outline" className="text-xs bg-gray-100 text-gray-600 font-normal"
-    backgroundColor: Colors.backgroundGray, // Match web: bg-gray-100
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xxs + 1,
-    borderRadius: BorderRadius.sm, // Adjust as needed
-    borderWidth: 1,
-    borderColor: Colors.dividerGray, // Corrected: Use dividerGray instead of borderGray
-  },
-  doeBadgeText: {
-    fontSize: Typography.fontSizeXSmall, // Corrected: Use fontSizeXSmall instead of fontSizeXs
-    color: Colors.textGray, // Match web: text-gray-600
-    fontWeight: Typography.fontWeightRegular, // Corrected: Use fontWeightRegular instead of fontWeightNormal
-  },
-  warningContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  warningIcon: {
-    marginRight: Spacing.xxs, // Match web: mr-1
-  },
-  warningText: {
-    // Match web: text-amber-600 text-xs
-    color: Colors.warning, // Use theme warning color
-    fontSize: Typography.fontSizeXSmall, // Corrected: Use fontSizeXSmall instead of fontSizeXs
-  },
-  inlineLoader: {
-    marginVertical: Spacing.md,
-    alignSelf: 'center',
-  },
-  errorTextSmall: {
-    fontSize: Typography.fontSizeSmall, // Corrected: Use fontSizeSmall instead of fontSizeSm
-    color: Colors.error,
-    textAlign: 'center',
-    marginVertical: Spacing.md,
-  },
-  priceGridContainer: {
-    flexDirection: 'row',
-    backgroundColor: Colors.backgroundGray, // Match web: bg-gray-50
-    borderRadius: BorderRadius.lg, // Match web: rounded-lg
-    overflow: 'hidden',
-    marginTop: Spacing.xs, // Add some top margin
-  },
-  priceBlock: {
-    flex: 1,
-    padding: Spacing.md, // Match web: p-3
-    alignItems: 'center',
-  },
-  priceBlockHighlight: {
-    backgroundColor: Colors.backgroundGray2, // Match web: bg-gray-100
-  },
-  priceBlockLabel: {
-    fontSize: Typography.fontSizeXSmall, // Corrected: Use fontSizeXSmall instead of fontSizeXs
-    color: Colors.textGray, // Match web: text-gray-500
-    marginBottom: Spacing.xxs, // Match web: mb-1
-  },
-  priceBlockValue: {
-    fontSize: Typography.fontSizeMedium, // Corrected: Use fontSizeMedium instead of fontSizeBase
-    fontWeight: Typography.fontWeightMedium, // Match web: font-medium
-    color: Colors.darkGray, // Match web: text-gray-800
-  },
-  separator: {
-    height: 1,
-    backgroundColor: Colors.dividerGray, // Match web: <Separator />
-    marginVertical: Spacing.lg, // Space around separator
-  },
-  // --- Community Section ---
-  communitySection: {
-    backgroundColor: '#f0fdfa', // Fallback color as Colors.backgroundLightGreen doesn't exist
-    borderRadius: BorderRadius.lg, // Match web: rounded-lg
-    padding: Spacing.lg, // Match web: p-4
-  },
-  communityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs, // Space below header
-  },
-  communityTitle: {
-    fontSize: Typography.fontSizeSmall, // Corrected: Use fontSizeSmall instead of fontSizeSm
-    color: Colors.textGray, // Match web: text-gray-600
-  },
-  confirmationsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  confirmationIcon: {
-    marginRight: Spacing.xxs, // Match web: gap-1
-  },
-  confirmationsText: {
-    fontSize: Typography.fontSizeXSmall, // Corrected: Use fontSizeXSmall instead of fontSizeXs
-    color: Colors.textGray, // Match web: text-gray-500
-  },
-  communityPriceRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline', // Align text baselines
-    marginTop: Spacing.xs, // Match web: mt-1
-    flexWrap: 'wrap', // Allow wrapping
-  },
-  communityPriceValue: {
-    fontSize: Typography.fontSizeXLarge, // Corrected: Use fontSizeXLarge instead of fontSizeXl
-    fontWeight: Typography.fontWeightBold, // Match web: font-bold
-    color: Colors.primary, // Match web: text-emerald-600
-  },
-  communityReporterText: {
-    fontSize: Typography.fontSizeXSmall, // Corrected: Use fontSizeXSmall instead of fontSizeXs
-    color: Colors.textGray, // Match web: text-gray-500
-    marginLeft: Spacing.sm, // Match web: ml-2
-    flexShrink: 1, // Allow shrinking if needed
-  },
-  infoText: {
-    fontSize: Typography.fontSizeSmall, // Corrected: Use fontSizeSmall instead of fontSizeSm
-    color: Colors.textGray,
-    textAlign: 'center',
-    marginVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-  },
-  // --- Footer ---
-  footerContainer: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: Colors.dividerGray,
-    // Removed marginTop as spacing is handled by ScrollView padding
-  },
-  footerButton: {
-    // flex: 1, // Adjust flex to accommodate 3 buttons if needed, or use fixed width
-    paddingHorizontal: Spacing.md, // Add horizontal padding
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.md, // Match web: p-4 (adjust vertical only)
-  },
-  closeFooterButton: {
-    // Match web: variant="outline"
-    borderRightWidth: 1,
-    borderRightColor: Colors.dividerGray,
-    backgroundColor: Colors.white,
-    borderWidth: 1, // Add border
-    borderColor: Colors.dividerGray, // Corrected: Use dividerGray instead of borderGray
-    // Adjust padding slightly to account for border
-    paddingVertical: Spacing.md - 1,
-    // Ensure button is not cut off by main view border radius
-    borderBottomLeftRadius: BorderRadius.xl,
-  },
-  reportFooterButton: {
-    // Style similar to close button?
-    backgroundColor: Colors.white,
-    borderRightWidth: 1, // Add separator if needed
-    borderRightColor: Colors.dividerGray,
-  },
-  reportFooterButtonText: {
-    color: Colors.warning, // Use warning color for text
-  },
-  directionsFooterButton: {
-    // Match web: bg-emerald-600 hover:bg-emerald-700
-    backgroundColor: Colors.primary, // Use theme primary or a specific green
-    flex: 1.2, // Give directions slightly more space? Adjust as needed
-    // Ensure button is not cut off by main view border radius
-    borderBottomRightRadius: BorderRadius.xl,
-  },
-  footerButtonText: {
-    marginLeft: Spacing.sm, // Match web: mr-2 (applied as marginLeft)
-    fontSize: Typography.fontSizeSmall, // Corrected: Use fontSizeSmall instead of fontSizeSm
-    fontWeight: Typography.fontWeightMedium,
-  },
-  closeFooterButtonText: {
-    color: Colors.darkGray,
-  },
-  directionsFooterButtonText: {
-    color: Colors.white,
-  },
-});
+// Styles moved to styles/components/map/StationInfoModal.styles.ts

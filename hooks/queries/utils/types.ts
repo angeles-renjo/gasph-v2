@@ -1,3 +1,5 @@
+import { Tables, Json } from '@/utils/supabase/types'; // Import base types
+
 export interface BestPricesParams {
   fuelType?: string;
   maxDistance?: number;
@@ -18,7 +20,6 @@ export interface PriceCycle {
   created_at: string;
 }
 
-// We'll add more types as we implement features
 export interface GooglePlacesStation {
   place_id: string;
   name: string;
@@ -38,7 +39,6 @@ export interface GooglePlacesStation {
   };
   types?: string[];
   address_components?: Array<{
-    // Added address_components
     long_name: string;
     short_name: string;
     types: string[];
@@ -63,7 +63,6 @@ export interface PlaceDetails {
   business_status?: 'OPERATIONAL' | 'CLOSED_TEMPORARILY' | 'CLOSED_PERMANENTLY'; // Added based on Google Places API
   formatted_address: string;
   address_components?: Array<{
-    // Added address_components here
     long_name: string;
     short_name: string;
     types: string[];
@@ -88,3 +87,36 @@ export interface ImportResult {
   importedStations: Station[];
   errors: Array<{ city: string; error: string }>;
 }
+
+// --- Added Types from Reports ---
+
+// Type for a report fetched from the DB, potentially joining user info
+export type StationReportWithUser = Tables<'station_reports'> & {
+  // Use the alias 'profile' defined in the select statement
+  profile: { username: string | null } | null;
+};
+
+// Define the expected structure within reported_data for 'add' reports
+export type ReportedAddData = {
+  name?: Json | undefined;
+  brand?: Json | undefined;
+  address?: Json | undefined;
+  city?: Json | undefined;
+  province?: Json | undefined;
+  amenities?: Json | undefined;
+  operating_hours_notes?: Json | undefined;
+  comments?: Json | undefined;
+  // Add index signature to align with Json object type and resolve predicate error
+  [key: string]: Json | undefined;
+};
+
+// Type guard to check if the reported_data is a valid object (non-null, non-array)
+// Note: Type guards generally live closer to their usage, but placing it here for consolidation as requested.
+// Consider moving it back if it causes issues or feels out of place later.
+export function isValidReportedAddData(
+  data: Json | null
+): data is ReportedAddData {
+  return data !== null && typeof data === 'object' && !Array.isArray(data);
+}
+
+// --- End Added Types ---

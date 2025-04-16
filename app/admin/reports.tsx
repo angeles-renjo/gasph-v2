@@ -1,203 +1,44 @@
-import React, { useState } from 'react'; // Add useState back
-import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
+import { useState } from 'react';
 import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  QueryKey,
-} from '@tanstack/react-query'; // Import QueryKey
-import { supabase } from '@/utils/supabase/supabase';
+  View,
+  Text,
+  FlatList,
+  Alert,
+  useColorScheme, // Import useColorScheme for styles
+} from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
-import { useAuth } from '@/hooks/useAuth'; // Import useAuth
+import { useAuth } from '@/hooks/useAuth';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Database, Tables, TablesInsert, Json } from '@/utils/supabase/types'; // Import base types and TablesInsert, Json
-import { formatDistanceToNow } from 'date-fns'; // For relative time
-import ConfirmAddStationModal from '@/components/admin/ConfirmAddStationModal'; // Import the confirmation modal
-// Import the specific GasStation type used by the map query hook
-import type { GasStation } from '@/hooks/queries/stations/useNearbyStations';
+import { TablesInsert } from '@/utils/supabase/types'; // Keep only one import for TablesInsert
+import { formatDistanceToNow } from 'date-fns';
+import ConfirmAddStationModal from '@/components/admin/ConfirmAddStationModal';
 
-// Define the type for a report fetched from the DB, potentially joining user info
-type StationReportWithUser = Tables<'station_reports'> & {
-  // Use the alias 'profile' defined in the select statement
-  profile: { username: string | null } | null;
-};
+// Import moved hooks
+import { usePendingReports } from '@/hooks/queries/admin/reports/usePendingReports';
+import { useUpdateReportStatusMutation } from '@/hooks/queries/admin/reports/useUpdateReportStatusMutation';
+import { useDeleteStationMutation } from '@/hooks/queries/admin/reports/useDeleteStationMutation';
+import { useCreateStationMutation } from '@/hooks/queries/admin/reports/useCreateStationMutation';
 
-// Define the expected structure within reported_data for 'add' reports
-type ReportedAddData = {
-  name?: unknown; // Use unknown for initial check
-  brand?: unknown;
-  address?: unknown;
-  city?: unknown;
-  province?: unknown;
-  amenities?: unknown;
-  operating_hours_notes?: unknown;
-  comments?: unknown; // Added comments field based on AddStationModal
-};
+// Import moved types
+import {
+  StationReportWithUser,
+  isValidReportedAddData,
+} from '@/hooks/queries/utils/types';
 
-// Type guard to check if the reported_data is a valid object (non-null, non-array)
-function isValidReportedAddData(data: Json | null): boolean {
-  return data !== null && typeof data === 'object' && !Array.isArray(data);
-}
+// Import moved styles
+import { styles } from '@/styles/screens/admin/AdminReportsScreen.styles';
 
-// --- Query Hook ---
-const usePendingReports = () => {
-  return useQuery<StationReportWithUser[], Error>({
-    queryKey: queryKeys.admin.reports.list('pending'),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('station_reports')
-        .select(
-          `
-          *,
-          profile:profiles ( username )
-        `
-        )
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching pending reports:', error);
-        throw new Error(error.message || 'Failed to fetch reports');
-      }
-      return data || [];
-    },
-  });
-};
-// --- End Query Hook ---
-
-// --- Mutation Hooks (Approve/Reject Report Status) ---
-const useUpdateReportStatusMutation = () => {
-  const queryClient = useQueryClient();
-  const pendingReportsQueryKey = queryKeys.admin.reports.list('pending');
-
-  return useMutation<
-    void,
-    Error,
-    {
-      reportId: string;
-      newStatus: Database['public']['Enums']['report_status'];
-      resolverId: string;
-    },
-    { previousReports?: StationReportWithUser[] }
-  >({
-    mutationFn: async ({ reportId, newStatus, resolverId }) => {
-      const { error } = await supabase
-        .from('station_reports')
-        .update({
-          status: newStatus,
-          resolved_at: new Date().toISOString(),
-          resolver_id: resolverId,
-        })
-        .eq('id', reportId);
-
-      if (error) {
-        console.error(`Error updating report status to ${newStatus}:`, error);
-        throw new Error(error.message || `Failed to ${newStatus} report.`);
-      }
-    },
-    onMutate: async ({ reportId }) => {
-      await queryClient.cancelQueries({ queryKey: pendingReportsQueryKey });
-      const previousReports = queryClient.getQueryData<StationReportWithUser[]>(
-        pendingReportsQueryKey
-      );
-      if (previousReports) {
-        queryClient.setQueryData<StationReportWithUser[]>(
-          pendingReportsQueryKey,
-          previousReports.filter((report) => report.id !== reportId)
-        );
-      }
-      return { previousReports };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousReports) {
-        queryClient.setQueryData<StationReportWithUser[]>(
-          pendingReportsQueryKey,
-          context.previousReports
-        );
-      }
-      console.error('Error updating report status:', err);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: pendingReportsQueryKey });
-    },
-    onSuccess: (data, variables) => {
-      if (variables.newStatus === 'approved') {
-        console.warn('Report approved (ID:', variables.reportId);
-      }
-    },
-  });
-};
-// --- End Update Report Status Mutation ---
-
-// --- Delete Station Mutation ---
-const useDeleteStationMutation = () => {
-  const queryClient = useQueryClient();
-  const adminStationListKey = queryKeys.admin.stations.list();
-  const mapStationsBaseKey = ['stations', 'listWithPrice']; // Partial key for invalidation
-
-  // Define the type for the context object used ONLY for admin list rollback
-  type DeleteMutationContext = {
-    previousAdminStations?: Tables<'gas_stations'>[];
-  };
-
-  return useMutation<void, Error, string, DeleteMutationContext>({
-    mutationFn: async (stationId) => {
-      const { error } = await supabase
-        .from('gas_stations')
-        .delete()
-        .eq('id', stationId);
-      if (error) {
-        console.error('Error deleting station:', error);
-        throw new Error(error.message || 'Failed to delete station.');
-      }
-    },
-    // Optimistic Update ONLY for Admin List
-    onMutate: async (stationIdToDelete) => {
-      await queryClient.cancelQueries({ queryKey: adminStationListKey });
-      const previousAdminStations =
-        queryClient.getQueryData<Tables<'gas_stations'>[]>(adminStationListKey);
-
-      if (previousAdminStations) {
-        queryClient.setQueryData<Tables<'gas_stations'>[]>(
-          adminStationListKey,
-          previousAdminStations.filter(
-            (station) => station.id !== stationIdToDelete
-          )
-        );
-      }
-      // No map cache update here
-      return { previousAdminStations };
-    },
-    onError: (err, stationIdToDelete, context) => {
-      // Rollback admin list
-      if (context?.previousAdminStations) {
-        queryClient.setQueryData<Tables<'gas_stations'>[]>(
-          adminStationListKey,
-          context.previousAdminStations
-        );
-      }
-      console.error('Error deleting station:', err); // Log the actual error
-    },
-    onSettled: () => {
-      // Invalidate admin list AND map lists to trigger refetch
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.stations.list(),
-      });
-      queryClient.invalidateQueries({ queryKey: mapStationsBaseKey });
-      // Also invalidate the general station list if it exists elsewhere
-      queryClient.invalidateQueries({ queryKey: queryKeys.stations.list() });
-    },
-  });
-};
-// --- End Delete Station Mutation ---
+// --- Hooks and Types previously defined here are now imported ---
 
 export default function AdminReportsScreen() {
   const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
   const [selectedReport, setSelectedReport] =
     useState<StationReportWithUser | null>(null);
+  const colorScheme = useColorScheme(); // Get color scheme for styles
 
   const {
     data: reports,
@@ -205,10 +46,63 @@ export default function AdminReportsScreen() {
     isError,
     error,
     refetch,
-  } = usePendingReports();
+  } = usePendingReports(); // Use imported hook
+
+  // Define mutations at the screen level using imported hooks
   const updateStatusMutation = useUpdateReportStatusMutation();
   const deleteStationMutation = useDeleteStationMutation();
+  const createStationMutation = useCreateStationMutation();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [isConfirming, setIsConfirming] = useState(false); // State for modal loading
+
+  // Define the function to handle the confirmation attempt
+  const handleConfirmAttempt = async (
+    stationData: TablesInsert<'gas_stations'>,
+    reportId: string,
+    resolverId: string
+  ): Promise<boolean> => {
+    setIsConfirming(true);
+    try {
+      // 1. Create the station (optimistic update happens in its onMutate)
+      await createStationMutation.mutateAsync(stationData);
+      console.log('Station created successfully (handleConfirmAttempt)');
+
+      // 2. Update the report status to 'approved' (optimistic update happens in its onMutate)
+      await updateStatusMutation.mutateAsync({
+        reportId: reportId,
+        newStatus: 'approved',
+        resolverId: resolverId,
+      });
+      console.log('Report status updated successfully (handleConfirmAttempt)');
+
+      // 3. Invalidate queries *after* successful mutations
+      console.log('Invalidating queries after successful creation...');
+      const adminStationListKey = queryKeys.admin.stations.list();
+      const mapStationsBaseKey = [
+        ...queryKeys.stations.all,
+        'listWithPrice',
+      ] as const;
+      // Use setTimeout to delay invalidation slightly, allowing UI to settle
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: adminStationListKey });
+        queryClient.invalidateQueries({ queryKey: mapStationsBaseKey });
+        console.log('Admin and Map queries invalidated.');
+      }, 150);
+
+      Alert.alert('Success', 'Station created and report approved.');
+      setIsConfirming(false);
+      return true; // Indicate success
+    } catch (error: any) {
+      console.error('Error during confirm/create process:', error);
+      Alert.alert(
+        'Operation Failed',
+        error.message || 'Could not create station or update report.'
+      );
+      setIsConfirming(false);
+      return false; // Indicate failure
+    }
+  };
 
   const handleAction = (
     report: StationReportWithUser,
@@ -263,21 +157,17 @@ export default function AdminReportsScreen() {
               onPress: async () => {
                 if (!report.station_id) return;
                 try {
-                  // Call delete mutation (optimistic update for admin list happens inside)
                   await deleteStationMutation.mutateAsync(report.station_id);
-                  // Update report status (optimistic update for report list happens inside)
                   await updateStatusMutation.mutateAsync({
                     reportId: report.id,
                     newStatus: 'approved',
                     resolverId: user.id,
                   });
-                  // Rely on onSettled invalidation to update map/other lists
                   Alert.alert(
                     'Success',
                     'Station deleted and report approved.'
                   );
                 } catch (err: any) {
-                  // Errors should be handled by individual mutation onError, but catch here as fallback
                   Alert.alert(
                     'Error',
                     err.message || 'Failed to process deletion.'
@@ -321,10 +211,11 @@ export default function AdminReportsScreen() {
   };
 
   const renderReportItem = ({ item }: { item: StationReportWithUser }) => {
-    // Safely access reported_data properties with type checking
+    // Revert to simpler ternary access, relying on the type guard
     const reportedData = isValidReportedAddData(item.reported_data)
-      ? (item.reported_data as ReportedAddData)
-      : {}; // Cast after check
+      ? item.reported_data
+      : {}; // Keep default empty object for safety
+
     const name =
       typeof reportedData.name === 'string' ? reportedData.name : 'N/A';
     const brand =
@@ -332,7 +223,14 @@ export default function AdminReportsScreen() {
     const comments =
       typeof reportedData.comments === 'string' ? reportedData.comments : null;
 
+    // Remove dynamic color variables for now to test TS error
+    // const currentTextColor = Colors[colorScheme ?? 'light'].text;
+    // const secondaryTextColor = Colors[colorScheme ?? 'light'].text;
+    // const cardBackgroundColor = Colors[colorScheme ?? 'light'].background;
+    // const borderColor = Colors.dividerGray;
+
     return (
+      // Remove dynamic inline styles temporarily
       <Card style={styles.reportCard}>
         <View style={styles.cardHeader}>
           <Text style={styles.reportType}>
@@ -366,7 +264,6 @@ export default function AdminReportsScreen() {
                 <Text style={styles.detailValue}>{comments}</Text>
               </>
             )}
-            {/* TODO: Display amenities and op hours notes if needed */}
           </>
         )}
 
@@ -388,16 +285,20 @@ export default function AdminReportsScreen() {
             variant='danger'
             style={styles.actionButton}
             disabled={
-              updateStatusMutation.isPending || deleteStationMutation.isPending
+              updateStatusMutation.isPending ||
+              deleteStationMutation.isPending ||
+              createStationMutation.isPending
             }
           />
           <Button
             title='Approve'
             onPress={() => handleAction(item, 'approve')}
-            variant='primary'
+            variant='primary' // Changed from 'success'
             style={styles.actionButton}
             disabled={
-              updateStatusMutation.isPending || deleteStationMutation.isPending
+              updateStatusMutation.isPending ||
+              deleteStationMutation.isPending ||
+              createStationMutation.isPending
             }
           />
         </View>
@@ -406,17 +307,11 @@ export default function AdminReportsScreen() {
   };
 
   if (isLoading) {
-    return <LoadingIndicator fullScreen message='Loading pending reports...' />;
+    return <LoadingIndicator message='Loading reports...' />;
   }
 
   if (isError) {
-    return (
-      <ErrorDisplay
-        fullScreen
-        message={error?.message || 'Failed to load reports.'}
-        onRetry={refetch}
-      />
-    );
+    return <ErrorDisplay message={error?.message} onRetry={refetch} />;
   }
 
   return (
@@ -426,88 +321,27 @@ export default function AdminReportsScreen() {
         renderItem={renderReportItem}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No pending reports found.</Text>
+          // Remove dynamic style temporarily
+          <Text style={styles.emptyText}>No pending reports.</Text>
         }
-        contentContainerStyle={styles.listContent}
+        refreshing={isLoading}
+        onRefresh={refetch}
+        contentContainerStyle={
+          reports?.length === 0 ? styles.emptyListContainer : null
+        }
       />
-
-      {/* Confirmation Modal for Adding Stations */}
       <ConfirmAddStationModal
         isVisible={isConfirmModalVisible}
         onClose={() => {
           setIsConfirmModalVisible(false);
-          setSelectedReport(null); // Clear selected report on close
+          setSelectedReport(null);
         }}
         report={selectedReport}
+        onConfirmAttempt={handleConfirmAttempt} // Pass the handler function
+        isConfirming={isConfirming} // Pass the loading state
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f0', // Light grey background
-  },
-  listContent: {
-    padding: 16,
-  },
-  reportCard: {
-    marginBottom: 16,
-    padding: 16,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingBottom: 8,
-  },
-  reportType: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    color: '#333', // Darker text
-  },
-  reportDate: {
-    fontSize: 12,
-    color: '#666',
-  },
-  userInfo: {
-    fontSize: 13,
-    color: '#555',
-    marginBottom: 12,
-  },
-  detailLabel: {
-    fontSize: 12,
-    color: '#777',
-    marginBottom: 2,
-    marginTop: 6,
-    textTransform: 'uppercase',
-  },
-  detailValue: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 8,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end', // Align buttons to the right
-    marginTop: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  actionButton: {
-    marginLeft: 10, // Space between buttons
-    minWidth: 80, // Ensure buttons have some minimum width
-    paddingVertical: 6, // Smaller padding
-    paddingHorizontal: 12,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: '#666',
-  },
-});
+// Styles moved to styles/screens/admin/AdminReportsScreen.styles.ts

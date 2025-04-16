@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/Input';
 import Checkbox from 'expo-checkbox'; // Import Expo Checkbox
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
-import { TablesInsert, Database } from '@/utils/supabase/types';
+import { TablesInsert } from '@/utils/supabase/types';
 import { supabase } from '@/utils/supabase/supabase';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys'; // Import queryKeys

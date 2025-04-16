@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, StyleSheet, Pressable, Alert, Platform } from 'react-native';
+import { Modal, StyleSheet, Alert, Platform } from 'react-native';
 import { View, Text } from '@/components/Themed';
 import { Input } from '@/components/ui/Input'; // Assuming Input component exists
 import { Button } from '@/components/ui/Button'; // Assuming Button component exists
