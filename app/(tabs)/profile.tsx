@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { supabase } from '@/utils/supabase/supabase'; // Import Supabase client
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { useUserProfile } from '@/hooks/queries/users/useUserProfile';
@@ -42,6 +43,7 @@ export default function ProfileScreen() {
   const { user, signOut, isAdmin } = useAuth();
   const { defaultFuelType, setDefaultFuelType } = usePreferencesStore();
   const [isFuelModalVisible, setIsFuelModalVisible] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); // Add loading state
 
   const {
     data: profileData,
@@ -63,6 +65,80 @@ export default function ProfileScreen() {
         error?.message || 'An unexpected error occurred'
       );
     }
+  };
+
+  // Function to handle the press of the Delete Account button
+  const handleDeleteAccountPress = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action is irreversible and will remove all your data, including contributions.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (isDeleting) return; // Prevent double-clicks
+            setIsDeleting(true);
+            try {
+              // Ensure we have the user ID
+              if (!user?.id) {
+                throw new Error('User ID not found. Cannot delete account.');
+              }
+              const userIdToDelete = user.id;
+
+              // Call the PostgreSQL function via RPC
+              const { data: rpcData, error: rpcError } = await supabase.rpc(
+                'delete_user_by_id', // Name of the SQL function
+                {
+                  user_id_to_delete: userIdToDelete, // Pass the user ID as parameter
+                }
+              );
+
+              if (rpcError) {
+                // Handle RPC errors
+                throw new Error(rpcError.message || 'RPC call failed.');
+              }
+
+              // Check the response message from the function (optional but good practice)
+              console.log('RPC Response:', rpcData); // Log the response for debugging
+              if (
+                typeof rpcData === 'string' &&
+                rpcData.startsWith('An error occurred')
+              ) {
+                throw new Error(rpcData); // Throw the error message returned by the function
+              }
+              if (
+                typeof rpcData === 'string' &&
+                rpcData.includes('not found')
+              ) {
+                throw new Error('User not found in database.'); // More specific error
+              }
+
+              // Success: Show confirmation and sign out
+              Alert.alert(
+                'Account Deleted',
+                'Your account and associated data have been successfully deleted.'
+              );
+              signOut(); // Sign out the user from the app
+            } catch (error: any) {
+              console.error('Account deletion failed:', error);
+              Alert.alert(
+                'Deletion Failed',
+                error?.message ||
+                  'An unexpected error occurred while deleting your account. Please try again.'
+              );
+            } finally {
+              setIsDeleting(false); // Reset loading state
+            }
+          },
+        },
+      ],
+      { cancelable: true } // Allow dismissing the alert by tapping outside
+    );
   };
 
   // Removed handleUploadAvatar function
@@ -209,7 +285,7 @@ export default function ProfileScreen() {
 
           {/* Sign Out Row */}
           <TouchableOpacity
-            style={[styles.listItem, styles.signOutItem]}
+            style={[styles.listItem, styles.signOutItem]} // Keep sign out separate, last item
             onPress={handleSignOut}
           >
             <FontAwesome5
@@ -220,6 +296,23 @@ export default function ProfileScreen() {
             />
             <Text style={[styles.listItemLabel, styles.signOutLabel]}>
               Sign Out
+            </Text>
+          </TouchableOpacity>
+
+          {/* Delete Account Row */}
+          <TouchableOpacity
+            style={[styles.listItem, styles.deleteItem]}
+            onPress={handleDeleteAccountPress}
+            disabled={isDeleting} // Disable button while deleting
+          >
+            <FontAwesome5
+              name='trash-alt'
+              size={18}
+              color={Colors.error} // Use error color for destructive action
+              style={styles.listItemIcon}
+            />
+            <Text style={[styles.listItemLabel, styles.deleteLabel]}>
+              Delete Account
             </Text>
           </TouchableOpacity>
         </View>
@@ -396,6 +489,13 @@ const styles = StyleSheet.create({
   },
   signOutLabel: {
     color: Colors.error,
+  },
+  // Styles for Delete Account button
+  deleteItem: {
+    // Inherits listItem styles, has a bottom border by default
+  },
+  deleteLabel: {
+    color: Colors.error, // Use error color for the text
   },
   modalOverlay: {
     flex: 1,
