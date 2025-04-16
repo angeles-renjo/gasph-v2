@@ -96,6 +96,13 @@ export const queryKeys = {
     stats: {
       all: () => [...queryKeys.admin.all, 'stats'] as const,
     },
+    // Add keys for station reports
+    reports: {
+      all: () => [...queryKeys.admin.all, 'reports'] as const,
+      // Key for listing reports by status (e.g., 'pending')
+      list: (status: string) =>
+        [...queryKeys.admin.reports.all(), 'list', status] as const,
+    },
   },
   auth: {
     all: ['auth'] as const,

@@ -12,6 +12,11 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import theme from '@/styles/theme';
 import { View } from '@/components/Themed';
+import FloatingActionButton from '@/components/ui/FloatingActionButton'; // Import the FAB
+import AddStationModal from '@/components/station/AddStationModal'; // Import the Add modal
+import { useState, useRef } from 'react'; // Import useState and useRef
+import MapView, { Region } from 'react-native-maps'; // Import MapView types
+
 // Helper function to open app settings (copied from explore.tsx logic)
 const openAppSettings = () => {
   if (Platform.OS === 'ios') {
@@ -24,6 +29,12 @@ const openAppSettings = () => {
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices'; // Import FuelType
 
 export default function MapScreen() {
+  const [isAddStationModalVisible, setIsAddStationModalVisible] =
+    useState(false); // State for Add Station Modal
+  const [currentMapCenter, setCurrentMapCenter] = useState<
+    { latitude: number; longitude: number } | undefined
+  >(undefined);
+  const mapRef = useRef<MapView>(null); // Ref for the map view component
   const colorScheme = useColorScheme() ?? 'light'; // Get current color scheme
   const preferredFuelType = usePreferencesStore(
     (state) => state.defaultFuelType
@@ -81,6 +92,21 @@ export default function MapScreen() {
     );
   }
 
+  // Update current center state when map region changes
+  const handleRegionChangeComplete = (region: Region) => {
+    setCurrentMapCenter({
+      latitude: region.latitude,
+      longitude: region.longitude,
+    });
+  };
+
+  const handleAddStationPress = () => {
+    // Use the state variable holding the latest map center
+    // The initial locationData could be used as a fallback if needed, but center is better
+    console.log('Add station pressed, current center:', currentMapCenter);
+    setIsAddStationModalVisible(true);
+  };
+
   // Render map once location is available
   return (
     <View
@@ -91,10 +117,21 @@ export default function MapScreen() {
     >
       {/* Render map directly, StationMapView handles its own loading/initial state */}
       <StationMapView
+        ref={mapRef} // Assign ref
         stations={stations || []} // Pass empty array if stations are null/undefined initially
         initialLocation={locationData}
         isLoading={stationsLoading || stationsRefetching} // Indicate loading on the map
         defaultFuelType={fuelTypeForMap} // Pass the determined fuel type
+        onRegionChangeComplete={handleRegionChangeComplete} // Pass the handler
+      />
+      {/* Add Station FAB */}
+      <FloatingActionButton onPress={handleAddStationPress} />
+
+      {/* Add Station Modal */}
+      <AddStationModal
+        isVisible={isAddStationModalVisible}
+        onClose={() => setIsAddStationModalVisible(false)}
+        initialCoordinates={currentMapCenter ?? locationData} // Pass current center or initial location
       />
     </View>
   );

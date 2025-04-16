@@ -24,6 +24,7 @@ export type Database = {
           province: string;
           status: string;
           updated_at: string | null;
+          place_id?: string | null; // Add place_id
         };
         Insert: {
           address: string;
@@ -39,6 +40,7 @@ export type Database = {
           province: string;
           status?: string;
           updated_at?: string | null;
+          place_id?: string | null; // Add place_id
         };
         Update: {
           address?: string;
@@ -54,6 +56,7 @@ export type Database = {
           province?: string;
           status?: string;
           updated_at?: string | null;
+          place_id?: string | null; // Add place_id
         };
         Relationships: [];
       };
@@ -283,6 +286,80 @@ export type Database = {
           }
         ];
       };
+      station_reports: {
+        Row: {
+          created_at: string;
+          id: string;
+          latitude: number | null;
+          longitude: number | null;
+          reason: string | null;
+          report_type: Database['public']['Enums']['report_type'];
+          reported_data: Json | null;
+          resolved_at: string | null;
+          resolver_id: string | null;
+          station_id: string | null;
+          status: Database['public']['Enums']['report_status'];
+          user_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          reason?: string | null;
+          report_type: Database['public']['Enums']['report_type'];
+          reported_data?: Json | null;
+          resolved_at?: string | null;
+          resolver_id?: string | null;
+          station_id?: string | null;
+          status?: Database['public']['Enums']['report_status'];
+          user_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          reason?: string | null;
+          report_type?: Database['public']['Enums']['report_type'];
+          reported_data?: Json | null;
+          resolved_at?: string | null;
+          resolver_id?: string | null;
+          station_id?: string | null;
+          status?: Database['public']['Enums']['report_status'];
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'station_reports_resolver_id_fkey';
+            columns: ['resolver_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'station_reports_station_id_fkey';
+            columns: ['station_id'];
+            isOneToOne: false;
+            referencedRelation: 'doe_price_view';
+            referencedColumns: ['gas_station_id'];
+          },
+          {
+            foreignKeyName: 'station_reports_station_id_fkey';
+            columns: ['station_id'];
+            isOneToOne: false;
+            referencedRelation: 'gas_stations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'station_reports_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: {
       active_price_reports: {
@@ -452,6 +529,8 @@ export type Database = {
     };
     Enums: {
       price_type: 'brand_range' | 'overall_range' | 'common';
+      report_status: 'pending' | 'approved' | 'rejected';
+      report_type: 'add' | 'update' | 'delete';
     };
     CompositeTypes: {
       [_ in never]: never;

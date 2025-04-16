@@ -72,6 +72,18 @@ export default function AdminDashboard() {
           href='/admin/import-stations'
           isLoading={isLoading}
         />
+
+        <DashboardCard
+          title='Station Reports'
+          // We don't have a count for pending reports in useAdminStats yet,
+          // so we'll just show a static subtitle for now.
+          // value={stats?.pendingReportsCount ?? 0} // TODO: Add this to useAdminStats later
+          value='View' // Use a string value
+          subtitle='Review user-submitted reports'
+          icon='alert-circle' // Try a different icon
+          href={'/admin/reports' as any} // Cast href to any temporarily
+          isLoading={isLoading} // Can reuse the main loading state for now
+        />
       </View>
     </ScrollView>
   );

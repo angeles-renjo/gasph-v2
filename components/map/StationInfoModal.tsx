@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView, // Import ScrollView for potentially long content
 } from 'react-native';
+import React, { useState } from 'react'; // Import useState
 import { useQuery } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons'; // Use Feather icons
 import { useRouter } from 'expo-router'; // Import useRouter
@@ -19,6 +20,7 @@ import type { GasStation } from '@/hooks/queries/stations/useNearbyStations';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { formatPrice } from '@/utils/formatters';
 import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme';
+import ReportStationModal from '../station/ReportStationModal'; // Import the report modal
 
 interface StationInfoModalProps {
   station: GasStation | null;
@@ -42,6 +44,8 @@ export function StationInfoModal({
   isVisible,
   onClose,
 }: StationInfoModalProps) {
+  const [isReportModalVisible, setIsReportModalVisible] = useState(false); // State for report modal
+
   // --- Fetch Community Price ---
   const {
     data: communityPriceData,
@@ -105,6 +109,11 @@ export function StationInfoModal({
       android: `${scheme}${latLng}(${label})`,
     });
     if (url) Linking.openURL(url);
+  };
+
+  // --- Report Station Handler ---
+  const handleReportPress = () => {
+    setIsReportModalVisible(true);
   };
 
   // --- Navigate to Station Details ---
@@ -344,9 +353,34 @@ export function StationInfoModal({
                 Directions
               </Text>
             </TouchableOpacity>
+            {/* Report Button */}
+            <TouchableOpacity
+              style={[styles.footerButton, styles.reportFooterButton]} // Add specific style if needed
+              onPress={handleReportPress}
+            >
+              <Feather name='alert-triangle' size={16} color={Colors.warning} />
+              <Text
+                style={[
+                  styles.footerButtonText,
+                  styles.reportFooterButtonText, // Add specific style if needed
+                ]}
+              >
+                Report
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
+
+      {/* Render the Report Modal */}
+      {station && (
+        <ReportStationModal
+          isVisible={isReportModalVisible}
+          onClose={() => setIsReportModalVisible(false)}
+          stationId={station.id}
+          stationName={station.name}
+        />
+      )}
     </Modal>
   );
 }
@@ -566,7 +600,8 @@ const styles = StyleSheet.create({
     // Removed marginTop as spacing is handled by ScrollView padding
   },
   footerButton: {
-    flex: 1,
+    // flex: 1, // Adjust flex to accommodate 3 buttons if needed, or use fixed width
+    paddingHorizontal: Spacing.md, // Add horizontal padding
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -584,9 +619,19 @@ const styles = StyleSheet.create({
     // Ensure button is not cut off by main view border radius
     borderBottomLeftRadius: BorderRadius.xl,
   },
+  reportFooterButton: {
+    // Style similar to close button?
+    backgroundColor: Colors.white,
+    borderRightWidth: 1, // Add separator if needed
+    borderRightColor: Colors.dividerGray,
+  },
+  reportFooterButtonText: {
+    color: Colors.warning, // Use warning color for text
+  },
   directionsFooterButton: {
     // Match web: bg-emerald-600 hover:bg-emerald-700
     backgroundColor: Colors.primary, // Use theme primary or a specific green
+    flex: 1.2, // Give directions slightly more space? Adjust as needed
     // Ensure button is not cut off by main view border radius
     borderBottomRightRadius: BorderRadius.xl,
   },

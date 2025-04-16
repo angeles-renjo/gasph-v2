@@ -1,47 +1,53 @@
-import { Stack } from "expo-router";
+import { Stack } from 'expo-router';
 
 export default function AdminLayout() {
   return (
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: "#2a9d8f",
+          backgroundColor: '#2a9d8f',
         },
         headerShown: false,
-        headerTintColor: "#fff",
+        headerTintColor: '#fff',
         headerTitleStyle: {
-          fontWeight: "bold",
+          fontWeight: 'bold',
         },
       }}
     >
       <Stack.Screen
-        name="index"
+        name='index'
         options={{
-          title: "Admin Dashboard",
+          title: 'Admin Dashboard',
         }}
       />
       <Stack.Screen
-        name="stations"
+        name='stations'
         options={{
-          title: "Stations",
+          title: 'Stations',
         }}
       />
       <Stack.Screen
-        name="cycles"
+        name='cycles'
         options={{
-          title: "Price Cycles",
+          title: 'Price Cycles',
         }}
       />
       <Stack.Screen
-        name="users"
+        name='users'
         options={{
-          title: "Users",
+          title: 'Users',
         }}
       />
       <Stack.Screen
-        name="import-stations"
+        name='import-stations'
         options={{
-          title: "Import Stations",
+          title: 'Import Stations',
+        }}
+      />
+      <Stack.Screen
+        name='reports'
+        options={{
+          title: 'Station Reports',
         }}
       />
     </Stack>

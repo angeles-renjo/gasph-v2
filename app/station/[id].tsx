@@ -26,13 +26,16 @@ import { Input } from '@/components/ui/Input';
 import { formatDate, formatOperatingHours } from '@/utils/formatters';
 import { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys'; // Import queryKeys
+import ReportStationModal from '@/components/station/ReportStationModal'; // Import the report modal
 
 export default function StationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const router = useRouter(); // Get router instance
   const queryClient = useQueryClient(); // Get query client instance
-  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false); // For price reporting
+  const [isStationReportModalVisible, setIsStationReportModalVisible] =
+    useState(false); // For station problem reporting
   const [selectedFuelType, setSelectedFuelType] = useState<FuelType>('Diesel');
   const [price, setPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -248,6 +251,19 @@ export default function StationDetailScreen() {
           variant='outline'
           leftIcon={
             <FontAwesome5 name='directions' size={16} color='#2a9d8f' />
+          }
+        />
+        <Button
+          title='Report Problem'
+          onPress={() => setIsStationReportModalVisible(true)} // Open the station report modal
+          style={styles.actionButton}
+          variant='outline' // Use outline or a different style
+          leftIcon={
+            <FontAwesome5
+              name='exclamation-triangle'
+              size={16}
+              color='#f59e0b' // Example warning icon
+            />
           }
         />
       </View>
@@ -500,6 +516,16 @@ export default function StationDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Station Problem Report Modal */}
+      {station && (
+        <ReportStationModal
+          isVisible={isStationReportModalVisible}
+          onClose={() => setIsStationReportModalVisible(false)}
+          stationId={station.id}
+          stationName={station.name}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -540,10 +566,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    gap: 8, // Add gap between buttons
   },
   actionButton: {
     flex: 1,
-    marginHorizontal: 4,
+    // marginHorizontal: 4, // Remove horizontal margin if using gap
   },
   section: {
     padding: 16,
