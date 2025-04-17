@@ -17,9 +17,10 @@ import { TablesInsert } from '@/utils/supabase/types';
 import { supabase } from '@/utils/supabase/supabase';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys'; // Import queryKeys
-import MapView, { Marker, Region } from 'react-native-maps'; // Import MapView
 import * as Location from 'expo-location'; // To get current location for initial map region
 import theme from '@/styles/theme'; // Import theme for colors
+import { LocationObjectCoords } from 'expo-location'; // Import LocationObjectCoords
+import LocationPickerModal from '@/components/map/LocationPickerModal'; // Import the new modal
 
 // Type for the report submission data
 type StationReportInsert = TablesInsert<'station_reports'>;
@@ -99,18 +100,31 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [province, setProvince] = useState('');
-  const [markerLocation, setMarkerLocation] = useState(initialCoordinates);
-  const [mapRegion, setMapRegion] = useState<Region | undefined>(undefined);
+  // Initialize selectedLocation with only lat/lng if initialCoordinates is provided
+  const [selectedLocation, setSelectedLocation] = useState<
+    LocationObjectCoords | undefined
+  >(
+    initialCoordinates
+      ? {
+          ...initialCoordinates,
+          accuracy: null,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        }
+      : undefined
+  );
+  const [isLocationPickerVisible, setIsLocationPickerVisible] = useState(false); // State for new modal
   const [operatingHoursNotes, setOperatingHoursNotes] = useState('');
   const [amenities, setAmenities] = useState<Record<string, boolean>>({}); // State for amenities checkboxes
 
   const { user } = useAuth();
   const submitAddStationMutation = useSubmitAddStationMutation();
 
-  // Effect to set initial map region
+  // Effect to reset state when modal becomes visible
   useEffect(() => {
     if (isVisible) {
-      // Reset state when modal becomes visible
       setStationName('');
       setStationBrand('');
       setAddress('');
@@ -118,57 +132,34 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       setProvince('');
       setOperatingHoursNotes('');
       setAmenities({}); // Reset amenities
-      setMarkerLocation(initialCoordinates); // Reset marker to initial/passed coords
-
-      const determineInitialRegion = async () => {
-        let region: Region;
-        if (initialCoordinates) {
-          region = {
-            ...initialCoordinates,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          };
-        } else {
-          // Fallback to current location if no initial coords provided
-          try {
-            let { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-              console.warn('Location permission denied for initial map view');
-              // Fallback to a default region (e.g., Metro Manila)
-              region = {
-                latitude: 14.5995,
-                longitude: 120.9842,
-                latitudeDelta: 0.5,
-                longitudeDelta: 0.5,
-              };
-            } else {
-              let location = await Location.getCurrentPositionAsync({});
-              region = {
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              };
-              if (!markerLocation) setMarkerLocation(location.coords); // Set marker if not already set
+      // Reset selectedLocation similarly when modal becomes visible
+      setSelectedLocation(
+        initialCoordinates
+          ? {
+              ...initialCoordinates,
+              accuracy: null,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null,
             }
-          } catch (error) {
-            console.error('Error getting current location:', error);
-            region = {
-              latitude: 14.5995,
-              longitude: 120.9842,
-              latitudeDelta: 0.5,
-              longitudeDelta: 0.5,
-            }; // Default fallback
-          }
-        }
-        setMapRegion(region);
-      };
-      determineInitialRegion();
+          : undefined
+      );
     }
   }, [isVisible, initialCoordinates]); // Rerun when visibility or initial coords change
 
-  const handleMapPress = (event: any) => {
-    setMarkerLocation(event.nativeEvent.coordinate);
+  // --- Handlers ---
+  const handleOpenLocationPicker = () => {
+    setIsLocationPickerVisible(true);
+  };
+
+  const handleCloseLocationPicker = () => {
+    setIsLocationPickerVisible(false);
+  };
+
+  const handleLocationSelect = (location: LocationObjectCoords) => {
+    setSelectedLocation(location);
+    setIsLocationPickerVisible(false); // Close picker after selection
   };
 
   const handleSubmit = () => {
@@ -195,10 +186,10 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       Alert.alert('Province Required', 'Please enter the province.');
       return;
     }
-    if (!markerLocation) {
+    if (!selectedLocation) {
       Alert.alert(
         'Location Required',
-        'Please tap on the map to set the station location.'
+        'Please set the station location using the map.'
       );
       return;
     }
@@ -215,8 +206,8 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       | 'status'
     > = {
       report_type: 'add', // Set report_type here
-      latitude: markerLocation.latitude,
-      longitude: markerLocation.longitude,
+      latitude: selectedLocation.latitude,
+      longitude: selectedLocation.longitude,
       // Store name/brand/comments in reported_data JSONB field
       reported_data: {
         name: stationName.trim(),
@@ -248,8 +239,8 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
     setProvince('');
     setOperatingHoursNotes('');
     setAmenities({});
-    setMarkerLocation(undefined);
-    setMapRegion(undefined);
+    setSelectedLocation(undefined);
+    setIsLocationPickerVisible(false); // Ensure picker is closed
     submitAddStationMutation.reset();
     onClose();
   };
@@ -318,39 +309,17 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                 maxLength={50}
               />
 
-              <Text style={styles.label}>
-                Location (Tap map to set/adjust):*
-              </Text>
-              <View style={styles.mapContainer}>
-                {mapRegion ? (
-                  <MapView
-                    style={styles.map}
-                    initialRegion={mapRegion}
-                    onPress={handleMapPress}
-                    showsUserLocation={true} // Show user's blue dot
-                    pitchEnabled={false} // Simplify map interaction
-                    rotateEnabled={false}
-                    scrollEnabled={true}
-                    zoomEnabled={true}
-                  >
-                    {markerLocation && (
-                      <Marker
-                        coordinate={markerLocation}
-                        title='Station Location'
-                        pinColor='green' // Use a distinct color for the suggestion marker
-                      />
-                    )}
-                  </MapView>
-                ) : (
-                  <View style={styles.mapPlaceholder}>
-                    <Text>Loading Map...</Text>
-                  </View>
-                )}
-              </View>
-              {markerLocation && (
+              <Text style={styles.label}>Location:*</Text>
+              <Button
+                title='Set Location on Map'
+                onPress={handleOpenLocationPicker}
+                variant='outline' // Or choose another appropriate variant
+                style={styles.setLocationButton}
+              />
+              {selectedLocation && (
                 <Text style={styles.coordsText}>
-                  Lat: {markerLocation.latitude.toFixed(6)}, Lng:{' '}
-                  {markerLocation.longitude.toFixed(6)}
+                  Lat: {selectedLocation.latitude.toFixed(6)}, Lng:{' '}
+                  {selectedLocation.longitude.toFixed(6)}
                 </Text>
               )}
 
@@ -418,10 +387,10 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                   style={styles.button}
                   loading={submitAddStationMutation.isPending}
                   disabled={
-                    !markerLocation ||
+                    !selectedLocation || // Use selectedLocation
                     !stationName.trim() ||
                     !stationBrand.trim() ||
-                    !address.trim() || // Add validation checks
+                    !address.trim() ||
                     !city.trim() ||
                     !province.trim() ||
                     submitAddStationMutation.isPending
@@ -433,6 +402,17 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* --- Location Picker Modal --- */}
+      {/* Render the modal conditionally */}
+      {isLocationPickerVisible && (
+        <LocationPickerModal
+          isVisible={isLocationPickerVisible}
+          onClose={handleCloseLocationPicker}
+          onLocationSelect={handleLocationSelect}
+          initialLocation={selectedLocation} // Pass current selection as initial
+        />
+      )}
     </Modal>
   );
 };
@@ -486,6 +466,15 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginBottom: 10, // Less margin below comments
   },
+  setLocationButton: {
+    marginBottom: 5, // Space below button
+  },
+  coordsText: {
+    fontSize: 12,
+    color: theme.Colors.gray,
+    textAlign: 'center',
+    marginBottom: 15, // Space below coordinates
+  },
   amenitiesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -527,12 +516,6 @@ const styles = StyleSheet.create({
   },
   mapPlaceholder: {
     // Styles for when map is loading
-  },
-  coordsText: {
-    fontSize: 12,
-    color: 'grey',
-    textAlign: 'center',
-    marginBottom: 10, // Less margin below coords
   },
   requiredText: {
     fontSize: 12,

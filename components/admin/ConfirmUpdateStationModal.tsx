@@ -9,6 +9,8 @@ import {
   Pressable,
   useColorScheme,
   ActivityIndicator,
+  Linking, // <-- Add Linking
+  TouchableOpacity, // <-- Add TouchableOpacity
 } from 'react-native';
 import { View, Text } from '@/components/Themed';
 import { Input } from '@/components/ui/Input';
@@ -253,6 +255,43 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
     onClose();
   };
 
+  // --- MAP LINK HANDLER ---
+  const handleOpenMap = async () => {
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      Alert.alert('Error', 'Invalid coordinates provided.');
+      return;
+    }
+
+    const scheme = Platform.select({
+      ios: 'maps://?ll=',
+      android: 'geo:',
+    });
+    const latLng = `${latitude},${longitude}`;
+    const zoomLevel = 17; // Street level zoom
+    const url = Platform.select({
+      ios: `${scheme}${latLng}&z=${zoomLevel}`,
+      android: `${scheme}${latLng}?q=${latLng}&z=${zoomLevel}`,
+    });
+
+    if (!url) {
+      Alert.alert('Error', 'Could not create map URL for this platform.');
+      return;
+    }
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', `Don't know how to open this URL: ${url}`);
+      }
+    } catch (error) {
+      console.error('Failed to open map link:', error);
+      Alert.alert('Error', 'Could not open map application.');
+    }
+  };
+  // --- END MAP LINK HANDLER ---
+
   const currentTextColor = Colors[colorScheme ?? 'light'].text;
   const errorColor = Colors.error; // Define error color
   const isProcessing =
@@ -423,6 +462,33 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
             {renderError('longitude')}
           </View>
         </View>
+
+        {/* --- View on Map Link --- */}
+        <TouchableOpacity
+          onPress={handleOpenMap}
+          disabled={
+            typeof latitude !== 'number' || typeof longitude !== 'number'
+          }
+          style={{
+            alignSelf: 'flex-end', // Position it near the coords
+            marginBottom: 10, // Add some space before the next field
+            opacity:
+              typeof latitude !== 'number' || typeof longitude !== 'number'
+                ? 0.5
+                : 1, // Dim if disabled
+          }}
+        >
+          <Text
+            style={{
+              color: Colors.primary, // Use theme color for link
+              fontSize: 14,
+              textDecorationLine: 'underline',
+            }}
+          >
+            View on Map
+          </Text>
+        </TouchableOpacity>
+        {/* --- End View on Map Link --- */}
 
         <Text style={[styles.label, { color: currentTextColor }]}>
           Google Place ID:

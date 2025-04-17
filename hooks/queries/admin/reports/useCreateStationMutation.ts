@@ -84,9 +84,9 @@ export const useCreateStationMutation = () => {
       return data;
     },
     onMutate: async (newStationData) => {
-      console.log('[CreateStation] onMutate started (Hook)', {
-        newStationData,
-      });
+      // console.log('[CreateStation] onMutate started (Hook)', { // Removed console log
+      //   newStationData,
+      // });
       await queryClient.cancelQueries({ queryKey: adminStationListKey });
       await queryClient.cancelQueries({ queryKey: mapStationsBaseKey });
 
@@ -101,9 +101,9 @@ export const useCreateStationMutation = () => {
         type: 'active',
         exact: false,
       });
-      console.log(
-        `[CreateStation] Found ${mapQueries.length} active map caches (Hook).`
-      );
+      // console.log( // Removed console log
+      //   `[CreateStation] Found ${mapQueries.length} active map caches (Hook).`
+      // );
 
       const optimisticAdminStation: Tables<'gas_stations'> = {
         id: `temp-${Date.now()}`,
@@ -189,11 +189,11 @@ export const useCreateStationMutation = () => {
         }
       });
 
-      console.log('[CreateStation] onMutate finished (Hook).');
+      // console.log('[CreateStation] onMutate finished (Hook).'); // Removed console log
       return { previousAdminStations, previousMapStations };
     },
     onError: (err, newStationData, context) => {
-      console.error('[CreateStation] onError triggered (Hook):', err);
+      // console.error('[CreateStation] onError triggered (Hook):', err); // Removed console log
       if (context?.previousAdminStations !== undefined) {
         queryClient.setQueryData(
           adminStationListKey,
@@ -207,6 +207,11 @@ export const useCreateStationMutation = () => {
       }
       // Error Alert handled by calling component
     },
-    // onSettled removed - invalidation handled by calling component
+    // Invalidate queries on settlement (success or error after rollback)
+    // This ensures the map and admin list reflect the true state.
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: adminStationListKey });
+      queryClient.invalidateQueries({ queryKey: mapStationsBaseKey });
+    },
   });
 };

@@ -83,25 +83,25 @@ export default function AdminReportsScreen() {
       });
       console.log('Report status updated successfully (handleConfirmAttempt)');
 
-      // 3. Invalidate queries *after* successful mutations
-      console.log('Invalidating queries after successful creation...');
-      const adminStationListKey = queryKeys.admin.stations.list();
-      const mapStationsBaseKey = [
-        ...queryKeys.stations.all,
-        'listWithPrice',
-      ] as const;
-      // Use setTimeout to delay invalidation slightly, allowing UI to settle
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: adminStationListKey });
-        queryClient.invalidateQueries({ queryKey: mapStationsBaseKey });
-        console.log('Admin and Map queries invalidated.');
-      }, 150);
+      // 3. Invalidation is now handled by the useCreateStationMutation's onSettled callback
+      // console.log('Invalidating queries after successful creation...'); // Removed console log
+      // const adminStationListKey = queryKeys.admin.stations.list();
+      // const mapStationsBaseKey = [
+      //   ...queryKeys.stations.all,
+      //   'listWithPrice',
+      // ] as const;
+      // // Use setTimeout to delay invalidation slightly, allowing UI to settle
+      // setTimeout(() => {
+      //   queryClient.invalidateQueries({ queryKey: adminStationListKey });
+      //   queryClient.invalidateQueries({ queryKey: mapStationsBaseKey });
+      //   console.log('Admin and Map queries invalidated.');
+      // }, 150);
 
       Alert.alert('Success', 'Station created and report approved.');
       setIsConfirming(false);
       return true; // Indicate success
     } catch (error: any) {
-      console.error('Error during confirm/create process:', error);
+      // console.error('Error during confirm/create process:', error); // Removed console log
       Alert.alert(
         'Operation Failed',
         error.message || 'Could not create station or update report.'

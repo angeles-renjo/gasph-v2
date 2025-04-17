@@ -8,6 +8,8 @@ import {
   ScrollView,
   Pressable,
   useColorScheme,
+  Linking, // <-- Add Linking
+  TouchableOpacity, // <-- Add TouchableOpacity
 } from 'react-native';
 import { View, Text } from '@/components/Themed';
 import { Input } from '@/components/ui/Input';
@@ -229,6 +231,48 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
     setValidationErrors({}); // Clear errors on cancel
     onClose();
   };
+
+  // --- MAP LINK HANDLER ---
+  const handleOpenMap = async () => {
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      Alert.alert('Error', 'Invalid coordinates provided.');
+      return;
+    }
+
+    const scheme = Platform.select({
+      ios: 'maps://?ll=',
+      android: 'geo:',
+    });
+    const latLng = `${latitude},${longitude}`;
+    const zoomLevel = 17; // Street level zoom
+    const url = Platform.select({
+      ios: `${scheme}${latLng}&z=${zoomLevel}`,
+      // Android geo URI format: geo:latitude,longitude?z=zoom
+      // Query parameters might not be universally supported for zoom on Android geo URIs
+      // A simple lat,lng might be more reliable, opening the map centered.
+      // Adding the query parameter anyway as it works on many devices.
+      android: `${scheme}${latLng}?q=${latLng}&z=${zoomLevel}`,
+    });
+
+    if (!url) {
+      Alert.alert('Error', 'Could not create map URL for this platform.');
+      return;
+    }
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', `Don't know how to open this URL: ${url}`);
+      }
+    } catch (error) {
+      console.error('Failed to open map link:', error);
+      Alert.alert('Error', 'Could not open map application.');
+    }
+  };
+  // --- END MAP LINK HANDLER ---
+
   // --- END REFACTORED HANDLERS ---
 
   // Helper to render suggested data (read-only)
@@ -459,6 +503,34 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
                   {renderError('longitude')}
                 </View>
               </View>
+
+              {/* --- View on Map Link --- */}
+              <TouchableOpacity
+                onPress={handleOpenMap}
+                disabled={
+                  typeof latitude !== 'number' || typeof longitude !== 'number'
+                }
+                style={{
+                  alignSelf: 'flex-end', // Position it near the coords
+                  marginBottom: 10, // Add some space before the next field
+                  opacity:
+                    typeof latitude !== 'number' ||
+                    typeof longitude !== 'number'
+                      ? 0.5
+                      : 1, // Dim if disabled
+                }}
+              >
+                <Text
+                  style={{
+                    color: Colors.primary, // Use theme color for link
+                    fontSize: 14,
+                    textDecorationLine: 'underline',
+                  }}
+                >
+                  View on Map
+                </Text>
+              </TouchableOpacity>
+              {/* --- End View on Map Link --- */}
 
               <Text style={[styles.label, { color: currentTextColor }]}>
                 Google Place ID:*
