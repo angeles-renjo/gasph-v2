@@ -7,7 +7,6 @@ import {
   useColorScheme, // Import useColorScheme for styles
 } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';

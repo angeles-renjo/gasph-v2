@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleSheet, FlatList, RefreshControl } from 'react-native'; // Re-added FlatList
 import { SafeAreaView } from 'react-native-safe-area-context';
 // Removed FlashList import

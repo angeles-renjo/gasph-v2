@@ -1,11 +1,4 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { PriceCard } from '@/components/price/PriceCard';
 import { Card } from '@/components/ui/Card';

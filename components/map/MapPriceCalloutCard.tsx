@@ -1,10 +1,9 @@
-import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { GasStation } from '@/hooks/queries/stations/useNearbyStations';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { PriceCardProps } from '@/components/price/PriceCard'; // Import PriceCardProps for community price type
 import { formatPrice } from '@/utils/formatters';
-import theme, { Colors, Spacing, Typography } from '@/styles/theme';
+import { Colors, Spacing, Typography } from '@/styles/theme';
 // Removed data fetching imports and duplicate React/RN imports
 
 // Define expected DOE price structure (adjust if needed based on actual view output)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { z } from 'zod'; // Import Zod
 import {
   Modal,
@@ -18,7 +18,6 @@ import Checkbox from 'expo-checkbox';
 import { Json, TablesInsert } from '@/utils/supabase/types';
 import { Colors } from '@/styles/theme';
 import { useAuth } from '@/hooks/useAuth';
-import { ZodErrorMap, ZodIssue } from 'zod'; // Import Zod types for error handling
 
 // Import moved types
 import {

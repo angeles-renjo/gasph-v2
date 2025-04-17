@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { PriceCycleCard } from '@/components/admin/PriceCycleCard';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';

@@ -2,9 +2,8 @@ import React, {
   useState,
   useRef,
   useMemo,
-  useCallback,
-  forwardRef, // Import forwardRef
-  useImperativeHandle, // Import useImperativeHandle if needed, though likely not for MapView ref
+  useCallback, // Import forwardRef
+  forwardRef,
 } from 'react';
 import {
   StyleSheet,

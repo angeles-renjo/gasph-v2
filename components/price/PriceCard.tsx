@@ -1,13 +1,5 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '@/components/ui/Card';
-import { FontAwesome5 } from '@expo/vector-icons';
 import { formatPrice, formatRelativeTime } from '@/utils/formatters';
 import { Colors, Typography, Spacing } from '@/styles/theme'; // Import theme constants
 // Removed unused hooks: usePriceConfirmation, useHasConfirmedPrice, useAuth

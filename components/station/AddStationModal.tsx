@@ -17,7 +17,6 @@ import { TablesInsert } from '@/utils/supabase/types';
 import { supabase } from '@/utils/supabase/supabase';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys'; // Import queryKeys
-import * as Location from 'expo-location'; // To get current location for initial map region
 import theme from '@/styles/theme'; // Import theme for colors
 import { LocationObjectCoords } from 'expo-location'; // Import LocationObjectCoords
 import LocationPickerModal from '@/components/map/LocationPickerModal'; // Import the new modal

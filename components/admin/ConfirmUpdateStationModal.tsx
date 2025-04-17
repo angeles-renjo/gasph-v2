@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { z } from 'zod'; // Import Zod
 import {
   Modal,
@@ -8,15 +8,16 @@ import {
   ScrollView,
   Pressable,
   useColorScheme,
-  ActivityIndicator,
-  Linking, // <-- Add Linking
-  TouchableOpacity, // <-- Add TouchableOpacity
+  // <-- Add Linking
+  Linking,
+  // <-- Add TouchableOpacity
+  TouchableOpacity,
 } from 'react-native';
 import { View, Text } from '@/components/Themed';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import Checkbox from 'expo-checkbox';
-import { Json, Tables, TablesUpdate } from '@/utils/supabase/types';
+import { Json, TablesUpdate } from '@/utils/supabase/types';
 import { Colors } from '@/styles/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useStationDetails } from '@/hooks/queries/stations/useStationDetails';
@@ -27,7 +28,6 @@ import { StationReportWithUser } from '@/hooks/queries/utils/types';
 import { styles } from '@/styles/components/admin/ConfirmAddStationModal.styles';
 import { LoadingIndicator } from '../common/LoadingIndicator';
 import { ErrorDisplay } from '../common/ErrorDisplay';
-import { ZodErrorMap, ZodIssue } from 'zod'; // Import Zod types for error handling
 
 type ConfirmUpdateStationModalProps = {
   isVisible: boolean;

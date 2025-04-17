@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Modal, StyleSheet, Alert, Platform } from 'react-native';
 import { View, Text } from '@/components/Themed';
 import { Input } from '@/components/ui/Input'; // Assuming Input component exists

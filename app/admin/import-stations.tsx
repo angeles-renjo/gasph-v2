@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FontAwesome5 } from '@expo/vector-icons';
 import { useImportStations } from '@/hooks/queries/stations/useImportStations';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { SUPPORTED_CITIES } from '@/constants/supportedCities'; // Import the list
 
 export default function ImportStationsScreen() {

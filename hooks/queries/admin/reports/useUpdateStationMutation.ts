@@ -2,7 +2,7 @@ import { useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
 import { z } from 'zod'; // Import Zod
 import { supabase } from '@/utils/supabase/supabase';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
-import { Json, Tables, TablesUpdate } from '@/utils/supabase/types';
+import { Tables, TablesUpdate } from '@/utils/supabase/types';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations'; // Import map station type
 
 // Type for the data needed to update a station (ID is required)

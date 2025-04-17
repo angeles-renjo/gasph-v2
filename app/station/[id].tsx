@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import { Card } from '@/components/ui/Card';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { Input } from '@/components/ui/Input';
-import { formatDate, formatOperatingHours } from '@/utils/formatters';
+import { formatOperatingHours } from '@/utils/formatters';
 import { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys'; // Import queryKeys
 import ReportStationModal from '@/components/station/ReportStationModal'; // Import the report modal

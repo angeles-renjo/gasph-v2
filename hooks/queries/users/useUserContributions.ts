@@ -3,7 +3,6 @@ import { supabase } from '@/utils/supabase/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 import { defaultQueryOptions } from '@/hooks/queries/utils/queryOptions';
-import { Tables } from '@/utils/supabase/types'; // Import generated types
 
 // Use the view type, potentially extending or picking fields if needed
 // type ActivePriceReport = Tables<'active_price_reports'>;

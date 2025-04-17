@@ -2,7 +2,7 @@ import { useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
 import { z } from 'zod'; // Import Zod
 import { supabase } from '@/utils/supabase/supabase';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
-import { Json, Tables, TablesInsert } from '@/utils/supabase/types';
+import { Tables, TablesInsert } from '@/utils/supabase/types';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations'; // Import map station type
 
 // --- ZOD SCHEMA for Gas Station Insert ---
