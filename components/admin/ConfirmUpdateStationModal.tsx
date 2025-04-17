@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { z } from 'zod'; // Import Zod
 import {
   Modal,
   Alert,
@@ -24,12 +25,50 @@ import { StationReportWithUser } from '@/hooks/queries/utils/types';
 import { styles } from '@/styles/components/admin/ConfirmAddStationModal.styles';
 import { LoadingIndicator } from '../common/LoadingIndicator';
 import { ErrorDisplay } from '../common/ErrorDisplay';
+import { ZodErrorMap, ZodIssue } from 'zod'; // Import Zod types for error handling
 
 type ConfirmUpdateStationModalProps = {
   isVisible: boolean;
   onClose: () => void;
   report: StationReportWithUser | null; // Report contains reason and station_id
 };
+
+// --- ZOD SCHEMA ---
+const stationUpdateSchema = z.object({
+  name: z.string().min(1, 'Station Name is required.'),
+  brand: z.string().min(1, 'Brand is required.'),
+  address: z.string().min(1, 'Address is required.'),
+  city: z.string().min(1, 'City is required.'),
+  province: z.string().min(1, 'Province is required.'),
+  latitude: z.number({ invalid_type_error: 'Latitude must be a number.' }),
+  longitude: z.number({ invalid_type_error: 'Longitude must be a number.' }),
+  placeId: z.string().nullable().optional(), // Allow null or empty string
+  amenities: z.record(z.boolean()).optional().default({}),
+  operatingHoursJson: z
+    .string()
+    .refine(
+      (val) => {
+        try {
+          const parsed = JSON.parse(val);
+          return (
+            typeof parsed === 'object' &&
+            !Array.isArray(parsed) &&
+            parsed !== null
+          );
+        } catch (e) {
+          return false;
+        }
+      },
+      { message: 'Operating Hours must be a valid JSON object.' }
+    )
+    .optional()
+    .default('{}'),
+  status: z.enum(['active', 'inactive']),
+});
+// --- END ZOD SCHEMA ---
+
+// Type for flattened Zod errors
+type ValidationErrors = Record<string, string[] | undefined>;
 
 const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
   isVisible,
@@ -48,6 +87,9 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
   const [amenities, setAmenities] = useState<Record<string, boolean>>({});
   const [operatingHoursJson, setOperatingHoursJson] = useState('{}');
   const [status, setStatus] = useState<'active' | 'inactive'>('inactive'); // Default to inactive
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
+    {}
+  ); // State for validation errors
 
   const { user } = useAuth();
   const colorScheme = useColorScheme();
@@ -118,6 +160,7 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
       setAmenities({});
       setOperatingHoursJson('{}');
       setStatus('inactive');
+      setValidationErrors({}); // Clear errors when details load/reset
     }
   }, [stationDetails, report]); // Depend on stationDetails and report
 
@@ -130,53 +173,53 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
       Alert.alert('Error', 'Report data, user, or station ID is missing.');
       return;
     }
-    // Basic validation (similar to add modal, adjust as needed)
-    if (
-      !name.trim() ||
-      !brand.trim() ||
-      !address.trim() ||
-      !city.trim() ||
-      !province.trim() ||
-      latitude === null ||
-      longitude === null
-      // placeId is allowed to be empty/null during update if necessary
-    ) {
-      Alert.alert(
-        'Error',
-        'Please ensure required station fields (Name, Brand, Address, City, Province, Lat, Lng) are filled.'
-      );
-      return;
-    }
-    let parsedOperatingHours = {};
-    try {
-      parsedOperatingHours = JSON.parse(operatingHoursJson || '{}');
-      if (
-        typeof parsedOperatingHours !== 'object' ||
-        Array.isArray(parsedOperatingHours) ||
-        parsedOperatingHours === null
-      ) {
-        throw new Error('Operating hours must be a valid JSON object.');
-      }
-    } catch (e: any) {
-      Alert.alert(
-        'Invalid JSON',
-        `Error parsing Operating Hours JSON: ${e.message}`
-      );
-      return;
-    }
 
-    const finalStationUpdateData: TablesUpdate<'gas_stations'> = {
+    const formData = {
       name: name.trim(),
       brand: brand.trim(),
       address: address.trim(),
       city: city.trim(),
       province: province.trim(),
-      latitude: latitude,
-      longitude: longitude,
-      place_id: placeId?.trim() || null, // Send null if empty string
+      latitude: latitude, // Keep as number | null for initial check
+      longitude: longitude, // Keep as number | null for initial check
+      placeId: placeId?.trim() || null, // Use null if empty
       amenities: amenities,
-      operating_hours: parsedOperatingHours as Json,
+      operatingHoursJson: operatingHoursJson || '{}',
       status: status,
+    };
+
+    // Use safeParse to validate
+    const result = stationUpdateSchema.safeParse(formData);
+
+    if (!result.success) {
+      const errors = result.error.flatten().fieldErrors;
+      setValidationErrors(errors);
+      console.error('Validation Errors:', JSON.stringify(errors, null, 2)); // Log detailed errors
+      Alert.alert('Validation Error', 'Please check the highlighted fields.');
+      return; // Stop execution if validation fails
+    }
+
+    // Clear errors if validation passes
+    setValidationErrors({});
+
+    // Data is valid, proceed
+    const validatedData = result.data;
+
+    // Parse operating hours JSON safely (already validated by Zod)
+    const parsedOperatingHours = JSON.parse(validatedData.operatingHoursJson);
+
+    const finalStationUpdateData: TablesUpdate<'gas_stations'> = {
+      name: validatedData.name,
+      brand: validatedData.brand,
+      address: validatedData.address,
+      city: validatedData.city,
+      province: validatedData.province,
+      latitude: validatedData.latitude, // Guaranteed to be a number
+      longitude: validatedData.longitude, // Guaranteed to be a number
+      place_id: validatedData.placeId, // Use validated placeId
+      amenities: validatedData.amenities,
+      operating_hours: parsedOperatingHours as Json,
+      status: validatedData.status,
     };
 
     try {
@@ -206,12 +249,26 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
   };
 
   const handleCancel = () => {
+    setValidationErrors({}); // Clear errors on cancel
     onClose();
   };
 
   const currentTextColor = Colors[colorScheme ?? 'light'].text;
+  const errorColor = Colors.error; // Define error color
   const isProcessing =
     updateStationMutation.isPending || updateReportStatusMutation.isPending;
+
+  // Helper to render error messages
+  const renderError = (field: keyof ValidationErrors) => {
+    if (validationErrors[field]) {
+      return (
+        <Text style={{ color: errorColor, fontSize: 12, marginTop: 2 }}>
+          {validationErrors[field]?.[0]}
+        </Text>
+      );
+    }
+    return null;
+  };
 
   // --- Render Logic ---
   const renderContent = () => {
@@ -254,18 +311,28 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
         <Input
           value={name}
           onChangeText={setName}
-          style={styles.input}
+          style={[
+            styles.input,
+            validationErrors.name && { borderColor: errorColor },
+          ]}
           editable={true}
+          placeholderTextColor={Colors.mediumGray}
         />
+        {renderError('name')}
 
         <Text style={[styles.label, { color: currentTextColor }]}>Brand:*</Text>
         <Input
           placeholder='e.g., Shell, Petron'
           value={brand}
           onChangeText={setBrand}
-          style={styles.input}
+          style={[
+            styles.input,
+            validationErrors.brand && { borderColor: errorColor },
+          ]}
           editable={true}
+          placeholderTextColor={Colors.mediumGray}
         />
+        {renderError('brand')}
 
         <Text style={[styles.label, { color: currentTextColor }]}>
           Address:*
@@ -274,9 +341,14 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
           placeholder='Street Address'
           value={address}
           onChangeText={setAddress}
-          style={styles.input}
+          style={[
+            styles.input,
+            validationErrors.address && { borderColor: errorColor },
+          ]}
           editable={true}
+          placeholderTextColor={Colors.mediumGray}
         />
+        {renderError('address')}
 
         <View style={styles.row}>
           <View style={styles.column}>
@@ -287,9 +359,14 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
               placeholder='e.g., Legazpi City'
               value={city}
               onChangeText={setCity}
-              style={styles.input}
+              style={[
+                styles.input,
+                validationErrors.city && { borderColor: errorColor },
+              ]}
               editable={true}
+              placeholderTextColor={Colors.mediumGray}
             />
+            {renderError('city')}
           </View>
           <View style={styles.column}>
             <Text style={[styles.label, { color: currentTextColor }]}>
@@ -299,9 +376,14 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
               placeholder='e.g., Albay'
               value={province}
               onChangeText={setProvince}
-              style={styles.input}
+              style={[
+                styles.input,
+                validationErrors.province && { borderColor: errorColor },
+              ]}
               editable={true}
+              placeholderTextColor={Colors.mediumGray}
             />
+            {renderError('province')}
           </View>
         </View>
 
@@ -313,10 +395,15 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
             <Input
               value={latitude?.toString() ?? ''}
               onChangeText={(t) => setLatitude(parseFloat(t) || null)}
-              style={styles.input}
+              style={[
+                styles.input,
+                validationErrors.latitude && { borderColor: errorColor },
+              ]}
               keyboardType='numeric'
               editable={true}
+              placeholderTextColor={Colors.mediumGray}
             />
+            {renderError('latitude')}
           </View>
           <View style={styles.column}>
             <Text style={[styles.label, { color: currentTextColor }]}>
@@ -325,10 +412,15 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
             <Input
               value={longitude?.toString() ?? ''}
               onChangeText={(t) => setLongitude(parseFloat(t) || null)}
-              style={styles.input}
+              style={[
+                styles.input,
+                validationErrors.longitude && { borderColor: errorColor },
+              ]}
               keyboardType='numeric'
               editable={true}
+              placeholderTextColor={Colors.mediumGray}
             />
+            {renderError('longitude')}
           </View>
         </View>
 
@@ -339,9 +431,14 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
           placeholder='(Optional) Find using Google Maps'
           value={placeId ?? ''}
           onChangeText={setPlaceId}
-          style={styles.input}
+          style={[
+            styles.input,
+            validationErrors.placeId && { borderColor: errorColor },
+          ]} // placeId is optional, but show error if invalid format provided
           editable={true} // Make editable
+          placeholderTextColor={Colors.mediumGray}
         />
+        {renderError('placeId')}
 
         {/* Status Picker */}
         <Text style={[styles.label, { color: currentTextColor }]}>Status:</Text>
@@ -422,10 +519,16 @@ const ConfirmUpdateStationModal: React.FC<ConfirmUpdateStationModalProps> = ({
           onChangeText={setOperatingHoursJson}
           multiline
           numberOfLines={4}
-          style={[styles.input, styles.jsonInput]}
+          style={[
+            styles.input,
+            styles.jsonInput,
+            validationErrors.operatingHoursJson && { borderColor: errorColor },
+          ]}
           autoCapitalize='none'
           autoCorrect={false}
+          placeholderTextColor={Colors.mediumGray}
         />
+        {renderError('operatingHoursJson')}
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>

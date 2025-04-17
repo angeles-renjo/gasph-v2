@@ -1,11 +1,31 @@
 import { useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
+import { z } from 'zod'; // Import Zod
 import { supabase } from '@/utils/supabase/supabase';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
-import { Tables, TablesUpdate } from '@/utils/supabase/types';
+import { Json, Tables, TablesUpdate } from '@/utils/supabase/types';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations'; // Import map station type
 
 // Type for the data needed to update a station (ID is required)
 export type StationUpdateData = TablesUpdate<'gas_stations'> & { id: string };
+
+// --- ZOD SCHEMA for Gas Station Update ---
+// Most fields are optional for update, but ID is required.
+const gasStationUpdateSchema = z.object({
+  id: z.string().uuid('Invalid Station ID format.'), // Ensure ID is a valid UUID
+  name: z.string().min(1).optional(),
+  brand: z.string().min(1).optional(),
+  address: z.string().min(1).optional(),
+  city: z.string().min(1).optional(),
+  province: z.string().min(1).optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  place_id: z.string().min(1).nullable().optional(), // Allow null or string
+  amenities: z.record(z.any()).nullable().optional(), // Allow any JSON structure
+  operating_hours: z.record(z.any()).nullable().optional(), // Allow any JSON structure
+  status: z.enum(['active', 'inactive', 'pending']).optional(),
+  // created_at, updated_at are handled by Supabase/optimistic updates
+});
+// --- END ZOD SCHEMA ---
 
 export const useUpdateStationMutation = () => {
   const queryClient = useQueryClient();
@@ -33,11 +53,28 @@ export const useUpdateStationMutation = () => {
     UpdateMutationContext
   >({
     mutationFn: async (stationUpdateData) => {
-      const { id, ...updateData } = stationUpdateData;
+      // --- ZOD VALIDATION ---
+      const validationResult =
+        gasStationUpdateSchema.safeParse(stationUpdateData);
+      if (!validationResult.success) {
+        console.error(
+          'Zod Validation Error (useUpdateStationMutation):',
+          validationResult.error.flatten()
+        );
+        const errorMessages = validationResult.error.errors
+          .map((e) => `${e.path.join('.')}: ${e.message}`)
+          .join(', ');
+        throw new Error(`Invalid station update data: ${errorMessages}`);
+      }
+      // Use validated data for the update
+      const { id, ...validatedUpdateData } = validationResult.data;
+      // --- END ZOD VALIDATION ---
+
+      // Ensure we don't try to update the ID itself
       const { data, error } = await supabase
         .from('gas_stations')
-        .update(updateData)
-        .eq('id', id)
+        .update(validatedUpdateData as TablesUpdate<'gas_stations'>) // Cast validated data
+        .eq('id', id) // Use the validated ID from the schema result
         .select()
         .single();
 
@@ -48,6 +85,9 @@ export const useUpdateStationMutation = () => {
       }
       return data;
     },
+    // Pass validated data to onMutate? No, onMutate receives the original input.
+    // Optimistic updates will use the original input `stationUpdateData`.
+    // The actual update uses validated data.
     onMutate: async (stationUpdateData) => {
       const { id: stationIdToUpdate } = stationUpdateData;
       console.log('[UpdateStation] onMutate started', { stationUpdateData });

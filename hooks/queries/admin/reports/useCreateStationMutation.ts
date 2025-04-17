@@ -1,8 +1,29 @@
 import { useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
+import { z } from 'zod'; // Import Zod
 import { supabase } from '@/utils/supabase/supabase';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
-import { Tables, TablesInsert } from '@/utils/supabase/types';
+import { Json, Tables, TablesInsert } from '@/utils/supabase/types';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations'; // Import map station type
+
+// --- ZOD SCHEMA for Gas Station Insert ---
+const gasStationInsertSchema = z.object({
+  name: z.string().min(1),
+  brand: z.string().min(1),
+  address: z.string().min(1),
+  city: z.string().min(1),
+  province: z.string().min(1),
+  latitude: z.number(),
+  longitude: z.number(),
+  place_id: z.string().min(1).nullable(), // Allow null initially, handle unique constraint later
+  amenities: z.record(z.any()).nullable().optional(), // Allow any JSON structure for amenities
+  operating_hours: z.record(z.any()).nullable().optional(), // Allow any JSON structure for operating hours
+  status: z
+    .enum(['active', 'inactive', 'pending'])
+    .optional()
+    .default('active'), // Default status
+  // created_at, updated_at, id are handled by Supabase
+});
+// --- END ZOD SCHEMA ---
 
 export const useCreateStationMutation = () => {
   const queryClient = useQueryClient();
@@ -27,11 +48,29 @@ export const useCreateStationMutation = () => {
     CreateMutationContext
   >({
     mutationFn: async (stationData) => {
+      // --- ZOD VALIDATION ---
+      const validationResult = gasStationInsertSchema.safeParse(stationData);
+      if (!validationResult.success) {
+        console.error(
+          'Zod Validation Error (useCreateStationMutation):',
+          validationResult.error.flatten()
+        );
+        // Combine Zod error messages for a clearer error
+        const errorMessages = validationResult.error.errors
+          .map((e) => `${e.path.join('.')}: ${e.message}`)
+          .join(', ');
+        throw new Error(`Invalid station data: ${errorMessages}`);
+      }
+      // Use validated data for the insert
+      const validatedStationData = validationResult.data;
+      // --- END ZOD VALIDATION ---
+
       const { data, error } = await supabase
         .from('gas_stations')
-        .insert(stationData)
+        .insert(validatedStationData as TablesInsert<'gas_stations'>) // Cast validated data
         .select()
         .single();
+
       if (error) {
         console.error('Error creating station:', error);
         if (error.message.includes('gas_stations_place_id_unique')) {

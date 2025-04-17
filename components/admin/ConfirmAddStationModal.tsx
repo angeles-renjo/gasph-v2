@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { z } from 'zod'; // Import Zod
 import {
   Modal,
   Alert,
@@ -15,6 +16,7 @@ import Checkbox from 'expo-checkbox';
 import { Json, TablesInsert } from '@/utils/supabase/types';
 import { Colors } from '@/styles/theme';
 import { useAuth } from '@/hooks/useAuth';
+import { ZodErrorMap, ZodIssue } from 'zod'; // Import Zod types for error handling
 
 // Import moved types
 import {
@@ -40,6 +42,42 @@ type ConfirmAddStationModalProps = {
 };
 // --- END MODIFIED PROPS ---
 
+// --- ZOD SCHEMA ---
+const stationCreationSchema = z.object({
+  name: z.string().min(1, 'Station Name is required.'),
+  brand: z.string().min(1, 'Brand is required.'),
+  address: z.string().min(1, 'Address is required.'),
+  city: z.string().min(1, 'City is required.'),
+  province: z.string().min(1, 'Province is required.'),
+  latitude: z.number({ invalid_type_error: 'Latitude must be a number.' }),
+  longitude: z.number({ invalid_type_error: 'Longitude must be a number.' }),
+  placeId: z.string().min(1, 'Google Place ID is required.'),
+  amenities: z.record(z.boolean()).optional().default({}),
+  operatingHoursJson: z
+    .string()
+    .refine(
+      (val) => {
+        try {
+          const parsed = JSON.parse(val);
+          return (
+            typeof parsed === 'object' &&
+            !Array.isArray(parsed) &&
+            parsed !== null
+          );
+        } catch (e) {
+          return false;
+        }
+      },
+      { message: 'Operating Hours must be a valid JSON object.' }
+    )
+    .optional()
+    .default('{}'),
+});
+// --- END ZOD SCHEMA ---
+
+// Type for flattened Zod errors
+type ValidationErrors = Record<string, string[] | undefined>;
+
 const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
   isVisible,
   onClose,
@@ -58,6 +96,9 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
   const [placeId, setPlaceId] = useState('');
   const [amenities, setAmenities] = useState<Record<string, boolean>>({});
   const [operatingHoursJson, setOperatingHoursJson] = useState('{}');
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
+    {}
+  ); // State for validation errors
 
   const { user } = useAuth();
   const colorScheme = useColorScheme();
@@ -101,6 +142,7 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
       setAmenities({});
       setOperatingHoursJson('{}');
       setPlaceId('');
+      setValidationErrors({}); // Clear errors on report change
     }
   }, [report]);
 
@@ -108,69 +150,72 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
     setAmenities((prev) => ({ ...prev, [key]: isChecked }));
   };
 
-  // --- REFACTORED HANDLERS (Remain the same internally) ---
+  // --- REFACTORED HANDLERS (Using Zod) ---
   const attemptStationCreationAndReportUpdate = async (): Promise<boolean> => {
     if (!report || !user) {
       Alert.alert('Error', 'Report data or admin user is missing.');
       return false;
     }
-    if (!placeId.trim()) {
-      Alert.alert('Error', 'Google Place ID is required.');
-      return false;
-    }
-    if (
-      !name.trim() ||
-      !brand.trim() ||
-      !address.trim() ||
-      !city.trim() ||
-      !province.trim() ||
-      latitude === null ||
-      longitude === null
-    ) {
-      Alert.alert(
-        'Error',
-        'Please ensure all required station fields are filled.'
-      );
-      return false;
-    }
-    let parsedOperatingHours = {};
-    try {
-      parsedOperatingHours = JSON.parse(operatingHoursJson || '{}');
-      if (
-        typeof parsedOperatingHours !== 'object' ||
-        Array.isArray(parsedOperatingHours) ||
-        parsedOperatingHours === null
-      ) {
-        throw new Error('Operating hours must be a valid JSON object.');
-      }
-    } catch (e: any) {
-      Alert.alert(
-        'Invalid JSON',
-        `Error parsing Operating Hours JSON: ${e.message}`
-      );
-      return false;
-    }
 
-    const finalStationData: TablesInsert<'gas_stations'> = {
+    const formData = {
       name: name.trim(),
       brand: brand.trim(),
       address: address.trim(),
       city: city.trim(),
       province: province.trim(),
-      latitude: latitude,
-      longitude: longitude,
-      place_id: placeId.trim(),
+      latitude: latitude, // Keep as number | null for initial check
+      longitude: longitude, // Keep as number | null for initial check
+      placeId: placeId.trim(),
       amenities: amenities,
+      operatingHoursJson: operatingHoursJson || '{}',
+    };
+
+    // Use safeParse to validate
+    const result = stationCreationSchema.safeParse(formData);
+
+    if (!result.success) {
+      const errors = result.error.flatten().fieldErrors;
+      setValidationErrors(errors);
+      console.error('Validation Errors:', JSON.stringify(errors, null, 2)); // Log detailed errors
+      Alert.alert('Validation Error', 'Please check the highlighted fields.');
+      return false;
+    }
+
+    // Clear errors if validation passes
+    setValidationErrors({});
+
+    // Data is valid, proceed
+    const validatedData = result.data;
+
+    // Parse operating hours JSON safely (already validated by Zod)
+    const parsedOperatingHours = JSON.parse(validatedData.operatingHoursJson);
+
+    const finalStationData: TablesInsert<'gas_stations'> = {
+      name: validatedData.name,
+      brand: validatedData.brand,
+      address: validatedData.address,
+      city: validatedData.city,
+      province: validatedData.province,
+      latitude: validatedData.latitude, // Now guaranteed to be a number
+      longitude: validatedData.longitude, // Now guaranteed to be a number
+      place_id: validatedData.placeId,
+      amenities: validatedData.amenities,
       operating_hours: parsedOperatingHours as Json,
       status: 'active',
     };
 
-    const success = await onConfirmAttempt(
-      finalStationData,
-      report.id,
-      user.id
-    );
-    return success;
+    try {
+      const success = await onConfirmAttempt(
+        finalStationData,
+        report.id,
+        user.id
+      );
+      return success;
+    } catch (error) {
+      console.error('Error during station creation attempt:', error);
+      Alert.alert('Error', 'Failed to create station. Please try again.');
+      return false;
+    }
   };
 
   const handleConfirmPress = async () => {
@@ -181,6 +226,7 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
   };
 
   const handleCancel = () => {
+    setValidationErrors({}); // Clear errors on cancel
     onClose();
   };
   // --- END REFACTORED HANDLERS ---
@@ -261,6 +307,20 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
 
   const currentTextColor = Colors[colorScheme ?? 'light'].text;
 
+  const errorColor = Colors.error; // Define error color
+
+  // Helper to render error messages
+  const renderError = (field: keyof ValidationErrors) => {
+    if (validationErrors[field]) {
+      return (
+        <Text style={{ color: errorColor, fontSize: 12, marginTop: 2 }}>
+          {validationErrors[field]?.[0]}
+        </Text>
+      );
+    }
+    return null;
+  };
+
   return (
     <Modal
       animationType='slide'
@@ -289,7 +349,16 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
               <Text style={[styles.label, { color: currentTextColor }]}>
                 Station Name:*
               </Text>
-              <Input value={name} onChangeText={setName} style={styles.input} />
+              <Input
+                value={name}
+                onChangeText={setName}
+                style={[
+                  styles.input,
+                  validationErrors.name && { borderColor: errorColor },
+                ]}
+                placeholderTextColor={Colors.mediumGray}
+              />
+              {renderError('name')}
 
               <Text style={[styles.label, { color: currentTextColor }]}>
                 Brand:*
@@ -298,8 +367,13 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
                 placeholder='e.g., Shell, Petron'
                 value={brand}
                 onChangeText={setBrand}
-                style={styles.input}
+                style={[
+                  styles.input,
+                  validationErrors.brand && { borderColor: errorColor },
+                ]}
+                placeholderTextColor={Colors.mediumGray}
               />
+              {renderError('brand')}
 
               <Text style={[styles.label, { color: currentTextColor }]}>
                 Address:*
@@ -308,8 +382,13 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
                 placeholder='Street Address'
                 value={address}
                 onChangeText={setAddress}
-                style={styles.input}
+                style={[
+                  styles.input,
+                  validationErrors.address && { borderColor: errorColor },
+                ]}
+                placeholderTextColor={Colors.mediumGray}
               />
+              {renderError('address')}
 
               <View style={styles.row}>
                 <View style={styles.column}>
@@ -320,8 +399,13 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
                     placeholder='e.g., Legazpi City'
                     value={city}
                     onChangeText={setCity}
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      validationErrors.city && { borderColor: errorColor },
+                    ]}
+                    placeholderTextColor={Colors.mediumGray}
                   />
+                  {renderError('city')}
                 </View>
                 <View style={styles.column}>
                   <Text style={[styles.label, { color: currentTextColor }]}>
@@ -331,8 +415,13 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
                     placeholder='e.g., Albay'
                     value={province}
                     onChangeText={setProvince}
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      validationErrors.province && { borderColor: errorColor },
+                    ]}
+                    placeholderTextColor={Colors.mediumGray}
                   />
+                  {renderError('province')}
                 </View>
               </View>
 
@@ -344,9 +433,14 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
                   <Input
                     value={latitude?.toString() ?? ''}
                     onChangeText={(t) => setLatitude(parseFloat(t) || null)}
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      validationErrors.latitude && { borderColor: errorColor },
+                    ]}
                     keyboardType='numeric'
+                    placeholderTextColor={Colors.mediumGray}
                   />
+                  {renderError('latitude')}
                 </View>
                 <View style={styles.column}>
                   <Text style={[styles.label, { color: currentTextColor }]}>
@@ -355,9 +449,14 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
                   <Input
                     value={longitude?.toString() ?? ''}
                     onChangeText={(t) => setLongitude(parseFloat(t) || null)}
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      validationErrors.longitude && { borderColor: errorColor },
+                    ]}
                     keyboardType='numeric'
+                    placeholderTextColor={Colors.mediumGray}
                   />
+                  {renderError('longitude')}
                 </View>
               </View>
 
@@ -368,8 +467,13 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
                 placeholder='Find using Google Maps (Required)'
                 value={placeId}
                 onChangeText={setPlaceId}
-                style={styles.input}
+                style={[
+                  styles.input,
+                  validationErrors.placeId && { borderColor: errorColor },
+                ]}
+                placeholderTextColor={Colors.mediumGray}
               />
+              {renderError('placeId')}
 
               <Text style={[styles.label, { color: currentTextColor }]}>
                 Amenities:
@@ -423,7 +527,9 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
                 style={[styles.input, styles.jsonInput]}
                 autoCapitalize='none'
                 autoCorrect={false}
+                placeholderTextColor={Colors.mediumGray}
               />
+              {renderError('operatingHoursJson')}
 
               <View style={styles.buttonContainer}>
                 <Button
