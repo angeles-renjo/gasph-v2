@@ -1,3 +1,4 @@
+import { Colors } from '@/styles/theme';
 import { StyleSheet } from 'react-native';
 
 // Note: Styles using dynamic colors (based on colorScheme) will need
@@ -41,15 +42,15 @@ export const styles = StyleSheet.create({
   reportType: {
     fontWeight: 'bold',
     fontSize: 16,
-    // color: '#333', // TODO: Use theme text color
+    color: Colors.primary,
   },
   reportDate: {
     fontSize: 12,
-    // color: '#888', // TODO: Use theme text color (secondary)
+    color: Colors.secondary,
   },
   userInfo: {
     fontSize: 13,
-    // color: '#555', // TODO: Use theme text color (secondary)
+    color: Colors.secondary,
     marginBottom: 10,
   },
   detailLabel: {
@@ -69,7 +70,7 @@ export const styles = StyleSheet.create({
     marginTop: 15,
     paddingTop: 10,
     borderTopWidth: 1,
-    // borderTopColor: '#eee', // TODO: Use theme border color
+    borderTopColor: Colors.lightGray,
   },
   actionButton: {
     marginLeft: 10, // Add space between buttons

@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/Card';
 import { TablesInsert } from '@/utils/supabase/types'; // Keep only one import for TablesInsert
 import { formatDistanceToNow } from 'date-fns';
 import ConfirmAddStationModal from '@/components/admin/ConfirmAddStationModal';
+import ConfirmUpdateStationModal from '@/components/admin/ConfirmUpdateStationModal'; // Import the new update modal
 
 // Import moved hooks
 import { usePendingReports } from '@/hooks/queries/admin/reports/usePendingReports';
@@ -36,9 +37,14 @@ import { Colors } from '@/styles/theme'; // Import Colors for dynamic styling
 // --- Hooks and Types previously defined here are now imported ---
 
 export default function AdminReportsScreen() {
-  const [isConfirmModalVisible, setIsConfirmModalVisible] = useState(false);
-  const [selectedReport, setSelectedReport] =
-    useState<StationReportWithUser | null>(null);
+  const [isAddConfirmModalVisible, setIsAddConfirmModalVisible] =
+    useState(false); // Renamed for clarity
+  const [isUpdateConfirmModalVisible, setIsUpdateConfirmModalVisible] =
+    useState(false); // State for update modal
+  const [selectedReportForAdd, setSelectedReportForAdd] =
+    useState<StationReportWithUser | null>(null); // Renamed for clarity
+  const [selectedReportForUpdate, setSelectedReportForUpdate] =
+    useState<StationReportWithUser | null>(null); // State for update report
   const colorScheme = useColorScheme(); // Get color scheme for styles
 
   const {
@@ -145,8 +151,8 @@ export default function AdminReportsScreen() {
     } else {
       // action === 'approve'
       if (report.report_type === 'add') {
-        setSelectedReport(report);
-        setIsConfirmModalVisible(true);
+        setSelectedReportForAdd(report); // Use renamed state setter
+        setIsAddConfirmModalVisible(true); // Use renamed state setter
       } else if (report.report_type === 'delete') {
         Alert.alert(
           `Confirm Station Deletion`,
@@ -180,33 +186,10 @@ export default function AdminReportsScreen() {
           ]
         );
       } else if (report.report_type === 'update') {
-        Alert.alert(
-          `Confirm Approval`,
-          `Approving this 'update' report marks it as reviewed. Please manually check and apply necessary changes to the station based on the reason/comments.`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Confirm Approve Report',
-              onPress: () =>
-                updateStatusMutation.mutate(
-                  {
-                    reportId: report.id,
-                    newStatus: 'approved',
-                    resolverId: user.id,
-                  },
-                  {
-                    onSuccess: () => Alert.alert('Success', 'Report approved.'),
-                    onError: (err) =>
-                      Alert.alert(
-                        'Approval Failed',
-                        err.message || 'Could not approve report.'
-                      ),
-                  }
-                ),
-              style: 'default',
-            },
-          ]
-        );
+        // Open the update confirmation modal instead of just approving the report
+        setSelectedReportForUpdate(report);
+        setIsUpdateConfirmModalVisible(true);
+        // The modal will handle the station update and report status update
       }
     }
   };
@@ -368,15 +351,26 @@ export default function AdminReportsScreen() {
           reports?.length === 0 ? styles.emptyListContainer : null
         }
       />
+      {/* Add Station Modal */}
       <ConfirmAddStationModal
-        isVisible={isConfirmModalVisible}
+        isVisible={isAddConfirmModalVisible} // Use renamed state
         onClose={() => {
-          setIsConfirmModalVisible(false);
-          setSelectedReport(null);
+          setIsAddConfirmModalVisible(false); // Use renamed state setter
+          setSelectedReportForAdd(null); // Use renamed state setter
         }}
-        report={selectedReport}
-        onConfirmAttempt={handleConfirmAttempt} // Pass the handler function
-        isConfirming={isConfirming} // Pass the loading state
+        report={selectedReportForAdd} // Use renamed state
+        onConfirmAttempt={handleConfirmAttempt}
+        isConfirming={isConfirming} // Still uses the create mutation loading state
+      />
+      {/* Update Station Modal */}
+      <ConfirmUpdateStationModal
+        isVisible={isUpdateConfirmModalVisible}
+        onClose={() => {
+          setIsUpdateConfirmModalVisible(false);
+          setSelectedReportForUpdate(null);
+        }}
+        report={selectedReportForUpdate}
+        // The update modal handles its own mutations internally
       />
     </View>
   );

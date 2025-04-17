@@ -1,3 +1,4 @@
+import { Colors } from '@/styles/theme';
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
@@ -11,7 +12,7 @@ export const styles = StyleSheet.create({
   },
   modalView: {
     margin: 20,
-    // backgroundColor: Colors.white, // TODO: Use theme background
+    backgroundColor: Colors.white,
     borderRadius: 15,
     padding: 20,
     paddingTop: 25,
@@ -29,26 +30,26 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 18,
     fontWeight: 'bold',
-    // color: Colors.darkGray, // TODO: Use theme text
+    color: Colors.darkGray,
   },
   suggestionBox: {
     marginBottom: 15,
     padding: 10,
-    // backgroundColor: Colors.lightGray, // TODO: Use theme secondary background
+    backgroundColor: Colors.lightGray,
     borderRadius: 8,
     borderWidth: 1,
-    // borderColor: Colors.lightGray, // TODO: Use theme border
+    borderColor: Colors.lightGray,
   },
   suggestionTitle: {
     fontWeight: 'bold',
     marginBottom: 5,
-    // color: Colors.darkGray, // TODO: Use theme text
+    color: Colors.darkGray,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
-    // color: Colors.darkGray, // TODO: Use theme text
+    color: Colors.darkGray,
   },
   input: {
     marginBottom: 10,
@@ -85,7 +86,7 @@ export const styles = StyleSheet.create({
   },
   checkboxLabel: {
     fontSize: 14,
-    // color: Colors.darkGray, // TODO: Use theme text
+    color: Colors.darkGray,
   },
   buttonContainer: {
     flexDirection: 'row',
