@@ -1,5 +1,6 @@
 // Earth's radius in kilometers
 const EARTH_RADIUS_KM = 6371;
+import Constants from 'expo-constants'; // Import expo-constants
 
 export interface Coordinates {
   latitude: number;
@@ -102,4 +103,131 @@ export function formatDistance(distanceKm: number): string {
 
   // Show in kilometers with one decimal place
   return `${distanceKm.toFixed(1)} km`;
+}
+
+// --- NEW REVERSE GEOCODING FUNCTION ---
+
+export interface AddressComponents {
+  formattedAddress: string | null;
+  streetAddress: string | null; // Combination of street number and route
+  city: string | null;
+  province: string | null;
+  country: string | null;
+}
+
+/**
+ * Performs reverse geocoding using Google Maps API
+ * @param coords Coordinates (latitude, longitude)
+ * @returns Promise resolving to AddressComponents or null if not found
+ */
+export async function reverseGeocode(
+  coords: Coordinates
+): Promise<AddressComponents | null> {
+  // Access the key exposed via app.config.js extra field
+  const apiKey = Constants.expoConfig?.extra?.googleApiKey;
+
+  if (!apiKey) {
+    const errorMessage =
+      'Google API Key (googleApiKey) is not configured in app.config.js extra field.';
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+
+  const latlng = `${coords.latitude},${coords.longitude}`;
+  // Restrict results for better accuracy in PH
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latlng}&key=${apiKey}&result_type=street_address|locality|political&language=en&region=ph`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(
+        `Reverse Geocoding HTTP error! Status: ${response.status}`
+      );
+    }
+    const data = await response.json();
+
+    if (data.status === 'ZERO_RESULTS') {
+      console.warn(
+        'Reverse Geocoding: No results found for coordinates:',
+        coords
+      );
+      return null;
+    }
+
+    if (data.status !== 'OK') {
+      console.error(
+        'Reverse Geocoding API error:',
+        data.status,
+        data.error_message
+      );
+      throw new Error(`Reverse Geocoding API error: ${data.status}`);
+    }
+
+    // Find the most relevant result (often the first one)
+    const result = data.results?.[0];
+    if (!result) {
+      console.warn('Reverse Geocoding: OK status but no results array found.');
+      return null;
+    }
+
+    const components: AddressComponents = {
+      formattedAddress: result.formatted_address || null,
+      streetAddress: null,
+      city: null,
+      province: null,
+      country: null,
+    };
+
+    let streetNumber = '';
+    let route = '';
+
+    // Extract components
+    result.address_components.forEach((component: any) => {
+      const types = component.types;
+      if (types.includes('street_number')) {
+        streetNumber = component.long_name;
+      } else if (types.includes('route')) {
+        route = component.long_name;
+      } else if (types.includes('locality')) {
+        // 'locality' usually corresponds to the city in PH context
+        components.city = component.long_name;
+      } else if (types.includes('administrative_area_level_1')) {
+        // 'administrative_area_level_1' usually corresponds to the province or region in PH
+        components.province = component.long_name;
+      } else if (types.includes('country')) {
+        components.country = component.long_name;
+      }
+      // Consider 'administrative_area_level_2' if needed for municipalities/cities within provinces
+    });
+
+    // Combine street number and route for a basic street address
+    if (streetNumber || route) {
+      components.streetAddress = `${streetNumber} ${route}`.trim();
+    }
+
+    // Fallback logic: If city/province weren't found directly, try parsing formatted_address
+    // This is less reliable but can be a backup.
+    if (
+      (!components.city || !components.province) &&
+      components.formattedAddress
+    ) {
+      const parts = components.formattedAddress.split(', ');
+      // Example: "123 Rizal St, Legazpi City, Albay, Philippines"
+      if (parts.length >= 3) {
+        if (!components.city) {
+          // Guess city is the third part from the end
+          components.city = parts[parts.length - 3];
+        }
+        if (!components.province) {
+          // Guess province is the second part from the end
+          components.province = parts[parts.length - 2];
+        }
+      }
+    }
+
+    return components;
+  } catch (error) {
+    console.error('Error during reverse geocoding:', error);
+    throw error; // Re-throw the error to be handled by the caller
+  }
 }

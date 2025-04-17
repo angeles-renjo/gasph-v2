@@ -52,7 +52,7 @@ const stationCreationSchema = z.object({
   province: z.string().min(1, 'Province is required.'),
   latitude: z.number({ invalid_type_error: 'Latitude must be a number.' }),
   longitude: z.number({ invalid_type_error: 'Longitude must be a number.' }),
-  placeId: z.string().min(1, 'Google Place ID is required.'),
+  placeId: z.string().optional(), // Made optional
   amenities: z.record(z.boolean()).optional().default({}),
   operatingHoursJson: z
     .string()
@@ -199,7 +199,7 @@ const ConfirmAddStationModal: React.FC<ConfirmAddStationModalProps> = ({
       province: validatedData.province,
       latitude: validatedData.latitude, // Now guaranteed to be a number
       longitude: validatedData.longitude, // Now guaranteed to be a number
-      place_id: validatedData.placeId,
+      place_id: validatedData.placeId || null, // Convert empty string to null for DB
       amenities: validatedData.amenities,
       operating_hours: parsedOperatingHours as Json,
       status: 'active',

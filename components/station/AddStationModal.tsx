@@ -6,20 +6,23 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
-  ScrollView, // Import ScrollView
+  ScrollView,
+  ActivityIndicator,
+  useColorScheme, // Import useColorScheme
 } from 'react-native';
 import { View, Text } from '@/components/Themed';
 import { Input } from '@/components/ui/Input';
-import Checkbox from 'expo-checkbox'; // Import Expo Checkbox
+import Checkbox from 'expo-checkbox';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { TablesInsert } from '@/utils/supabase/types';
 import { supabase } from '@/utils/supabase/supabase';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/hooks/queries/utils/queryKeys'; // Import queryKeys
-import theme from '@/styles/theme'; // Import theme for colors
-import { LocationObjectCoords } from 'expo-location'; // Import LocationObjectCoords
-import LocationPickerModal from '@/components/map/LocationPickerModal'; // Import the new modal
+import { queryKeys } from '@/hooks/queries/utils/queryKeys';
+import theme, { Colors } from '@/styles/theme'; // Import Colors directly
+import { LocationObjectCoords } from 'expo-location';
+import LocationPickerModal from '@/components/map/LocationPickerModal';
+import { reverseGeocode, AddressComponents } from '@/lib/geo';
 
 // Type for the report submission data
 type StationReportInsert = TablesInsert<'station_reports'>;
@@ -27,17 +30,16 @@ type StationReportInsert = TablesInsert<'station_reports'>;
 type AddStationModalProps = {
   isVisible: boolean;
   onClose: () => void;
-  initialCoordinates?: { latitude: number; longitude: number }; // Optional initial coords from map center
+  initialCoordinates?: { latitude: number; longitude: number };
 };
 
-// --- Mutation Hook (Similar to ReportStationModal, but for 'add' type) ---
+// --- Mutation Hook (Remains the same) ---
 const useSubmitAddStationMutation = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (
-      // The incoming reportData now includes report_type
       reportData: Omit<
         StationReportInsert,
         | 'user_id'
@@ -50,27 +52,21 @@ const useSubmitAddStationMutation = () => {
       >
     ) => {
       if (!user) throw new Error('User not authenticated');
-
-      // Construct the final object to insert
       const dataToInsert: StationReportInsert = {
-        ...reportData, // reportData already contains report_type: 'add'
+        ...reportData,
         user_id: user.id,
-        status: 'pending', // Set status here
-        station_id: null, // Ensure station_id is null for 'add'
+        status: 'pending',
+        station_id: null,
       };
-
       const { error } = await supabase
         .from('station_reports')
         .insert(dataToInsert);
-
       if (error) {
         console.error('Error submitting add station report:', error);
-        // Note: The duplicate check trigger doesn't apply to 'add' reports by default
         throw new Error(error.message || 'Failed to submit suggestion.');
       }
     },
     onSuccess: () => {
-      // Invalidate the admin pending reports list so it refreshes
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.reports.list('pending'),
       });
@@ -96,10 +92,10 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
 }) => {
   const [stationName, setStationName] = useState('');
   const [stationBrand, setStationBrand] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [province, setProvince] = useState('');
-  // Initialize selectedLocation with only lat/lng if initialCoordinates is provided
+  const [fetchedAddress, setFetchedAddress] =
+    useState<AddressComponents | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<
     LocationObjectCoords | undefined
   >(
@@ -114,38 +110,45 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
         }
       : undefined
   );
-  const [isLocationPickerVisible, setIsLocationPickerVisible] = useState(false); // State for new modal
+  const [isLocationPickerVisible, setIsLocationPickerVisible] = useState(false);
   const [operatingHoursNotes, setOperatingHoursNotes] = useState('');
-  const [amenities, setAmenities] = useState<Record<string, boolean>>({}); // State for amenities checkboxes
+  const [amenities, setAmenities] = useState<Record<string, boolean>>({});
 
   const { user } = useAuth();
   const submitAddStationMutation = useSubmitAddStationMutation();
+  const colorScheme = useColorScheme() ?? 'light'; // Get current color scheme
+
+  // Function to reset all state
+  const resetState = () => {
+    setStationName('');
+    setStationBrand('');
+    setFetchedAddress(null);
+    setIsGeocoding(false);
+    setGeocodeError(null);
+    setOperatingHoursNotes('');
+    setAmenities({});
+    setSelectedLocation(
+      initialCoordinates
+        ? {
+            ...initialCoordinates,
+            accuracy: null,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          }
+        : undefined
+    );
+    setIsLocationPickerVisible(false);
+    submitAddStationMutation.reset();
+  };
 
   // Effect to reset state when modal becomes visible
   useEffect(() => {
     if (isVisible) {
-      setStationName('');
-      setStationBrand('');
-      setAddress('');
-      setCity('');
-      setProvince('');
-      setOperatingHoursNotes('');
-      setAmenities({}); // Reset amenities
-      // Reset selectedLocation similarly when modal becomes visible
-      setSelectedLocation(
-        initialCoordinates
-          ? {
-              ...initialCoordinates,
-              accuracy: null,
-              altitude: null,
-              altitudeAccuracy: null,
-              heading: null,
-              speed: null,
-            }
-          : undefined
-      );
+      resetState();
     }
-  }, [isVisible, initialCoordinates]); // Rerun when visibility or initial coords change
+  }, [isVisible, initialCoordinates]);
 
   // --- Handlers ---
   const handleOpenLocationPicker = () => {
@@ -156,33 +159,42 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
     setIsLocationPickerVisible(false);
   };
 
-  const handleLocationSelect = (location: LocationObjectCoords) => {
+  const handleLocationSelect = async (location: LocationObjectCoords) => {
     setSelectedLocation(location);
-    setIsLocationPickerVisible(false); // Close picker after selection
+    setIsLocationPickerVisible(false);
+    setFetchedAddress(null);
+    setGeocodeError(null);
+    setIsGeocoding(true);
+
+    try {
+      const addressResult = await reverseGeocode({
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
+      setFetchedAddress(addressResult);
+      if (!addressResult) {
+        setGeocodeError('Could not determine address for this location.');
+      }
+    } catch (error: any) {
+      console.error('Reverse geocoding failed:', error);
+      setGeocodeError(error.message || 'Failed to fetch address details.');
+      setFetchedAddress(null);
+    } finally {
+      setIsGeocoding(false);
+    }
   };
 
   const handleSubmit = () => {
     if (!user) {
-      Alert.alert(
-        'Authentication Required',
-        'Please log in to suggest a station.'
-      );
+      Alert.alert('Authentication Required', 'Please log in.');
       return;
     }
     if (!stationName.trim()) {
       Alert.alert('Name Required', 'Please enter the station name.');
       return;
     }
-    if (!address.trim()) {
-      Alert.alert('Address Required', 'Please enter the station address.');
-      return;
-    }
-    if (!city.trim()) {
-      Alert.alert('City Required', 'Please enter the city.');
-      return;
-    }
-    if (!province.trim()) {
-      Alert.alert('Province Required', 'Please enter the province.');
+    if (!stationBrand.trim()) {
+      Alert.alert('Brand Required', 'Please enter the station brand.');
       return;
     }
     if (!selectedLocation) {
@@ -192,11 +204,26 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       );
       return;
     }
+    if (isGeocoding) {
+      Alert.alert('Please Wait', 'Fetching address details...');
+      return;
+    }
+    const finalAddress =
+      fetchedAddress?.streetAddress ?? fetchedAddress?.formattedAddress ?? '';
+    const finalCity = fetchedAddress?.city ?? '';
+    const finalProvince = fetchedAddress?.province ?? '';
 
-    // Define reportData including report_type
+    if (!finalCity || !finalProvince) {
+      Alert.alert(
+        'Address Incomplete',
+        'Could not determine City and Province for the selected location. Please try a slightly different location.'
+      );
+      return;
+    }
+
     const reportData: Omit<
       StationReportInsert,
-      | 'user_id' // Omit fields set by the hook or DB defaults
+      | 'user_id'
       | 'id'
       | 'created_at'
       | 'resolved_at'
@@ -204,44 +231,57 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       | 'station_id'
       | 'status'
     > = {
-      report_type: 'add', // Set report_type here
+      report_type: 'add',
       latitude: selectedLocation.latitude,
       longitude: selectedLocation.longitude,
-      // Store name/brand/comments in reported_data JSONB field
       reported_data: {
         name: stationName.trim(),
         brand: stationBrand.trim(),
-        address: address.trim(),
-        city: city.trim(),
-        province: province.trim(),
-        amenities: amenities, // Add selected amenities
-        operating_hours_notes: operatingHoursNotes.trim() || null, // Add operating hours notes
-        // comments: comments.trim() || null, // Keep original comments field if needed, or merge
+        address: finalAddress,
+        city: finalCity,
+        province: finalProvince,
+        amenities: amenities,
+        operating_hours_notes: operatingHoursNotes.trim() || null,
       },
-      // Update reason to reflect more data captured (use correct variable stationBrand)
       reason: `User suggested adding: ${stationName.trim()} (${stationBrand.trim()})`,
     };
 
     submitAddStationMutation.mutate(reportData, {
       onSuccess: () => {
-        handleClose(); // Close modal on success
+        handleClose();
       },
     });
   };
 
   const handleClose = () => {
-    // Reset state before closing (already done in useEffect, but good practice)
-    setStationName('');
-    setStationBrand('');
-    setAddress('');
-    setCity('');
-    setProvince('');
-    setOperatingHoursNotes('');
-    setAmenities({});
-    setSelectedLocation(undefined);
-    setIsLocationPickerVisible(false); // Ensure picker is closed
-    submitAddStationMutation.reset();
+    resetState();
     onClose();
+  };
+
+  // Define dynamic styles based on color scheme
+  const dynamicStyles = {
+    modalView: {
+      backgroundColor: Colors[colorScheme].background, // Use scheme background
+    },
+    modalTitle: {
+      color: Colors[colorScheme].text, // Use scheme text color
+    },
+    label: {
+      color: Colors[colorScheme].text, // Use scheme text color
+    },
+    addressDisplayContainer: {
+      backgroundColor: Colors.lightGray2, // Use appropriate gray
+      borderColor: Colors.lightGray, // Use appropriate gray
+    },
+    addressText: {
+      color: Colors[colorScheme].text, // Use scheme text color
+    },
+    checkboxLabel: {
+      color: Colors[colorScheme].text, // Use scheme text color
+    },
+    requiredText: {
+      color: Colors.mediumGray, // Keep medium gray for less emphasis
+    },
   };
 
   return (
@@ -255,75 +295,123 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        {/* Wrap content in ScrollView */}
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
           <View style={styles.centeredView}>
-            <View style={styles.modalView}>
-              <Text style={styles.modalTitle}>Suggest New Station</Text>
+            {/* Apply dynamic background */}
+            <View style={[styles.modalView, dynamicStyles.modalView]}>
+              {/* Apply dynamic text color */}
+              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
+                Suggest New Station
+              </Text>
 
-              {/* Use ScrollView inside modalView if content might overflow */}
-              {/* <ScrollView> */}
-              <Text style={styles.label}>Station Name:*</Text>
+              <Text style={[styles.label, dynamicStyles.label]}>
+                1. Set Location on Map:*
+              </Text>
+              <Button
+                title={
+                  selectedLocation ? 'Change Location' : 'Set Location on Map'
+                }
+                onPress={handleOpenLocationPicker}
+                variant='outline'
+                style={styles.setLocationButton}
+              />
+              {selectedLocation && (
+                <Text style={styles.coordsText}>
+                  Selected: Lat: {selectedLocation.latitude.toFixed(6)}, Lng:{' '}
+                  {selectedLocation.longitude.toFixed(6)}
+                </Text>
+              )}
+
+              {/* Display Geocoding Status/Result */}
+              {isGeocoding && (
+                <View
+                  style={[
+                    styles.addressDisplayContainer,
+                    dynamicStyles.addressDisplayContainer,
+                  ]}
+                >
+                  <ActivityIndicator size='small' color={Colors.primary} />
+                  {/* Apply dynamic text color */}
+                  <Text style={[styles.addressText, dynamicStyles.addressText]}>
+                    {' '}
+                    Fetching address...
+                  </Text>
+                </View>
+              )}
+              {geocodeError && (
+                <View
+                  style={[
+                    styles.addressDisplayContainer,
+                    dynamicStyles.addressDisplayContainer,
+                  ]}
+                >
+                  <Text style={[styles.addressText, styles.errorText]}>
+                    Error: {geocodeError}
+                  </Text>
+                </View>
+              )}
+              {fetchedAddress && !isGeocoding && (
+                <View
+                  style={[
+                    styles.addressDisplayContainer,
+                    dynamicStyles.addressDisplayContainer,
+                  ]}
+                >
+                  <Text style={styles.addressLabel}>Detected Address:</Text>
+                  {/* Apply dynamic text color */}
+                  <Text style={[styles.addressText, dynamicStyles.addressText]}>
+                    {fetchedAddress.formattedAddress || 'N/A'}
+                  </Text>
+                  <Text style={styles.addressDetailText}>
+                    City: {fetchedAddress.city || 'N/A'}
+                  </Text>
+                  <Text style={styles.addressDetailText}>
+                    Province: {fetchedAddress.province || 'N/A'}
+                  </Text>
+                </View>
+              )}
+              {!selectedLocation && !isGeocoding && !geocodeError && (
+                <View
+                  style={[
+                    styles.addressDisplayContainer,
+                    dynamicStyles.addressDisplayContainer,
+                  ]}
+                >
+                  <Text style={styles.addressTextMuted}>
+                    Address details will appear here after setting location.
+                  </Text>
+                </View>
+              )}
+
+              <Text style={[styles.label, dynamicStyles.label]}>
+                2. Station Name:*
+              </Text>
               <Input
                 placeholder='e.g., Shell EDSA Cor. Main Ave'
                 value={stationName}
                 onChangeText={setStationName}
                 style={styles.input}
-                maxLength={100} // Add reasonable max length
+                maxLength={100}
+                // Add placeholderTextColor based on scheme if needed
+                placeholderTextColor={Colors.placeholderGray}
               />
 
-              <Text style={styles.label}>Brand:*</Text>
+              <Text style={[styles.label, dynamicStyles.label]}>
+                3. Brand:*
+              </Text>
               <Input
                 placeholder='e.g., Shell, Petron, Caltex'
                 value={stationBrand}
                 onChangeText={setStationBrand}
                 style={styles.input}
                 maxLength={50}
+                placeholderTextColor={Colors.placeholderGray}
               />
-
-              <Text style={styles.label}>Address:*</Text>
-              <Input
-                placeholder='e.g., 123 EDSA corner Main Ave'
-                value={address}
-                onChangeText={setAddress}
-                style={styles.input}
-                maxLength={200}
-              />
-
-              <Text style={styles.label}>City:*</Text>
-              <Input
-                placeholder='e.g., Quezon City'
-                value={city}
-                onChangeText={setCity}
-                style={styles.input}
-                maxLength={50}
-              />
-
-              <Text style={styles.label}>Province:*</Text>
-              <Input
-                placeholder='e.g., Metro Manila'
-                value={province}
-                onChangeText={setProvince}
-                style={styles.input}
-                maxLength={50}
-              />
-
-              <Text style={styles.label}>Location:*</Text>
-              <Button
-                title='Set Location on Map'
-                onPress={handleOpenLocationPicker}
-                variant='outline' // Or choose another appropriate variant
-                style={styles.setLocationButton}
-              />
-              {selectedLocation && (
-                <Text style={styles.coordsText}>
-                  Lat: {selectedLocation.latitude.toFixed(6)}, Lng:{' '}
-                  {selectedLocation.longitude.toFixed(6)}
-                </Text>
-              )}
 
               {/* Amenities Checkboxes */}
-              <Text style={styles.label}>Amenities (Optional):</Text>
+              <Text style={[styles.label, dynamicStyles.label]}>
+                4. Amenities (Optional):
+              </Text>
               <View style={styles.amenitiesContainer}>
                 {[
                   'Convenience Store',
@@ -331,14 +419,14 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                   'ATM',
                   'Air/Water',
                   'Car Wash',
+                  'Food Service',
                 ].map((amenity) => {
-                  const key = amenity.toLowerCase().replace(/ /g, '_'); // Generate key like 'convenience_store'
+                  const key = amenity.toLowerCase().replace(/ /g, '_');
                   const isChecked = amenities[key] || false;
                   const toggleCheckbox = () => {
                     setAmenities((prev) => ({ ...prev, [key]: !isChecked }));
                   };
                   return (
-                    // Wrap Checkbox and Text in a Pressable for better touch target
                     <Pressable
                       key={key}
                       onPress={toggleCheckbox}
@@ -347,17 +435,25 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                       <Checkbox
                         style={styles.checkbox}
                         value={isChecked}
-                        onValueChange={toggleCheckbox} // Use onValueChange
+                        onValueChange={toggleCheckbox}
                         color={isChecked ? theme.Colors.primary : undefined}
                       />
-                      <Text style={styles.checkboxLabel}>{amenity}</Text>
+                      {/* Apply dynamic text color */}
+                      <Text
+                        style={[
+                          styles.checkboxLabel,
+                          dynamicStyles.checkboxLabel,
+                        ]}
+                      >
+                        {amenity}
+                      </Text>
                     </Pressable>
                   );
                 })}
               </View>
 
-              <Text style={styles.label}>
-                Operating Hours Notes (Optional):
+              <Text style={[styles.label, dynamicStyles.label]}>
+                5. Operating Hours Notes (Optional):
               </Text>
               <Input
                 placeholder='e.g., 24 hours, 6am-10pm Mon-Sat'
@@ -367,10 +463,13 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                 numberOfLines={3}
                 style={[styles.input, styles.commentInput]}
                 maxLength={150}
+                placeholderTextColor={Colors.placeholderGray}
               />
 
-              {/* Add required field indicator */}
-              <Text style={styles.requiredText}>* Required field</Text>
+              {/* Apply dynamic text color */}
+              <Text style={[styles.requiredText, dynamicStyles.requiredText]}>
+                * Required field
+              </Text>
 
               <View style={styles.buttonContainer}>
                 <Button
@@ -378,7 +477,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                   onPress={handleClose}
                   variant='outline'
                   style={styles.button}
-                  disabled={submitAddStationMutation.isPending}
+                  disabled={submitAddStationMutation.isPending || isGeocoding}
                 />
                 <Button
                   title='Submit Suggestion'
@@ -386,54 +485,53 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                   style={styles.button}
                   loading={submitAddStationMutation.isPending}
                   disabled={
-                    !selectedLocation || // Use selectedLocation
+                    !selectedLocation ||
                     !stationName.trim() ||
                     !stationBrand.trim() ||
-                    !address.trim() ||
-                    !city.trim() ||
-                    !province.trim() ||
+                    isGeocoding ||
+                    !fetchedAddress?.city ||
+                    !fetchedAddress?.province ||
                     submitAddStationMutation.isPending
                   }
                 />
               </View>
-              {/* </ScrollView> */}
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* --- Location Picker Modal --- */}
-      {/* Render the modal conditionally */}
+      {/* Location Picker Modal */}
       {isLocationPickerVisible && (
         <LocationPickerModal
           isVisible={isLocationPickerVisible}
           onClose={handleCloseLocationPicker}
           onLocationSelect={handleLocationSelect}
-          initialLocation={selectedLocation} // Pass current selection as initial
+          initialLocation={selectedLocation}
         />
       )}
     </Modal>
   );
 };
 
+// Base styles
 const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1,
   },
   scrollViewContent: {
-    flexGrow: 1, // Ensure content can grow to fill space
-    justifyContent: 'center', // Center content vertically in scrollview
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   centeredView: {
-    flex: 1, // Allow inner view to take space within scrollview
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Apply background to outer container if needed
-    paddingVertical: 20, // Add padding if needed when keyboard is up
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingVertical: 20,
   },
   modalView: {
+    // Base styles, background applied dynamically
     margin: 20,
-    backgroundColor: 'white',
     borderRadius: 15,
     padding: 25,
     alignItems: 'stretch',
@@ -443,36 +541,70 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     width: '90%',
-    maxHeight: '95%', // Allow slightly more height
+    maxHeight: '95%',
   },
   modalTitle: {
-    marginBottom: 15, // Less space below title
+    // Base styles, color applied dynamically
+    marginBottom: 15,
     textAlign: 'center',
     fontSize: 20,
     fontWeight: 'bold',
   },
   label: {
+    // Base styles, color applied dynamically
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 5,
-    marginTop: 10,
+    marginTop: 15,
   },
   input: {
     marginBottom: 15,
+    // Consider adding dynamic border/text colors if needed based on scheme
   },
   commentInput: {
-    minHeight: 60, // Slightly smaller comment box
+    minHeight: 60,
     textAlignVertical: 'top',
-    marginBottom: 10, // Less margin below comments
+    marginBottom: 10,
   },
   setLocationButton: {
-    marginBottom: 5, // Space below button
+    marginBottom: 5,
   },
   coordsText: {
     fontSize: 12,
-    color: theme.Colors.gray,
+    color: theme.Colors.gray, // Keep gray for muted coords
     textAlign: 'center',
-    marginBottom: 15, // Space below coordinates
+    marginBottom: 10,
+  },
+  addressDisplayContainer: {
+    // Base styles, background/border applied dynamically
+    marginTop: 5,
+    marginBottom: 15,
+    padding: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  addressLabel: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: Colors.darkGray, // Keep dark gray for label
+    marginBottom: 4,
+  },
+  addressText: {
+    // Base styles, color applied dynamically
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  addressDetailText: {
+    fontSize: 13,
+    color: Colors.darkGray, // Keep dark gray for details
+  },
+  addressTextMuted: {
+    fontSize: 13,
+    color: Colors.mediumGray, // Keep medium gray
+    fontStyle: 'italic',
+  },
+  errorText: {
+    color: Colors.error,
   },
   amenitiesContainer: {
     flexDirection: 'row',
@@ -480,45 +612,26 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   checkboxContainer: {
-    // New style for wrapping checkbox and label
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    marginRight: 15, // Add right margin for spacing
-    // width: '45%', // Adjust width as needed or let it wrap naturally
+    marginRight: 15,
   },
   checkbox: {
-    marginRight: 8, // Space between checkbox and label
-    // Adjust size if needed via width/height, expo-checkbox size prop is limited
+    marginRight: 8,
     width: 20,
     height: 20,
-    borderRadius: 4, // Match bouncy checkbox style
-    borderWidth: 2, // Match bouncy checkbox style
-    borderColor: theme.Colors.primary, // Match bouncy checkbox style
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: theme.Colors.primary,
   },
   checkboxLabel: {
-    // New style for the label text
+    // Base styles, color applied dynamically
     fontSize: 14,
   },
-  mapContainer: {
-    height: 180, // Slightly smaller map
-    width: '100%',
-    backgroundColor: '#e0e0e0', // Placeholder background
-    borderRadius: 8,
-    overflow: 'hidden', // Clip map to border radius
-    marginBottom: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject, // Make map fill container
-  },
-  mapPlaceholder: {
-    // Styles for when map is loading
-  },
   requiredText: {
+    // Base styles, color applied dynamically
     fontSize: 12,
-    color: 'grey',
     marginTop: 10,
     marginBottom: 5,
     textAlign: 'right',
@@ -526,7 +639,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 15, // Less space above buttons
+    marginTop: 20,
   },
   button: {
     flex: 1,

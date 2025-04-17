@@ -1,3 +1,5 @@
+import 'dotenv/config'; // Ensure .env variables are loaded
+
 export default {
   expo: {
     name: 'gasph-v2',
@@ -70,6 +72,7 @@ export default {
       eas: {
         projectId: '7fcba43f-9d20-44b2-b733-e2a65a5fe666',
       },
+      googleApiKey: process.env.GOOGLE_API_KEY, // Expose the general Google API Key
     },
     owner: 'angeles-renjo',
   },
