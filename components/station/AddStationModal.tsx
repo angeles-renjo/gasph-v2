@@ -1,28 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
-  StyleSheet,
   Pressable,
   Alert,
   Platform,
   KeyboardAvoidingView,
   ScrollView,
   ActivityIndicator,
-  useColorScheme, // Import useColorScheme
+  useColorScheme,
+  View, // Use standard View
+  Text, // Use standard Text
+  TextInput, // Use standard TextInput if ui/Input isn't suitable
+  StyleSheet, // Import StyleSheet
 } from 'react-native';
-import { View, Text } from '@/components/Themed';
-import { Input } from '@/components/ui/Input';
 import Checkbox from 'expo-checkbox';
-import { Button } from '@/components/ui/Button';
+import { Feather } from '@expo/vector-icons'; // Import icons
+
+import { Button } from '@/components/ui/Button'; // Keep using custom Button
+import { Input } from '@/components/ui/Input'; // Keep using custom Input (assuming it's flexible)
 import { useAuth } from '@/hooks/useAuth';
 import { TablesInsert } from '@/utils/supabase/types';
 import { supabase } from '@/utils/supabase/supabase';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
-import theme, { Colors } from '@/styles/theme'; // Import Colors directly
+import theme, { Colors, Spacing, Typography } from '@/styles/theme'; // Import theme elements
 import { LocationObjectCoords } from 'expo-location';
 import LocationPickerModal from '@/components/map/LocationPickerModal';
 import { reverseGeocode, AddressComponents } from '@/lib/geo';
+import styles from '@/styles/components/station/AddStationModal.styles'; // Import new styles
 
 // Type for the report submission data
 type StationReportInsert = TablesInsert<'station_reports'>;
@@ -56,7 +61,7 @@ const useSubmitAddStationMutation = () => {
         ...reportData,
         user_id: user.id,
         status: 'pending',
-        station_id: null,
+        station_id: null, // Explicitly null for add reports
       };
       const { error } = await supabase
         .from('station_reports')
@@ -70,6 +75,7 @@ const useSubmitAddStationMutation = () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.reports.list('pending'),
       });
+      // Consider invalidating station lists if applicable after review
       Alert.alert(
         'Suggestion Submitted',
         'Thank you! Your suggestion will be reviewed.'
@@ -85,6 +91,15 @@ const useSubmitAddStationMutation = () => {
 };
 // --- End Mutation Hook ---
 
+// Define amenity keys type
+type AmenityKey =
+  | 'convenienceStore'
+  | 'restroom'
+  | 'atm'
+  | 'airWater'
+  | 'carWash'
+  | 'foodService';
+
 const AddStationModal: React.FC<AddStationModalProps> = ({
   isVisible,
   onClose,
@@ -98,25 +113,22 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<
     LocationObjectCoords | undefined
-  >(
-    initialCoordinates
-      ? {
-          ...initialCoordinates,
-          accuracy: null,
-          altitude: null,
-          altitudeAccuracy: null,
-          heading: null,
-          speed: null,
-        }
-      : undefined
-  );
+  >(undefined); // Initialize as undefined
   const [isLocationPickerVisible, setIsLocationPickerVisible] = useState(false);
   const [operatingHoursNotes, setOperatingHoursNotes] = useState('');
-  const [amenities, setAmenities] = useState<Record<string, boolean>>({});
+  // Updated amenities state
+  const [amenities, setAmenities] = useState<Record<AmenityKey, boolean>>({
+    convenienceStore: false,
+    restroom: false,
+    atm: false,
+    airWater: false,
+    carWash: false,
+    foodService: false,
+  });
 
   const { user } = useAuth();
   const submitAddStationMutation = useSubmitAddStationMutation();
-  const colorScheme = useColorScheme() ?? 'light'; // Get current color scheme
+  const colorScheme = useColorScheme() ?? 'light'; // Keep for potential theme adjustments
 
   // Function to reset all state
   const resetState = () => {
@@ -126,7 +138,16 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
     setIsGeocoding(false);
     setGeocodeError(null);
     setOperatingHoursNotes('');
-    setAmenities({});
+    // Reset amenities to initial state
+    setAmenities({
+      convenienceStore: false,
+      restroom: false,
+      atm: false,
+      airWater: false,
+      carWash: false,
+      foodService: false,
+    });
+    // Set location based on initialCoordinates or undefined
     setSelectedLocation(
       initialCoordinates
         ? {
@@ -143,12 +164,12 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
     submitAddStationMutation.reset();
   };
 
-  // Effect to reset state when modal becomes visible
+  // Effect to reset state when modal becomes visible or initial coords change
   useEffect(() => {
     if (isVisible) {
       resetState();
     }
-  }, [isVisible, initialCoordinates]);
+  }, [isVisible, initialCoordinates]); // Rerun if initialCoordinates changes
 
   // --- Handlers ---
   const handleOpenLocationPicker = () => {
@@ -162,7 +183,7 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
   const handleLocationSelect = async (location: LocationObjectCoords) => {
     setSelectedLocation(location);
     setIsLocationPickerVisible(false);
-    setFetchedAddress(null);
+    setFetchedAddress(null); // Clear previous address/error
     setGeocodeError(null);
     setIsGeocoding(true);
 
@@ -178,15 +199,32 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
     } catch (error: any) {
       console.error('Reverse geocoding failed:', error);
       setGeocodeError(error.message || 'Failed to fetch address details.');
-      setFetchedAddress(null);
+      setFetchedAddress(null); // Ensure address is null on error
     } finally {
       setIsGeocoding(false);
     }
   };
 
+  const handleAmenityChange = (amenity: AmenityKey) => {
+    setAmenities((prev) => ({
+      ...prev,
+      [amenity]: !prev[amenity],
+    }));
+  };
+
   const handleSubmit = () => {
     if (!user) {
-      Alert.alert('Authentication Required', 'Please log in.');
+      Alert.alert(
+        'Authentication Required',
+        'Please log in to suggest a station.'
+      );
+      return;
+    }
+    if (!selectedLocation) {
+      Alert.alert(
+        'Location Required',
+        'Please set the station location using the map.'
+      );
       return;
     }
     if (!stationName.trim()) {
@@ -197,29 +235,26 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       Alert.alert('Brand Required', 'Please enter the station brand.');
       return;
     }
-    if (!selectedLocation) {
-      Alert.alert(
-        'Location Required',
-        'Please set the station location using the map.'
-      );
-      return;
-    }
     if (isGeocoding) {
       Alert.alert('Please Wait', 'Fetching address details...');
       return;
     }
+
+    // Use fetched address details, ensure city/province exist
     const finalAddress =
       fetchedAddress?.streetAddress ?? fetchedAddress?.formattedAddress ?? '';
     const finalCity = fetchedAddress?.city ?? '';
     const finalProvince = fetchedAddress?.province ?? '';
 
-    if (!finalCity || !finalProvince) {
-      Alert.alert(
-        'Address Incomplete',
-        'Could not determine City and Province for the selected location. Please try a slightly different location.'
-      );
-      return;
-    }
+    // It might be okay to submit without a perfect address, admin can verify.
+    // Let's remove the strict city/province check for now, but keep the data.
+    // if (!finalCity || !finalProvince) {
+    //   Alert.alert(
+    //     'Address Incomplete',
+    //     'Could not determine City and Province for the selected location. Please try a slightly different location or submit anyway for review.'
+    //   );
+    //   // return; // Allow submission even if geocoding isn't perfect
+    // }
 
     const reportData: Omit<
       StationReportInsert,
@@ -237,9 +272,10 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
       reported_data: {
         name: stationName.trim(),
         brand: stationBrand.trim(),
-        address: finalAddress,
-        city: finalCity,
-        province: finalProvince,
+        address: finalAddress, // Use geocoded address if available
+        city: finalCity, // Use geocoded city if available
+        province: finalProvince, // Use geocoded province if available
+        // Pass the structured amenities object
         amenities: amenities,
         operating_hours_notes: operatingHoursNotes.trim() || null,
       },
@@ -248,41 +284,33 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
 
     submitAddStationMutation.mutate(reportData, {
       onSuccess: () => {
-        handleClose();
+        handleClose(); // Close modal on success
       },
+      // onError is handled globally by the mutation hook
     });
   };
 
   const handleClose = () => {
-    resetState();
+    resetState(); // Ensure state is reset on close
     onClose();
   };
 
-  // Define dynamic styles based on color scheme
-  const dynamicStyles = {
-    modalView: {
-      backgroundColor: Colors[colorScheme].background, // Use scheme background
-    },
-    modalTitle: {
-      color: Colors[colorScheme].text, // Use scheme text color
-    },
-    label: {
-      color: Colors[colorScheme].text, // Use scheme text color
-    },
-    addressDisplayContainer: {
-      backgroundColor: Colors.lightGray2, // Use appropriate gray
-      borderColor: Colors.lightGray, // Use appropriate gray
-    },
-    addressText: {
-      color: Colors[colorScheme].text, // Use scheme text color
-    },
-    checkboxLabel: {
-      color: Colors[colorScheme].text, // Use scheme text color
-    },
-    requiredText: {
-      color: Colors.mediumGray, // Keep medium gray for less emphasis
-    },
-  };
+  // Helper to render amenity checkboxes
+  const renderAmenityCheckbox = (key: AmenityKey, label: string) => (
+    <Pressable
+      key={key}
+      onPress={() => handleAmenityChange(key)}
+      style={styles.checkboxItemContainer} // Use item container for spacing
+    >
+      <Checkbox
+        style={styles.checkbox}
+        value={amenities[key]}
+        onValueChange={() => handleAmenityChange(key)} // Redundant but okay
+        color={amenities[key] ? Colors.primary : Colors.mediumGray}
+      />
+      <Text style={styles.checkboxLabel}>{label}</Text>
+    </Pressable>
+  );
 
   return (
     <Modal
@@ -295,209 +323,211 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
-          <View style={styles.centeredView}>
-            {/* Apply dynamic background */}
-            <View style={[styles.modalView, dynamicStyles.modalView]}>
-              {/* Apply dynamic text color */}
-              <Text style={[styles.modalTitle, dynamicStyles.modalTitle]}>
-                Suggest New Station
-              </Text>
-
-              <Text style={[styles.label, dynamicStyles.label]}>
-                1. Set Location on Map:*
-              </Text>
-              <Button
-                title={
-                  selectedLocation ? 'Change Location' : 'Set Location on Map'
-                }
-                onPress={handleOpenLocationPicker}
-                variant='outline'
-                style={styles.setLocationButton}
-              />
-              {selectedLocation && (
-                <Text style={styles.coordsText}>
-                  Selected: Lat: {selectedLocation.latitude.toFixed(6)}, Lng:{' '}
-                  {selectedLocation.longitude.toFixed(6)}
-                </Text>
-              )}
-
-              {/* Display Geocoding Status/Result */}
-              {isGeocoding && (
-                <View
-                  style={[
-                    styles.addressDisplayContainer,
-                    dynamicStyles.addressDisplayContainer,
-                  ]}
-                >
-                  <ActivityIndicator size='small' color={Colors.primary} />
-                  {/* Apply dynamic text color */}
-                  <Text style={[styles.addressText, dynamicStyles.addressText]}>
-                    {' '}
-                    Fetching address...
-                  </Text>
-                </View>
-              )}
-              {geocodeError && (
-                <View
-                  style={[
-                    styles.addressDisplayContainer,
-                    dynamicStyles.addressDisplayContainer,
-                  ]}
-                >
-                  <Text style={[styles.addressText, styles.errorText]}>
-                    Error: {geocodeError}
-                  </Text>
-                </View>
-              )}
-              {fetchedAddress && !isGeocoding && (
-                <View
-                  style={[
-                    styles.addressDisplayContainer,
-                    dynamicStyles.addressDisplayContainer,
-                  ]}
-                >
-                  <Text style={styles.addressLabel}>Detected Address:</Text>
-                  {/* Apply dynamic text color */}
-                  <Text style={[styles.addressText, dynamicStyles.addressText]}>
-                    {fetchedAddress.formattedAddress || 'N/A'}
-                  </Text>
-                  <Text style={styles.addressDetailText}>
-                    City: {fetchedAddress.city || 'N/A'}
-                  </Text>
-                  <Text style={styles.addressDetailText}>
-                    Province: {fetchedAddress.province || 'N/A'}
-                  </Text>
-                </View>
-              )}
-              {!selectedLocation && !isGeocoding && !geocodeError && (
-                <View
-                  style={[
-                    styles.addressDisplayContainer,
-                    dynamicStyles.addressDisplayContainer,
-                  ]}
-                >
-                  <Text style={styles.addressTextMuted}>
-                    Address details will appear here after setting location.
-                  </Text>
-                </View>
-              )}
-
-              <Text style={[styles.label, dynamicStyles.label]}>
-                2. Station Name:*
-              </Text>
-              <Input
-                placeholder='e.g., Shell EDSA Cor. Main Ave'
-                value={stationName}
-                onChangeText={setStationName}
-                style={styles.input}
-                maxLength={100}
-                // Add placeholderTextColor based on scheme if needed
-                placeholderTextColor={Colors.placeholderGray}
-              />
-
-              <Text style={[styles.label, dynamicStyles.label]}>
-                3. Brand:*
-              </Text>
-              <Input
-                placeholder='e.g., Shell, Petron, Caltex'
-                value={stationBrand}
-                onChangeText={setStationBrand}
-                style={styles.input}
-                maxLength={50}
-                placeholderTextColor={Colors.placeholderGray}
-              />
-
-              {/* Amenities Checkboxes */}
-              <Text style={[styles.label, dynamicStyles.label]}>
-                4. Amenities (Optional):
-              </Text>
-              <View style={styles.amenitiesContainer}>
-                {[
-                  'Convenience Store',
-                  'Restroom',
-                  'ATM',
-                  'Air/Water',
-                  'Car Wash',
-                  'Food Service',
-                ].map((amenity) => {
-                  const key = amenity.toLowerCase().replace(/ /g, '_');
-                  const isChecked = amenities[key] || false;
-                  const toggleCheckbox = () => {
-                    setAmenities((prev) => ({ ...prev, [key]: !isChecked }));
-                  };
-                  return (
-                    <Pressable
-                      key={key}
-                      onPress={toggleCheckbox}
-                      style={styles.checkboxContainer}
-                    >
-                      <Checkbox
-                        style={styles.checkbox}
-                        value={isChecked}
-                        onValueChange={toggleCheckbox}
-                        color={isChecked ? theme.Colors.primary : undefined}
-                      />
-                      {/* Apply dynamic text color */}
-                      <Text
-                        style={[
-                          styles.checkboxLabel,
-                          dynamicStyles.checkboxLabel,
-                        ]}
-                      >
-                        {amenity}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+        <View style={styles.backdrop}>
+          <ScrollView contentContainerStyle={styles.scrollViewContent}>
+            <View style={styles.card}>
+              {/* Card Header */}
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Suggest New Station</Text>
               </View>
 
-              <Text style={[styles.label, dynamicStyles.label]}>
-                5. Operating Hours Notes (Optional):
-              </Text>
-              <Input
-                placeholder='e.g., 24 hours, 6am-10pm Mon-Sat'
-                value={operatingHoursNotes}
-                onChangeText={setOperatingHoursNotes}
-                multiline
-                numberOfLines={3}
-                style={[styles.input, styles.commentInput]}
-                maxLength={150}
-                placeholderTextColor={Colors.placeholderGray}
-              />
+              {/* Card Content */}
+              <View style={styles.cardContent}>
+                {/* 1. Location */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelContainer}>
+                    <Text style={styles.labelNumber}>1.</Text>
+                    <Text style={styles.label}>Set Location on Map</Text>
+                    <Text style={styles.requiredIndicator}>*</Text>
+                  </View>
+                  <Button
+                    title={
+                      selectedLocation
+                        ? 'Change Location'
+                        : 'Set Location on Map'
+                    }
+                    onPress={handleOpenLocationPicker}
+                    variant='outline'
+                    leftIcon={
+                      // Correct prop name: leftIcon
+                      <Feather
+                        name='map-pin'
+                        size={16}
+                        color={Colors.primary}
+                      />
+                    }
+                    style={styles.locationButton}
+                    textStyle={styles.locationButtonText}
+                  />
+                  {selectedLocation && (
+                    <Text style={styles.coordsText}>
+                      Selected: Lat: {selectedLocation.latitude.toFixed(6)},
+                      Lng: {selectedLocation.longitude.toFixed(6)}
+                    </Text>
+                  )}
+                  {/* Display Geocoding Status/Result */}
+                  {isGeocoding && (
+                    <View style={styles.addressDisplayContainer}>
+                      <ActivityIndicator size='small' color={Colors.primary} />
+                      <Text style={styles.addressText}>
+                        {' '}
+                        Fetching address...
+                      </Text>
+                    </View>
+                  )}
+                  {geocodeError && (
+                    <View style={styles.addressDisplayContainer}>
+                      <Text style={[styles.addressText, styles.errorText]}>
+                        Error: {geocodeError}
+                      </Text>
+                    </View>
+                  )}
+                  {fetchedAddress && !isGeocoding && (
+                    <View style={styles.addressDisplayContainer}>
+                      <Text style={styles.addressLabel}>Detected Address:</Text>
+                      <Text style={styles.addressText}>
+                        {fetchedAddress.formattedAddress || 'N/A'}
+                      </Text>
+                      {/* Optionally show city/province */}
+                      {/* <Text style={styles.addressDetailText}>
+                        City: {fetchedAddress.city || 'N/A'}, Prov: {fetchedAddress.province || 'N/A'}
+                      </Text> */}
+                    </View>
+                  )}
+                </View>
 
-              {/* Apply dynamic text color */}
-              <Text style={[styles.requiredText, dynamicStyles.requiredText]}>
-                * Required field
-              </Text>
+                {/* 2. Station Name */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelContainer}>
+                    <Text style={styles.labelNumber}>2.</Text>
+                    <Text style={styles.label}>Station Name</Text>
+                    <Text style={styles.requiredIndicator}>*</Text>
+                  </View>
+                  <Input
+                    placeholder='e.g., Shell EDSA Cor. Main Ave'
+                    value={stationName}
+                    onChangeText={setStationName}
+                    maxLength={100}
+                    placeholderTextColor={Colors.placeholderGray}
+                    // style={inputStyle} // Use Input's internal styling or pass custom if needed
+                  />
+                </View>
 
-              <View style={styles.buttonContainer}>
+                {/* 3. Brand */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelContainer}>
+                    <Text style={styles.labelNumber}>3.</Text>
+                    <Text style={styles.label}>Brand</Text>
+                    <Text style={styles.requiredIndicator}>*</Text>
+                  </View>
+                  <Input
+                    placeholder='e.g., Shell, Petron, Caltex'
+                    value={stationBrand}
+                    onChangeText={setStationBrand}
+                    maxLength={50}
+                    placeholderTextColor={Colors.placeholderGray}
+                    // style={inputStyle}
+                  />
+                </View>
+
+                {/* 4. Amenities */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelContainer}>
+                    <Text style={styles.labelNumber}>4.</Text>
+                    <Text style={styles.label}>Amenities (Optional)</Text>
+                  </View>
+                  <View style={styles.amenitiesGrid}>
+                    {renderAmenityCheckbox(
+                      'convenienceStore',
+                      'Convenience Store'
+                    )}
+                    {renderAmenityCheckbox('restroom', 'Restroom')}
+                    {renderAmenityCheckbox('atm', 'ATM')}
+                    {renderAmenityCheckbox('airWater', 'Air/Water')}
+                    {renderAmenityCheckbox('carWash', 'Car Wash')}
+                    {renderAmenityCheckbox('foodService', 'Food Service')}
+                  </View>
+                </View>
+
+                {/* 5. Operating Hours */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelContainer}>
+                    <Text style={styles.labelNumber}>5.</Text>
+                    <Text style={styles.label}>
+                      Operating Hours Notes (Optional)
+                    </Text>
+                  </View>
+                  <View style={styles.textAreaContainer}>
+                    <Feather
+                      name='clock'
+                      size={16}
+                      color={Colors.iconGray}
+                      style={styles.textAreaIcon}
+                    />
+                    <TextInput // Use standard TextInput for multiline
+                      placeholder='e.g., 24 hours, 6am-10pm Mon-Sat'
+                      value={operatingHoursNotes}
+                      onChangeText={setOperatingHoursNotes}
+                      multiline
+                      numberOfLines={3} // Suggests initial height
+                      style={styles.textAreaInput} // Apply specific styles
+                      maxLength={150}
+                      placeholderTextColor={Colors.placeholderGray}
+                      textAlignVertical='top' // Align text to top
+                    />
+                  </View>
+                </View>
+
+                {/* Required Field Note */}
+                <Text style={styles.requiredText}>
+                  <Text style={styles.requiredIndicator}>*</Text> Required field
+                </Text>
+              </View>
+
+              {/* Card Footer */}
+              <View style={styles.cardFooter}>
                 <Button
                   title='Cancel'
                   onPress={handleClose}
                   variant='outline'
-                  style={styles.button}
+                  leftIcon={
+                    // Correct prop name: leftIcon
+                    <Feather name='x' size={16} color={Colors.textGray} />
+                  }
+                  style={StyleSheet.flatten([
+                    styles.footerButton,
+                    styles.cancelButton,
+                  ])} // Flatten styles
+                  textStyle={styles.cancelButtonText}
                   disabled={submitAddStationMutation.isPending || isGeocoding}
                 />
                 <Button
                   title='Submit Suggestion'
                   onPress={handleSubmit}
-                  style={styles.button}
+                  leftIcon={
+                    // Correct prop name: leftIcon
+                    <Feather name='check' size={16} color={Colors.white} />
+                  }
+                  style={StyleSheet.flatten([
+                    styles.footerButton,
+                    styles.submitButton,
+                  ])} // Flatten styles
+                  textStyle={styles.submitButtonText}
                   loading={submitAddStationMutation.isPending}
                   disabled={
                     !selectedLocation ||
                     !stationName.trim() ||
                     !stationBrand.trim() ||
                     isGeocoding ||
-                    !fetchedAddress?.city ||
-                    !fetchedAddress?.province ||
+                    // !fetchedAddress?.city || // Relaxed this check
+                    // !fetchedAddress?.province || // Relaxed this check
                     submitAddStationMutation.isPending
                   }
                 />
               </View>
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
 
       {/* Location Picker Modal */}
@@ -506,145 +536,27 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
           isVisible={isLocationPickerVisible}
           onClose={handleCloseLocationPicker}
           onLocationSelect={handleLocationSelect}
-          initialLocation={selectedLocation}
+          initialLocation={
+            // Correct prop name: initialLocation
+            selectedLocation
+              ? selectedLocation // Pass the full selectedLocation object
+              : initialCoordinates // Use initialCoordinates if location not yet selected
+              ? {
+                  // Ensure initialCoordinates is also a full Coords object
+                  latitude: initialCoordinates.latitude,
+                  longitude: initialCoordinates.longitude,
+                  accuracy: null,
+                  altitude: null,
+                  altitudeAccuracy: null,
+                  heading: null,
+                  speed: null,
+                }
+              : undefined // Pass undefined if neither is available
+          }
         />
       )}
     </Modal>
   );
 };
-
-// Base styles
-const styles = StyleSheet.create({
-  keyboardAvoidingView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    paddingVertical: 20,
-  },
-  modalView: {
-    // Base styles, background applied dynamically
-    margin: 20,
-    borderRadius: 15,
-    padding: 25,
-    alignItems: 'stretch',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    width: '90%',
-    maxHeight: '95%',
-  },
-  modalTitle: {
-    // Base styles, color applied dynamically
-    marginBottom: 15,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  label: {
-    // Base styles, color applied dynamically
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 5,
-    marginTop: 15,
-  },
-  input: {
-    marginBottom: 15,
-    // Consider adding dynamic border/text colors if needed based on scheme
-  },
-  commentInput: {
-    minHeight: 60,
-    textAlignVertical: 'top',
-    marginBottom: 10,
-  },
-  setLocationButton: {
-    marginBottom: 5,
-  },
-  coordsText: {
-    fontSize: 12,
-    color: theme.Colors.gray, // Keep gray for muted coords
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  addressDisplayContainer: {
-    // Base styles, background/border applied dynamically
-    marginTop: 5,
-    marginBottom: 15,
-    padding: 10,
-    borderRadius: 5,
-    borderWidth: 1,
-  },
-  addressLabel: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: Colors.darkGray, // Keep dark gray for label
-    marginBottom: 4,
-  },
-  addressText: {
-    // Base styles, color applied dynamically
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  addressDetailText: {
-    fontSize: 13,
-    color: Colors.darkGray, // Keep dark gray for details
-  },
-  addressTextMuted: {
-    fontSize: 13,
-    color: Colors.mediumGray, // Keep medium gray
-    fontStyle: 'italic',
-  },
-  errorText: {
-    color: Colors.error,
-  },
-  amenitiesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 10,
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    marginRight: 15,
-  },
-  checkbox: {
-    marginRight: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: theme.Colors.primary,
-  },
-  checkboxLabel: {
-    // Base styles, color applied dynamically
-    fontSize: 14,
-  },
-  requiredText: {
-    // Base styles, color applied dynamically
-    fontSize: 12,
-    marginTop: 10,
-    marginBottom: 5,
-    textAlign: 'right',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  button: {
-    flex: 1,
-    marginHorizontal: 5,
-  },
-});
 
 export default AddStationModal;
