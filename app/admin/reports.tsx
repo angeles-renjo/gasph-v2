@@ -6,7 +6,6 @@ import {
   Alert,
   useColorScheme, // Import useColorScheme for styles
 } from 'react-native';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
@@ -59,7 +58,6 @@ export default function AdminReportsScreen() {
   const deleteStationMutation = useDeleteStationMutation();
   const createStationMutation = useCreateStationMutation();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [isConfirming, setIsConfirming] = useState(false); // State for modal loading
 
   // Define the function to handle the confirmation attempt
@@ -82,23 +80,9 @@ export default function AdminReportsScreen() {
       });
       console.log('Report status updated successfully (handleConfirmAttempt)');
 
-      // 3. Invalidation is now handled by the useCreateStationMutation's onSettled callback
-      // console.log('Invalidating queries after successful creation...'); // Removed console log
-      // const adminStationListKey = queryKeys.admin.stations.list();
-      // const mapStationsBaseKey = [
-      //   ...queryKeys.stations.all,
-      //   'listWithPrice',
-      // ] as const;
-      // // Use setTimeout to delay invalidation slightly, allowing UI to settle
-      // setTimeout(() => {
-      //   queryClient.invalidateQueries({ queryKey: adminStationListKey });
-      //   queryClient.invalidateQueries({ queryKey: mapStationsBaseKey });
-      //   console.log('Admin and Map queries invalidated.');
-      // }, 150);
-
       Alert.alert('Success', 'Station created and report approved.');
       setIsConfirming(false);
-      return true; // Indicate success
+      return true;
     } catch (error: any) {
       // console.error('Error during confirm/create process:', error); // Removed console log
       Alert.alert(
