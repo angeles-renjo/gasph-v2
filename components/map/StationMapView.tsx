@@ -203,15 +203,19 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
       height: INITIAL_MAP_HEIGHT,
     });
 
+    // Calculate initial region based on the provided initialLocation
     const calculatedInitialRegion = useMemo(() => {
       return {
-        ...PHILIPPINES_CENTER,
-        ...PHILIPPINES_DELTA,
+        latitude: initialLocation.latitude,
+        longitude: initialLocation.longitude,
+        // Use a reasonable delta for initial zoom, maybe USER_DELTA or a bit wider
+        latitudeDelta: 0.0922, // Standard delta
+        longitudeDelta: 0.0421, // Standard delta
       };
-    }, []);
+    }, [initialLocation]); // Depend on initialLocation
 
     const [region, setRegion] = useState<Region | undefined>(
-      calculatedInitialRegion
+      calculatedInitialRegion // Use the calculated region based on prop
     );
 
     // Update region state and enforce bounds when map moves
@@ -384,8 +388,8 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
           initialRegion={calculatedInitialRegion}
           onRegionChangeComplete={handleInternalRegionChangeComplete} // Use internal handler
           onLayout={onMapLayout}
-          showsUserLocation={false}
-          showsMyLocationButton={false}
+          showsUserLocation={true} // <-- Change to true
+          showsMyLocationButton={true} // <-- Also enable the button
           loadingEnabled={isLoading}
           loadingIndicatorColor={theme.Colors.primary}
           loadingBackgroundColor={theme.Colors.white}

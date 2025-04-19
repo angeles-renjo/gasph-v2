@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // Add useEffect back
+import { useState, useEffect } from 'react'; // Add useEffect back
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/Button';
 import { FilterControlBubble } from '@/components/ui/FilterControlBubble'; // Import the new component
 import theme from '@/styles/theme';
 import { formatDistance } from '@/utils/formatters'; // Import formatDistance
+import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
 
 const FUEL_TYPES: FuelType[] = [
   'Diesel',
@@ -60,12 +61,20 @@ export default function BestPricesScreen() {
     refreshLocation,
   } = useLocation();
 
+  // Get default fuel type from preferences store
+  const defaultFuelTypeFromStore = usePreferencesStore(
+    (state) => state.defaultFuelType
+  );
+
   const [selectedFuelType, setSelectedFuelType] = useState<
     FuelType | undefined
-  >();
+  >(defaultFuelTypeFromStore ?? undefined); // Initialize with preference, fallback to undefined if null
   const [maxDistance, setMaxDistance] = useState<DistanceOption>(15);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null); // Add state for selected card ID
   const router = useRouter(); // Get router instance
+
+  // Log the location being used for the query removed
+  // console.log('[BestPricesScreen] Location passed to useBestPrices:', location);
 
   const { data, isLoading, error, refetch, isRefetching } = useBestPrices({
     fuelType: selectedFuelType,

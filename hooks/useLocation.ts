@@ -29,8 +29,10 @@ export function useLocation() {
 
         // Request permission to access location
         const { status } = await Location.requestForegroundPermissionsAsync();
+        // console.log('[useLocation] Permission status:', status); // Log status removed
 
         if (status !== 'granted') {
+          // console.log('[useLocation] Permission denied.'); // Log denial removed
           if (isMounted) {
             setError('Permission to access location was denied');
             setPermissionDenied(true);
@@ -43,19 +45,24 @@ export function useLocation() {
         const position = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
+        // console.log('[useLocation] Position obtained:', position); // Log position removed
 
         if (isMounted) {
-          setLocation({
+          const newLocation = {
+            // Create object first
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             isDefaultLocation: false,
-          });
+          };
+          // console.log('[useLocation] Setting location state:', newLocation); // Log location being set removed
+          setLocation(newLocation);
           setError(null);
           setPermissionDenied(false);
           setLoading(false);
         }
       } catch (err: any) {
         if (isMounted) {
+          // console.error('[useLocation] Error getting location:', err); // Log error removed
           setError(err.message || 'Failed to get location');
           setPermissionDenied(true);
           setLoading(false);
@@ -104,7 +111,11 @@ export function useLocation() {
   // For components that can use a default location (like Explore)
   // This function is guaranteed to never return null
   const getLocationWithFallback = (): LocationData => {
-    if (location) return location;
+    if (location) {
+      // console.log('[useLocation] getLocationWithFallback: Returning actual location state:', location); // Log removed
+      return location;
+    }
+    // console.log('[useLocation] getLocationWithFallback: Returning DEFAULT_LOCATION'); // Log removed
     return DEFAULT_LOCATION;
   };
 
