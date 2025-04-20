@@ -113,6 +113,7 @@ export function useBestPrices({
 
   const isQueryEnabled =
     !!location &&
+    !location.isDefaultLocation && // Only enable if we have a real location
     enabled &&
     !isLoadingStations &&
     !!nearbyStations &&
