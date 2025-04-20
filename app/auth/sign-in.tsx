@@ -1,4 +1,5 @@
 import {
+  // Remove React, useState, useEffect
   View,
   Text,
   StyleSheet,
@@ -7,12 +8,14 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Image, // Import Image component
+  Keyboard, // Import Keyboard module
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons'; // Keep for input icons
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -42,8 +45,10 @@ export default function SignInScreen() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    Keyboard.dismiss(); // Dismiss keyboard first
     try {
       await signIn(data);
+      // Navigate immediately
       router.replace('/');
     } catch (error: any) {
       Alert.alert(
@@ -63,7 +68,11 @@ export default function SignInScreen() {
         keyboardShouldPersistTaps='handled'
       >
         <View style={styles.logoContainer}>
-          <FontAwesome5 name='gas-pump' size={60} color='#2a9d8f' />
+          {/* Replace FontAwesome icon with Image */}
+          <Image
+            source={require('@/assets/images/icon.png')}
+            style={styles.logoImage}
+          />
           <Text style={styles.appTitle}>GasPH</Text>
           <Text style={styles.appSubtitle}>Find the best fuel prices</Text>
         </View>
@@ -112,7 +121,7 @@ export default function SignInScreen() {
             title='Sign In'
             onPress={handleSubmit(onSubmit)}
             fullWidth
-            loading={loading}
+            loading={loading} // Use loading state from useAuth again
             style={styles.button}
           />
 
@@ -141,6 +150,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 40,
     marginBottom: 40,
+  },
+  logoImage: {
+    // Add styles for the logo image
+    width: 80,
+    height: 80,
+    resizeMode: 'contain', // Adjust resizeMode as needed
   },
   appTitle: {
     fontSize: 32,

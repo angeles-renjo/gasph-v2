@@ -10,11 +10,7 @@ export default {
     scheme: 'myapp',
     userInterfaceStyle: 'automatic',
     newArchEnabled: false,
-    splash: {
-      image: './assets/images/splash-icon.png',
-      resizeMode: 'contain',
-      backgroundColor: '#ffffff',
-    },
+    // Removed legacy splash config, using plugin below
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.angeles-renjo.gasph-v2',
@@ -61,6 +57,19 @@ export default {
         },
       ],
       // Note: Removed "react-native-maps" from here if it was added previously, as it's not a valid plugin name.
+      [
+        'expo-splash-screen',
+        {
+          image: './assets/images/splash-icon.png',
+          resizeMode: 'contain', // Keep the resize mode consistent
+          backgroundColor: '#ffffff',
+          // Add dark mode config later if needed
+          // dark: {
+          //   image: "./assets/images/splash-icon-dark.png",
+          //   backgroundColor: "#000000"
+          // }
+        },
+      ],
     ],
     experiments: {
       typedRoutes: true,
