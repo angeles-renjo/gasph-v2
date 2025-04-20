@@ -1,15 +1,7 @@
-const openAppSettings = () => {
-  if (Platform.OS === 'ios') {
-    Linking.openURL('app-settings:');
-  } else {
-    Linking.openSettings();
-  }
-};
 import { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TextInput,
   TouchableOpacity,
