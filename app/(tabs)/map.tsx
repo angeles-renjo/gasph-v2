@@ -1,18 +1,14 @@
-import React from 'react';
-import { StyleSheet, Platform, Linking } from 'react-native';
+import { StyleSheet, Platform, Linking } from 'react-native'; // Added Text for potential button text styling
 import { SafeAreaView } from 'react-native-safe-area-context';
-// Removed Themed View import as SafeAreaView is used as the root
 import { useColorScheme } from '@/components/useColorScheme'; // Import useColorScheme
 import { useLocation } from '@/hooks/useLocation';
-// import { useAllStations } from '@/hooks/queries/stations/useAllStations'; // No longer needed
 import { useStationsWithPrices } from '@/hooks/queries/stations/useStationsWithPrices'; // Import the new hook
 import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
 import { StationMapView } from '@/components/map/StationMapView';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import theme from '@/styles/theme';
-import { View } from '@/components/Themed';
-import FloatingActionButton from '@/components/ui/FloatingActionButton'; // Import the FAB
+import { View } from '@/components/Themed'; // Keep this View for the main container
 import AddStationModal from '@/components/station/AddStationModal'; // Import the Add modal
 import { useState, useRef } from 'react'; // Import useState and useRef
 import MapView, { Region } from 'react-native-maps'; // Import MapView types
@@ -25,8 +21,8 @@ const openAppSettings = () => {
     Linking.openSettings();
   }
 };
-
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices'; // Import FuelType
+import { Button } from '@/components/ui/Button'; // Import the standard Button component (named export)
 
 export default function MapScreen() {
   const [isAddStationModalVisible, setIsAddStationModalVisible] =
@@ -124,8 +120,13 @@ export default function MapScreen() {
         defaultFuelType={fuelTypeForMap} // Pass the determined fuel type
         onRegionChangeComplete={handleRegionChangeComplete} // Pass the handler
       />
-      {/* Add Station FAB */}
-      <FloatingActionButton onPress={handleAddStationPress} />
+      {/* Add Station Button (Top Right) */}
+      <Button
+        title='Add Station'
+        onPress={handleAddStationPress}
+        style={styles.addStationButton}
+        textStyle={styles.addStationButtonText} // Add text style
+      />
 
       {/* Add Station Modal */}
       <AddStationModal
@@ -140,5 +141,20 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  addStationButton: {
+    position: 'absolute',
+    top: theme.Spacing.xl, // Use theme spacing (e.g., 16)
+    right: theme.Spacing.xl, // Use theme spacing (e.g., 16)
+    backgroundColor: theme.Colors.primary, // Use theme primary color
+    paddingVertical: theme.Spacing.sm, // Use theme spacing (e.g., 8)
+    paddingHorizontal: theme.Spacing.md, // Use theme spacing (e.g., 10)
+    borderRadius: theme.BorderRadius.md, // Use theme border radius (e.g., 8)
+    zIndex: 1, // Ensure it's above the map
+  },
+  addStationButtonText: {
+    color: theme.Colors.white, // Use theme white color
+    fontSize: theme.Typography.fontSizeMedium, // Use theme font size (e.g., 14)
+    fontWeight: theme.Typography.fontWeightSemiBold, // Use theme font weight (e.g., 600)
   },
 });
