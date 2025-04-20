@@ -5,12 +5,11 @@ import {
   View,
   Text,
   ActivityIndicator,
-  Alert,
+  // Alert, // No longer needed here
 } from 'react-native';
-// Import PROVIDER_GOOGLE
 import MapView, { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { LocationObjectCoords } from 'expo-location';
-import * as Location from 'expo-location';
+// import * as Location from 'expo-location'; // No longer needed here
 import { Button } from '@/components/ui/Button';
 import theme from '@/styles/theme';
 import mapStyle from '@/styles/mapStyle.json'; // Import the custom map style
@@ -53,55 +52,26 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       setIsLoadingRegion(true);
       setCurrentMarkerLocation(initialLocation); // Reset marker to initial prop
 
-      const determineInitialRegion = async () => {
-        let region: Region;
-        try {
-          if (initialLocation) {
-            // Use initialLocation if provided
-            region = {
-              latitude: initialLocation.latitude,
-              longitude: initialLocation.longitude,
-              ...DEFAULT_ZOOM,
-            };
-          } else {
-            // Try getting current location
-            let { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-              console.warn('Location permission denied for map picker');
-              Alert.alert(
-                'Permission Denied',
-                'Location permission is needed to center the map. Showing default area.'
-              );
-              region = DEFAULT_REGION; // Use default if permission denied
-            } else {
-              // Get current location and center map there
-              let location = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High, // Request higher accuracy
-              });
-              region = {
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-                ...DEFAULT_ZOOM,
-              };
-              // Set initial marker to current location if no initialLocation was passed
-              if (!initialLocation) {
-                setCurrentMarkerLocation(location.coords);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error getting location for map picker:', error);
-          Alert.alert(
-            'Location Error',
-            'Could not determine location. Showing default area.'
-          );
-          region = DEFAULT_REGION; // Fallback on error
-        }
-        setMapRegion(region);
-        setIsLoadingRegion(false);
-      };
+      // Determine region based *only* on the initialLocation prop
+      let region: Region;
+      if (initialLocation) {
+        // Use initialLocation if provided
+        region = {
+          latitude: initialLocation.latitude,
+          longitude: initialLocation.longitude,
+          ...DEFAULT_ZOOM,
+        };
+      } else {
+        // Fallback to default region if no initialLocation is passed
+        // (This shouldn't happen with the new AddStationModal flow, but good to have)
+        console.warn(
+          'LocationPickerModal opened without initialLocation. Using default region.'
+        );
+        region = DEFAULT_REGION;
+      }
 
-      determineInitialRegion();
+      setMapRegion(region);
+      setIsLoadingRegion(false);
     } else {
       // Reset when modal closes
       setMapRegion(undefined);
@@ -130,12 +100,8 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const handleConfirm = () => {
     if (currentMarkerLocation) {
       onLocationSelect(currentMarkerLocation);
-    } else {
-      Alert.alert(
-        'No Location Set',
-        'Please tap on the map to set a location.'
-      );
     }
+    // No need for an alert here, the button should be disabled if no location is set
   };
 
   // Handle region change complete (optional: could update marker if needed)

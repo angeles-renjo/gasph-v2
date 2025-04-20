@@ -12,6 +12,7 @@ import {
   Text, // Use standard Text
   TextInput, // Use standard TextInput if ui/Input isn't suitable
   StyleSheet, // Import StyleSheet
+  Linking, // Import Linking for opening settings
 } from 'react-native';
 import Checkbox from 'expo-checkbox';
 import { Feather } from '@expo/vector-icons'; // Import icons
@@ -19,6 +20,8 @@ import { Feather } from '@expo/vector-icons'; // Import icons
 import { Button } from '@/components/ui/Button'; // Keep using custom Button
 import { Input } from '@/components/ui/Input'; // Keep using custom Input (assuming it's flexible)
 import { useAuth } from '@/hooks/useAuth';
+// import { useLocation } from '@/hooks/useLocation'; // Remove useLocation hook
+import * as Location from 'expo-location'; // Import expo-location directly
 import { TablesInsert } from '@/utils/supabase/types';
 import { supabase } from '@/utils/supabase/supabase';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -114,7 +117,10 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
   const [selectedLocation, setSelectedLocation] = useState<
     LocationObjectCoords | undefined
   >(undefined); // Initialize as undefined
+  const [locationForPicker, setLocationForPicker] =
+    useState<LocationObjectCoords | null>(null); // State for location to pass to picker
   const [isLocationPickerVisible, setIsLocationPickerVisible] = useState(false);
+  const [isCheckingLocation, setIsCheckingLocation] = useState(false); // State for location check loading
   const [operatingHoursNotes, setOperatingHoursNotes] = useState('');
   // Updated amenities state
   const [amenities, setAmenities] = useState<Record<AmenityKey, boolean>>({
@@ -127,8 +133,18 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
   });
 
   const { user } = useAuth();
+  // const { requestPermissionAndGetLocation } = useLocation(); // Remove useLocation hook usage
   const submitAddStationMutation = useSubmitAddStationMutation();
   const colorScheme = useColorScheme() ?? 'light'; // Keep for potential theme adjustments
+
+  // Helper function to open app settings
+  const openAppSettings = () => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('app-settings:');
+    } else {
+      Linking.openSettings();
+    }
+  };
 
   // Function to reset all state
   const resetState = () => {
@@ -137,6 +153,8 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
     setFetchedAddress(null);
     setIsGeocoding(false);
     setGeocodeError(null);
+    setLocationForPicker(null); // Reset location for picker
+    setIsCheckingLocation(false); // Reset location check loading state
     setOperatingHoursNotes('');
     // Reset amenities to initial state
     setAmenities({
@@ -172,8 +190,47 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
   }, [isVisible, initialCoordinates]); // Rerun if initialCoordinates changes
 
   // --- Handlers ---
-  const handleOpenLocationPicker = () => {
-    setIsLocationPickerVisible(true);
+  const handleOpenLocationPicker = async () => {
+    setIsCheckingLocation(true);
+    setGeocodeError(null); // Clear previous errors
+
+    try {
+      // 1. Request Permission
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Location Permission Required',
+          'Please grant location permission in your device settings to set the station location.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: openAppSettings },
+          ]
+        );
+        setIsCheckingLocation(false);
+        return; // Stop execution if permission denied
+      }
+
+      // 2. Get Current Location if permission granted
+      let location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High, // Request high accuracy
+      });
+
+      if (location && location.coords) {
+        setLocationForPicker(location.coords); // Set the fetched location
+        setIsLocationPickerVisible(true); // Open the picker
+      } else {
+        throw new Error('Could not retrieve location data.'); // Handle case where location is null
+      }
+    } catch (error: any) {
+      console.error('Error handling location for picker:', error);
+      Alert.alert(
+        'Location Error',
+        error.message ||
+          'Could not get your current location. Please try again.'
+      );
+    } finally {
+      setIsCheckingLocation(false);
+    }
   };
 
   const handleCloseLocationPicker = () => {
@@ -348,12 +405,18 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
                     }
                     onPress={handleOpenLocationPicker}
                     variant='outline'
+                    loading={isCheckingLocation} // Show loading state
+                    disabled={isCheckingLocation} // Disable while checking
                     leftIcon={
                       // Correct prop name: leftIcon
                       <Feather
                         name='map-pin'
                         size={16}
-                        color={Colors.primary}
+                        color={
+                          isCheckingLocation
+                            ? Colors.mediumGray
+                            : Colors.primary
+                        } // Dim icon when loading
                       />
                     }
                     style={styles.locationButton}
@@ -536,23 +599,8 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
           isVisible={isLocationPickerVisible}
           onClose={handleCloseLocationPicker}
           onLocationSelect={handleLocationSelect}
-          initialLocation={
-            // Correct prop name: initialLocation
-            selectedLocation
-              ? selectedLocation // Pass the full selectedLocation object
-              : initialCoordinates // Use initialCoordinates if location not yet selected
-              ? {
-                  // Ensure initialCoordinates is also a full Coords object
-                  latitude: initialCoordinates.latitude,
-                  longitude: initialCoordinates.longitude,
-                  accuracy: null,
-                  altitude: null,
-                  altitudeAccuracy: null,
-                  heading: null,
-                  speed: null,
-                }
-              : undefined // Pass undefined if neither is available
-          }
+          // Pass the specifically fetched location for the picker
+          initialLocation={locationForPicker ?? undefined}
         />
       )}
     </Modal>
