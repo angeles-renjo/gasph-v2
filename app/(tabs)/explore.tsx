@@ -36,7 +36,6 @@ const POPULAR_BRANDS = [
   'CleanFuel',
 ];
 
-/*************  ✨ Windsurf Command ⭐  *************/
 /**
  * ExploreScreen component provides a user interface for exploring nearby gas stations.
  * It fetches location data and displays stations within a specified radius.
@@ -46,7 +45,6 @@ const POPULAR_BRANDS = [
  * The component also allows refreshing the station list and shows an empty state if no stations are found.
  */
 
-/*******  954ba215-9b9a-4676-9e28-0a5d8331f29e  *******/
 export default function ExploreScreen() {
   const {
     getLocationWithFallback,
