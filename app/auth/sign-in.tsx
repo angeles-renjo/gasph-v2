@@ -70,7 +70,7 @@ export default function SignInScreen() {
         <View style={styles.logoContainer}>
           {/* Replace FontAwesome icon with Image */}
           <Image
-            source={require('@/assets/images/icon.png')}
+            source={require('@/assets/icons/adaptive-icon.png')}
             style={styles.logoImage}
           />
           <Text style={styles.appTitle}>GasPH</Text>
