@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/Input';
 import { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
+import { formatFuelType } from '@/utils/formatters';
 
 interface PriceReportModalProps {
   isVisible: boolean;
@@ -225,7 +226,7 @@ export function PriceReportModal({
                     selectedFuelType === type && styles.selectedFuelTypeText,
                   ]}
                 >
-                  {type}
+                  {formatFuelType(type)}
                 </Text>
               </TouchableOpacity>
             ))}

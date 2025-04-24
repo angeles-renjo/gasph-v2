@@ -14,6 +14,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { View as RNView } from 'react-native'; // Import View for useRef type
 import theme from '@/styles/theme';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices'; // Assuming FuelType is exported
+import { formatFuelType } from '@/utils/formatters';
 
 // Use the specific distance options type
 type DistanceOption = 5 | 15 | 30;
@@ -133,8 +134,16 @@ export const FilterControlBubble: React.FC<FilterControlBubbleProps> = ({
                   keyExtractor={(item) => String(item)}
                   renderItem={({ item }: { item: string | number }) => {
                     // Add type for item
-                    const displayItem =
-                      activeFilter === 'fuel' ? item : `${item} km`;
+                    let displayItem: string;
+                    if (activeFilter === 'fuel') {
+                      if (item === 'All Types') {
+                        displayItem = 'All Types';
+                      } else {
+                        displayItem = formatFuelType(item as FuelType);
+                      }
+                    } else {
+                      displayItem = `${item} km`;
+                    }
 
                     // Type-safe comparisons and value preparation
                     let isSelected = false;
@@ -238,7 +247,7 @@ export const FilterControlBubble: React.FC<FilterControlBubbleProps> = ({
             color={theme.Colors.primary}
           />
           <Text style={styles.triggerText} numberOfLines={1}>
-            {selectedFuelType ?? 'All Types'}
+            {selectedFuelType ? formatFuelType(selectedFuelType) : 'All Types'}
           </Text>
           <FontAwesome5
             name='chevron-down'

@@ -16,7 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useStationFuelTypePrices } from '@/hooks/queries/stations/useStationFuelTypePrices';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
-import { formatPrice } from '@/utils/formatters';
+import { formatPrice, formatFuelType } from '@/utils/formatters';
 import { Colors, Spacing } from '@/styles/theme';
 import ReportStationModal from '../station/ReportStationModal';
 import PriceReportModal from '../price/PriceReportModal'; // Import the PriceReportModal component
@@ -264,7 +264,7 @@ export function StationInfoModal({
                     }}
                   >
                     <Text style={styles.sectionTitle}>
-                      Price for {fuelType.replace('_', ' ')}
+                      Price for {formatFuelType(fuelType)}
                     </Text>
                     {/* Report Price Button */}
 

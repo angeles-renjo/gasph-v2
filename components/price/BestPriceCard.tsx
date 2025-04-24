@@ -8,7 +8,11 @@ import {
 import { useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { TouchableCard } from '@/components/ui/Card';
-import { formatPrice, formatDistance } from '@/utils/formatters';
+import {
+  formatPrice,
+  formatDistance,
+  formatFuelType,
+} from '@/utils/formatters';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
 import { DOEPriceDisplay } from './DOEPriceDisplay';
 import type { BestPrice } from '@/hooks/queries/prices/useBestPrices';
@@ -82,7 +86,9 @@ export function BestPriceCard({
       {/* Price Section - Most visually prominent */}
       <View style={styles.priceSection}>
         <View style={styles.fuelTypeContainer}>
-          <Text style={styles.fuelType}>{fuel_type ?? 'Unknown Fuel'}</Text>
+          <Text style={styles.fuelType}>
+            {fuel_type ? formatFuelType(fuel_type) : 'Unknown Fuel'}
+          </Text>
         </View>
         <View style={styles.priceContainer}>
           <Text style={styles.price}>{price ? formatPrice(price) : '--'}</Text>

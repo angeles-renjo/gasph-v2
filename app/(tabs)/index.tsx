@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { useRouter } from 'expo-router'; // Import useRouter
+import { Link, useRouter } from 'expo-router'; // Import useRouter
 import { useBestPrices, FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { useLocation } from '@/hooks/useLocation';
 import { BestPriceCard } from '@/components/price/BestPriceCard';
@@ -147,11 +147,6 @@ export default function BestPricesScreen() {
     </SafeAreaView>
   );
 
-  // Removed renderFuelTypeFilters function
-
-  // Removed renderDistanceFilters function
-
-  // Modernized stats dashboard
   const renderStatsHeader = () => {
     // Ensure data and prices exist
     if (!data?.stats || !data.prices || data.prices.length === 0) return null;
@@ -317,6 +312,7 @@ export default function BestPricesScreen() {
         onDistanceSelect={handleDistanceChange}
         distanceOptions={DISTANCE_OPTIONS}
       />
+      <Link href='/faq'>FAQ</Link>
       {/* Main content - Renders below the filter bubble */}
       {renderContent()}
     </SafeAreaView>
