@@ -18,6 +18,7 @@ import type { GasStation } from '@/hooks/queries/stations/useNearbyStations';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { formatPrice, formatFuelType } from '@/utils/formatters';
 import { Colors, Spacing } from '@/styles/theme';
+import { openDirections } from '@/utils/navigation';
 import ReportStationModal from '../station/ReportStationModal';
 import PriceReportModal from '../price/PriceReportModal'; // Import the PriceReportModal component
 import { usePriceConfirmation } from '@/hooks/queries/prices/usePriceConfirmation';
@@ -97,17 +98,7 @@ export function StationInfoModal({
   const handleDirections = () => {
     if (!station) return;
     const { latitude, longitude, name } = station;
-    const scheme = Platform.select({
-      ios: 'maps://0,0?q=',
-      android: 'geo:0,0?q=',
-    });
-    const latLng = `${latitude},${longitude}`;
-    const label = encodeURIComponent(name);
-    const url = Platform.select({
-      ios: `${scheme}${label}@${latLng}`,
-      android: `${scheme}${latLng}(${label})`,
-    });
-    if (url) Linking.openURL(url);
+    openDirections(latitude, longitude, name);
   };
 
   // --- Report Station Handler ---

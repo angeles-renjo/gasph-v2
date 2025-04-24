@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router'; // Import useRouter
+import { openDirections } from '@/utils/navigation';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
 import { useStationDetails } from '@/hooks/queries/stations/useStationDetails';
@@ -85,27 +86,11 @@ export default function StationDetailScreen() {
   };
 
   const openMapsApp = () => {
-    if (station?.latitude && station?.longitude) {
-      const scheme = Platform.OS === 'ios' ? 'maps://0,0?q=' : 'geo:0,0?q=';
-      const latLng = `${station.latitude},${station.longitude}`;
-      const label = station.name;
-      const url =
-        Platform.OS === 'ios'
-          ? `${scheme}${label}@${latLng}`
-          : `${scheme}${latLng}(${label})`;
-
-      Linking.canOpenURL(url)
-        .then((supported) => {
-          if (supported) {
-            return Linking.openURL(url);
-          } else {
-            Alert.alert('Error', 'Could not open map application.');
-          }
-        })
-        .catch((err) => console.error('An error occurred opening map', err));
-    } else {
+    if (!station?.latitude || !station?.longitude) {
       Alert.alert('Error', 'Station location not available.');
+      return;
     }
+    openDirections(station.latitude, station.longitude, station.name);
   };
 
   const handleReportPrice = async () => {

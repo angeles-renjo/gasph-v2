@@ -4,6 +4,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -14,6 +15,7 @@ import {
   formatFuelType,
 } from '@/utils/formatters';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
+import { openDirections } from '@/utils/navigation';
 import { DOEPriceDisplay } from './DOEPriceDisplay';
 import type { BestPrice } from '@/hooks/queries/prices/useBestPrices';
 
@@ -69,8 +71,12 @@ export function BestPriceCard({
   };
 
   const openDirections = () => {
-    // This would open directions in a maps app
-    console.log(`Opening directions to station ${id}`);
+    // TODO: Need station coordinates to implement this
+    // Will need to fetch station details or pass coordinates as props
+    Alert.alert(
+      'Directions Unavailable',
+      'Station coordinates not available for navigation'
+    );
   };
 
   // Calculate if this price is below average (for highlighting)
