@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router'; // Import useRouter
 import { useBestPrices, FuelType } from '@/hooks/queries/prices/useBestPrices';
-import { useLocation } from '@/hooks/useLocation';
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Use Zustand store
 import { BestPriceCard } from '@/components/price/BestPriceCard';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
@@ -54,12 +54,11 @@ const getEmptyStateMessage = (
 };
 
 export default function BestPricesScreen() {
-  const {
-    location,
-    loading: locationLoading,
-    error: locationError,
-    refreshLocation,
-  } = useLocation();
+  // Get state and actions from Zustand store using individual selectors to prevent re-renders
+  const location = useLocationStore((state) => state.location);
+  const locationLoading = useLocationStore((state) => state.loading);
+  const locationError = useLocationStore((state) => state.error);
+  const refreshLocation = useLocationStore((state) => state.refreshLocation);
 
   // Get default fuel type from preferences store
   const defaultFuelTypeFromStore = usePreferencesStore(
@@ -138,7 +137,7 @@ export default function BestPricesScreen() {
           />
           <Button
             title='Try Again'
-            onPress={refreshLocation}
+            onPress={refreshLocation} // Use refresh action from store
             variant='outline'
             style={styles.fallbackButton}
           />
@@ -313,6 +312,7 @@ export default function BestPricesScreen() {
         distanceOptions={DISTANCE_OPTIONS}
       />
       <Link href='/faq'>FAQ</Link>
+      <Link href='/location-test'>Test Location</Link>
       {/* Main content - Renders below the filter bubble */}
       {renderContent()}
     </SafeAreaView>

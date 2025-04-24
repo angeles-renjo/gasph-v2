@@ -1,7 +1,7 @@
 import { StyleSheet, Platform, Linking } from 'react-native'; // Added Text for potential button text styling
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/components/useColorScheme'; // Import useColorScheme
-import { useLocation } from '@/hooks/useLocation';
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Use Zustand store
 import { useStationsWithPrices } from '@/hooks/queries/stations/useStationsWithPrices'; // Import the new hook
 import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
 import { StationMapView } from '@/components/map/StationMapView';
@@ -37,13 +37,16 @@ export default function MapScreen() {
   ); // Get preferred fuel type
   // Determine the fuel type to use: preference or fallback to 'RON 91'
   const fuelTypeForMap: FuelType | null = preferredFuelType ?? 'RON 91';
-  const {
-    getLocationWithFallback,
-    loading: locationLoading,
-    error: locationError,
-    permissionDenied,
-    refreshLocation, // Added for potential refresh action
-  } = useLocation();
+  // Get state and actions from Zustand store using individual selectors to prevent re-renders
+  const getLocationWithFallback = useLocationStore(
+    (state) => state.getLocationWithFallback
+  );
+  const locationLoading = useLocationStore((state) => state.loading);
+  const locationError = useLocationStore((state) => state.error);
+  const permissionDenied = useLocationStore((state) => state.permissionDenied);
+  const openLocationSettings = useLocationStore(
+    (state) => state.openLocationSettings
+  );
 
   const locationData = getLocationWithFallback();
 
@@ -68,7 +71,7 @@ export default function MapScreen() {
           fullScreen
           title='Location Permission Required'
           message='Please grant location permission in settings to view nearby stations on the map.'
-          onRetry={openAppSettings}
+          onRetry={openLocationSettings} // Use action from store
         />
       </SafeAreaView>
     );

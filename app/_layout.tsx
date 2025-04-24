@@ -1,8 +1,11 @@
 import 'expo-dev-client';
-import { useEffect } from 'react'; // Add useState
-import { View, LogBox } from 'react-native'; // Add LogBox to import
-// Re-add useRouter, useSegments, useRootNavigationState
-import { Stack } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  Stack,
+  useRouter,
+  useSegments,
+  useRootNavigationState,
+} from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as SplashScreen from 'expo-splash-screen';
@@ -10,80 +13,129 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { queryClient } from '@/lib/query-client';
+import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/hooks/stores/useAuthStore';
-import { Colors } from '@/styles/theme'; // Import Colors
-import { useAppInitialization } from '@/hooks/useAppInitialization'; // Import the new hook
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import Zustand store
+import { Colors } from '@/styles/theme';
+import { View, Text } from 'react-native';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
-// Removed LogBox call from top level
 
 // Separate auth-aware navigation component
 function AuthenticatedNavigator() {
-  // Call the custom hook to handle initialization side effects
-  useAppInitialization();
+  const { user, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
 
-  // This component now only focuses on rendering the navigator structure.
-  // The splash screen hiding and navigation redirection are handled by the hook.
+  useEffect(() => {
+    // Wait for auth loading AND router navigation state to be ready
+    if (loading || !rootNavigationState?.key) {
+      return;
+    }
+
+    const inAuthGroup = segments[0] === '(tabs)';
+    const inAuthScreens = segments[0] === 'auth';
+
+    // Imperative navigation logic
+    if (!user && inAuthGroup) {
+      router.replace('/auth/sign-in');
+    } else if (user && inAuthScreens) {
+      router.replace('/');
+    }
+  }, [user, loading, segments, rootNavigationState, router]); // Add dependencies
 
   // Always render the full Stack navigator structure
-  // Removed onLayout prop from View as splash hiding is handled by useEffect
   return (
-    <View style={{ flex: 1 }}>
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: Colors.primary, // Use theme primary color
-          },
-          headerTintColor: Colors.white, // Use theme white color
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
+    <Stack
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: Colors.primary,
+        },
+        headerTintColor: Colors.white,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      {/* Define all screens directly, navigation logic is in useEffect */}
+      <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+      <Stack.Screen
+        name='station/[id]'
+        options={{
+          title: 'Station Details',
+          presentation: 'card',
         }}
-      >
-        {/* Define all screens directly, navigation logic is in useEffect */}
-        <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
-        <Stack.Screen
-          name='station/[id]'
-          options={{
-            title: 'Station Details',
-            presentation: 'card',
-          }}
-        />
-        <Stack.Screen
-          name='auth/sign-in'
-          options={{
-            title: 'Sign In',
-            presentation: 'modal',
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name='auth/sign-up'
-          options={{
-            title: 'Sign Up',
-            presentation: 'modal',
-            headerShown: false,
-          }}
-        />
-      </Stack>
-    </View>
+      />
+      <Stack.Screen
+        name='auth/sign-in'
+        options={{
+          title: 'Sign In',
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name='auth/sign-up'
+        options={{
+          title: 'Sign Up',
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
+    </Stack>
   );
+}
+
+// Splash screen handler component
+function SplashScreenHandler({ children }: { children: React.ReactNode }) {
+  const { loading, initialized, initialize } = useAuthStore();
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    // Define async function for initialization
+    const initApp = async () => {
+      // Initialize auth if not already done
+      if (!initialized) {
+        await initialize();
+      }
+
+      // Mark initialization as complete
+      setIsInitialized(true);
+
+      // Hide splash screen if auth is done loading
+      if (!loading) {
+        await SplashScreen.hideAsync().catch((err) => {
+          console.warn('Error hiding splash screen:', err);
+        });
+      }
+    };
+
+    // Start initialization
+    initApp();
+  }, [loading, initialized]);
+
+  // Hide splash screen whenever loading completes if we're already initialized
+  useEffect(() => {
+    if (isInitialized && !loading) {
+      SplashScreen.hideAsync().catch((err) => {
+        console.warn('Error hiding splash screen:', err);
+      });
+    }
+  }, [loading, isInitialized]);
+
+  // Always render children, even if loading/uninitialized
+  // The splash screen covers the content until hidden
+  return children;
 }
 
 // Main app layout
 export default function RootLayout() {
-  // Ignore the specific harmless warning from React Navigation
-  // Moved inside the component function
-  LogBox.ignoreLogs([
-    'Sending `onAnimatedValueUpdate` with no listeners registered.',
-  ]);
-
-  // Initialize auth store state here if needed, or ensure it's done elsewhere
-  const { initialize } = useAuthStore();
+  // Initialize location store on mount
   useEffect(() => {
-    initialize(); // Ensure auth state is initialized early
-  }, [initialize]);
+    useLocationStore.getState().initializeLocation();
+  }, []);
 
   return (
     <PersistQueryClientProvider
@@ -106,8 +158,10 @@ export default function RootLayout() {
     >
       <SafeAreaProvider>
         <StatusBar style='auto' />
-        {/* Removed SplashScreenHandler wrapper */}
-        <AuthenticatedNavigator />
+        <SplashScreenHandler>
+          {/* LocationProvider removed, store is initialized above */}
+          <AuthenticatedNavigator />
+        </SplashScreenHandler>
       </SafeAreaProvider>
     </PersistQueryClientProvider>
   );

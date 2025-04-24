@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 // Removed FlashList import
 import { useNearbyStations } from '@/hooks/queries/stations/useNearbyStations';
-import { useLocation } from '@/hooks/useLocation';
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Use Zustand store
 import { StationCard } from '@/components/station/StationCard';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
@@ -46,13 +46,13 @@ const POPULAR_BRANDS = [
  */
 
 export default function ExploreScreen() {
-  const {
-    getLocationWithFallback,
-    loading: locationLoading,
-    error: locationError,
-    permissionDenied,
-    refreshLocation,
-  } = useLocation();
+  // Get state and actions from Zustand store using individual selectors to prevent re-renders
+  const getLocationWithFallback = useLocationStore(
+    (state) => state.getLocationWithFallback
+  );
+  const locationLoading = useLocationStore((state) => state.loading);
+  const locationError = useLocationStore((state) => state.error);
+  const permissionDenied = useLocationStore((state) => state.permissionDenied);
 
   const locationData = getLocationWithFallback();
   const [searchQuery, setSearchQuery] = useState('');

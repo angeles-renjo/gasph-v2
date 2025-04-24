@@ -1,5 +1,5 @@
-import FAQScreen from '@/components/faq/FaqScreen';
 import { View } from '@/components/Themed';
+import FAQScreen from '@/components/faq/FAQScreen';
 
 export default function FAQ() {
   return (
