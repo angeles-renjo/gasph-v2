@@ -6,7 +6,7 @@ export default {
     slug: 'gasph-v2',
     version: '1.0.0',
     orientation: 'portrait',
-    icon: './assets/images/icon.png',
+    icon: './assets/icons/adaptive-icon.png',
     scheme: 'myapp',
     userInterfaceStyle: 'automatic',
     newArchEnabled: false,
@@ -24,11 +24,17 @@ export default {
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY_IOS,
       },
+      icon: {
+        light: './assets/icons/ios-light.png',
+        dark: './assets/icons/ios-dark.png',
+        tinted: './assets/icons/ios-tinted.png',
+      },
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: './assets/images/adaptive-icon.png',
-        backgroundColor: '#ffffff',
+        foregroundImage: './assets/icons/adaptive-icon.png',
+        monochromeImage: './assets/icons/adaptive-icon.png',
+        backgroundColor: '#2A9D8F',
       },
       permissions: [
         'android.permission.ACCESS_COARSE_LOCATION',
@@ -44,7 +50,6 @@ export default {
     web: {
       bundler: 'metro',
       output: 'static',
-      favicon: './assets/images/favicon.png',
     },
     plugins: [
       'expo-router',
@@ -60,9 +65,9 @@ export default {
       [
         'expo-splash-screen',
         {
-          image: './assets/images/splash-icon.png',
+          image: './assets/icons/splash-icon-light.png',
           resizeMode: 'contain', // Keep the resize mode consistent
-          backgroundColor: '#ffffff',
+          backgroundColor: '#2A9D8F',
           // Add dark mode config later if needed
           // dark: {
           //   image: "./assets/images/splash-icon-dark.png",
