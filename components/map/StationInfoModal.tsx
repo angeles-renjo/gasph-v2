@@ -6,23 +6,24 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
-  ScrollView, // Import ScrollView for potentially long content
+  ScrollView,
 } from 'react-native';
-import { useState } from 'react'; // Import useState
-// Removed useQuery import
-import { Feather } from '@expo/vector-icons'; // Use Feather icons
-import { useRouter } from 'expo-router'; // Import useRouter
+import { useState } from 'react';
+import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useStationFuelTypePrices } from '@/hooks/queries/stations/useStationFuelTypePrices';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { formatPrice } from '@/utils/formatters';
-import { Colors } from '@/styles/theme'; // Import Colors directly
-import ReportStationModal from '../station/ReportStationModal'; // Import the report modal
+import { Colors, Spacing } from '@/styles/theme';
+import ReportStationModal from '../station/ReportStationModal';
+import PriceReportModal from '../price/PriceReportModal'; // Import the PriceReportModal component
 
 // Import the new hook for DOE price
 import { useStationDoePrice } from '@/hooks/queries/stations/useStationDoePrice';
 // Import the moved styles
 import { styles } from '@/styles/components/map/StationInfoModal.styles';
+import { Button } from '../ui/Button';
 
 interface StationInfoModalProps {
   station: GasStation | null;
@@ -44,11 +45,13 @@ const formatDoeSourceType = (sourceType: string | null | undefined) => {
 
 export function StationInfoModal({
   station,
-  fuelType, // e.g., 'diesel', 'gasoline_95'
+  fuelType,
   isVisible,
   onClose,
 }: StationInfoModalProps) {
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
+  const [isPriceReportModalVisible, setIsPriceReportModalVisible] =
+    useState(false);
 
   // --- Fetch Community Price ---
   const {
@@ -65,7 +68,7 @@ export function StationInfoModal({
     data: doePriceDataResult,
     isLoading: isDoeLoading,
     error: doeError,
-  } = useStationDoePrice(station?.id, fuelType); // Use the new hook
+  } = useStationDoePrice(station?.id, fuelType);
 
   // --- Display Logic ---
   const isCommunityLoading = communityLoading;
@@ -97,6 +100,11 @@ export function StationInfoModal({
   // --- Report Station Handler ---
   const handleReportPress = () => {
     setIsReportModalVisible(true);
+  };
+
+  // --- Report Price Handler ---
+  const handleReportPricePress = () => {
+    setIsPriceReportModalVisible(true);
   };
 
   // --- Navigate to Station Details ---
@@ -134,9 +142,8 @@ export function StationInfoModal({
       <TouchableOpacity
         style={styles.centeredView}
         activeOpacity={1}
-        onPressOut={onClose} // Close when tapping outside the modal content
+        onPressOut={onClose}
       >
-        {/* Prevent taps inside the modal from closing it */}
         <View style={styles.modalView} onStartShouldSetResponder={() => true}>
           {/* Header */}
           <View style={styles.headerContainer}>
@@ -146,7 +153,7 @@ export function StationInfoModal({
                 <Feather
                   name='map-pin'
                   size={14}
-                  color={Colors.primary} // Use theme color
+                  color={Colors.primary}
                   style={styles.addressIcon}
                 />
                 <Text style={styles.modalAddress} numberOfLines={2}>
@@ -162,19 +169,35 @@ export function StationInfoModal({
 
           {/* Scrollable Content Area - Wrapped for Navigation */}
           <TouchableOpacity
-            activeOpacity={0.8} // Provide visual feedback on tap
+            activeOpacity={0.8}
             onPress={handleNavigateToStation}
           >
             <ScrollView
               contentContainerStyle={styles.scrollContentContainer}
-              scrollEnabled={false} // Disable scroll for the wrapper touchable
+              scrollEnabled={false}
             >
               {/* Price Section */}
               {fuelType && (
                 <>
-                  <Text style={styles.sectionTitle}>
-                    Price for {fuelType.replace('_', ' ')}
-                  </Text>
+                  <View
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      padding: Spacing.sm,
+                    }}
+                  >
+                    <Text style={styles.sectionTitle}>
+                      Price for {fuelType.replace('_', ' ')}
+                    </Text>
+                    {/* Report Price Button */}
+
+                    <Button
+                      title='Add Price'
+                      onPress={handleReportPricePress}
+                    />
+                  </View>
+                  {/* Report Price Button */}
 
                   {/* DOE Badge & Warning Row */}
                   <View style={styles.badgeWarningRow}>
@@ -189,7 +212,7 @@ export function StationInfoModal({
                         <Feather
                           name='alert-circle'
                           size={12}
-                          color={Colors.warning} // Use theme warning color
+                          color={Colors.warning}
                           style={styles.warningIcon}
                         />
                         <Text style={styles.warningText}>
@@ -202,7 +225,7 @@ export function StationInfoModal({
                   {/* DOE Price Grid / Loader / Error */}
                   {isDoeLoading && (
                     <ActivityIndicator
-                      size='small' // Smaller indicator inline
+                      size='small'
                       color={Colors.primary}
                       style={styles.inlineLoader}
                     />
@@ -246,7 +269,7 @@ export function StationInfoModal({
                           <Feather
                             name='thumbs-up'
                             size={12}
-                            color={Colors.primary} // Use theme color
+                            color={Colors.primary}
                             style={styles.confirmationIcon}
                           />
                           <Text style={styles.confirmationsText}>
@@ -303,7 +326,7 @@ export function StationInfoModal({
             </ScrollView>
           </TouchableOpacity>
 
-          {/* Footer */}
+          {/* Footer with 4 buttons */}
           <View style={styles.footerContainer}>
             <TouchableOpacity
               style={[styles.footerButton, styles.closeFooterButton]}
@@ -330,17 +353,15 @@ export function StationInfoModal({
                 Directions
               </Text>
             </TouchableOpacity>
+
             {/* Report Button */}
             <TouchableOpacity
-              style={[styles.footerButton, styles.reportFooterButton]} // Add specific style if needed
+              style={[styles.footerButton, styles.reportFooterButton]}
               onPress={handleReportPress}
             >
               <Feather name='alert-triangle' size={16} color={Colors.warning} />
               <Text
-                style={[
-                  styles.footerButtonText,
-                  styles.reportFooterButtonText, // Add specific style if needed
-                ]}
+                style={[styles.footerButtonText, styles.reportFooterButtonText]}
               >
                 Report
               </Text>
@@ -349,7 +370,7 @@ export function StationInfoModal({
         </View>
       </TouchableOpacity>
 
-      {/* Render the Report Modal */}
+      {/* Render the Report Station Modal */}
       {station && (
         <ReportStationModal
           isVisible={isReportModalVisible}
@@ -358,8 +379,17 @@ export function StationInfoModal({
           stationName={station.name}
         />
       )}
+
+      {/* Render the Price Report Modal */}
+      {station && (
+        <PriceReportModal
+          isVisible={isPriceReportModalVisible}
+          onClose={() => setIsPriceReportModalVisible(false)}
+          stationId={station.id}
+          stationName={station.name}
+          defaultFuelType={fuelType || undefined}
+        />
+      )}
     </Modal>
   );
 }
-
-// Styles moved to styles/components/map/StationInfoModal.styles.ts

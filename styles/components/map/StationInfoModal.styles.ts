@@ -1,19 +1,19 @@
 import { StyleSheet } from 'react-native';
-import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme';
+import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
 
 export const styles = StyleSheet.create({
   centeredView: {
     flex: 1,
-    justifyContent: 'center', // Center vertically
-    alignItems: 'center', // Center horizontally
-    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Dimmed background
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   modalView: {
     width: '90%',
     maxWidth: 400,
-    maxHeight: '85%', // Limit height to prevent overflow on small screens
-    backgroundColor: Colors.white, // Use theme white
-    borderRadius: BorderRadius.xl, // Match web: rounded-xl
+    maxHeight: '85%',
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -26,17 +26,15 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: Spacing.lg, // ~p-4
-    paddingTop: Spacing.lg, // ~p-4
-    paddingBottom: Spacing.md, // ~pb-3
-    // Approximation of bg-gradient-to-r from-emerald-50 to-teal-50
-    // Use a solid color for simplicity in RN unless expo-linear-gradient is added
-    backgroundColor: '#f0fdfa', // Fallback color as Colors.backgroundLightGreen doesn't exist
-    position: 'relative', // Needed for absolute positioning of close button
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
+    backgroundColor: '#f0fdfa',
+    position: 'relative',
   },
   headerTextContainer: {
     flex: 1,
-    marginRight: Spacing.xl, // Ensure space for close button
+    marginRight: Spacing.xl,
   },
   modalTitle: {
     fontSize: Typography.fontSizeLarge,
@@ -155,7 +153,7 @@ export const styles = StyleSheet.create({
   },
   // --- Community Section ---
   communitySection: {
-    backgroundColor: '#f0fdfa', // Fallback color
+    backgroundColor: '#f0fdfa',
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
   },
@@ -207,15 +205,12 @@ export const styles = StyleSheet.create({
   // --- Footer ---
   footerContainer: {
     flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: Colors.dividerGray,
   },
   footerButton: {
-    paddingHorizontal: Spacing.md,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.md,
   },
   closeFooterButton: {
     borderRightWidth: 1,
@@ -226,17 +221,20 @@ export const styles = StyleSheet.create({
     paddingVertical: Spacing.md - 1,
     borderBottomLeftRadius: BorderRadius.xl,
   },
-  reportFooterButton: {
+  directionsFooterButton: {
+    backgroundColor: Colors.primary,
+    // Remove borderBottomRightRadius since it's no longer the last element
+  },
+  pricefooterButton: {
     backgroundColor: Colors.white,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dividerGray,
     borderRightWidth: 1,
     borderRightColor: Colors.dividerGray,
   },
-  reportFooterButtonText: {
-    color: Colors.warning,
-  },
-  directionsFooterButton: {
-    backgroundColor: Colors.primary,
-    flex: 1.2,
+  reportFooterButton: {
+    backgroundColor: Colors.white,
+    // Add border radius to the last button
     borderBottomRightRadius: BorderRadius.xl,
   },
   footerButtonText: {
@@ -249,5 +247,11 @@ export const styles = StyleSheet.create({
   },
   directionsFooterButtonText: {
     color: Colors.white,
+  },
+  priceFooterButtonText: {
+    color: Colors.primary,
+  },
+  reportFooterButtonText: {
+    color: Colors.warning,
   },
 });
