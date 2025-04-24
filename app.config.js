@@ -75,6 +75,7 @@ export default {
           // }
         },
       ],
+      ['expo-dev-client', { disableDevMenu: true }],
     ],
     experiments: {
       typedRoutes: true,
