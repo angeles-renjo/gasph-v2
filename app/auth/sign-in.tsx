@@ -74,7 +74,9 @@ export default function SignInScreen() {
             style={styles.logoImage}
           />
           <Text style={styles.appTitle}>GasPH</Text>
-          <Text style={styles.appSubtitle}>Find the best fuel prices</Text>
+          <Text style={styles.appSubtitle}>
+            Sulit na Biyahe, Tipid na Gasolina
+          </Text>
         </View>
 
         <View style={styles.formContainer}>
