@@ -7,10 +7,12 @@ import {
   Linking,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useStationFuelTypePrices } from '@/hooks/queries/stations/useStationFuelTypePrices';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
@@ -18,6 +20,9 @@ import { formatPrice } from '@/utils/formatters';
 import { Colors, Spacing } from '@/styles/theme';
 import ReportStationModal from '../station/ReportStationModal';
 import PriceReportModal from '../price/PriceReportModal'; // Import the PriceReportModal component
+import { usePriceConfirmation } from '@/hooks/queries/prices/usePriceConfirmation';
+import { useAuth } from '@/hooks/useAuth';
+import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 
 // Import the new hook for DOE price
 import { useStationDoePrice } from '@/hooks/queries/stations/useStationDoePrice';
@@ -52,6 +57,14 @@ export function StationInfoModal({
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
   const [isPriceReportModalVisible, setIsPriceReportModalVisible] =
     useState(false);
+
+  // --- Auth and Query Client ---
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // --- Price Confirmation ---
+  const { mutate: confirmPrice, isPending: isConfirming } =
+    usePriceConfirmation();
 
   // --- Fetch Community Price ---
   const {
@@ -105,6 +118,69 @@ export function StationInfoModal({
   // --- Report Price Handler ---
   const handleReportPricePress = () => {
     setIsPriceReportModalVisible(true);
+  };
+
+  // --- Confirm Price Handler ---
+  const handleConfirmPrice = (e: any) => {
+    // Stop event propagation to prevent navigation
+    e.stopPropagation();
+
+    if (!user) {
+      Alert.alert('Login Required', 'You must be logged in to confirm prices.');
+      return;
+    }
+
+    if (!latestCommunityPrice) {
+      Alert.alert(
+        'No Price to Confirm',
+        'There is no community price to confirm.'
+      );
+      return;
+    }
+
+    if (latestCommunityPrice.user_id === user.id) {
+      Alert.alert(
+        'Cannot Confirm Own Report',
+        'You cannot confirm your own price report.'
+      );
+      return;
+    }
+
+    confirmPrice(
+      { reportId: latestCommunityPrice.id, stationId: station?.id || '' },
+      {
+        onSuccess: () => {
+          Alert.alert('Success', 'Price confirmed!');
+          // Invalidate relevant queries
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.stations.fuelTypePrices(
+              station?.id || '',
+              fuelType || 'none'
+            ),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.stations.listWithPrice(fuelType || 'none'),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.prices.best.all(),
+          });
+        },
+        onError: (error: any) => {
+          console.error('Confirmation Error:', error);
+          if (error?.code === '23505') {
+            Alert.alert(
+              'Already Confirmed',
+              'You have already confirmed this price report.'
+            );
+          } else {
+            Alert.alert(
+              'Confirmation Failed',
+              error?.message || 'Could not confirm the price. Please try again.'
+            );
+          }
+        },
+      }
+    );
   };
 
   // --- Navigate to Station Details ---
@@ -294,24 +370,64 @@ export function StationInfoModal({
                       </Text>
                     )}
                     {!isCommunityLoading && !hasCommunityError && (
-                      <View style={styles.communityPriceRow}>
-                        <Text style={styles.communityPriceValue}>
-                          {latestCommunityPrice?.price !== null &&
-                          latestCommunityPrice?.price !== undefined
-                            ? formatPrice(latestCommunityPrice.price)
-                            : '--'}
-                        </Text>
-                        {latestCommunityPrice && (
-                          <Text style={styles.communityReporterText}>
-                            reported by {latestCommunityPrice.username}
+                      <>
+                        <View style={styles.communityPriceRow}>
+                          <Text style={styles.communityPriceValue}>
+                            {latestCommunityPrice?.price !== null &&
+                            latestCommunityPrice?.price !== undefined
+                              ? formatPrice(latestCommunityPrice.price)
+                              : '--'}
                           </Text>
-                        )}
-                        {!latestCommunityPrice && (
-                          <Text style={styles.communityReporterText}>
-                            No reports yet
-                          </Text>
-                        )}
-                      </View>
+                          {latestCommunityPrice && (
+                            <Text style={styles.communityReporterText}>
+                              reported by {latestCommunityPrice.username}
+                            </Text>
+                          )}
+                          {!latestCommunityPrice && (
+                            <Text style={styles.communityReporterText}>
+                              No reports yet
+                            </Text>
+                          )}
+                        </View>
+
+                        {/* Confirm Price Button */}
+                        {latestCommunityPrice &&
+                          user &&
+                          latestCommunityPrice.user_id !== user.id && (
+                            <TouchableOpacity
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: Colors.primary,
+                                paddingVertical: 6,
+                                paddingHorizontal: 12,
+                                borderRadius: 15,
+                                alignSelf: 'flex-start',
+                                marginTop: 10,
+                              }}
+                              onPress={handleConfirmPrice}
+                              disabled={isConfirming}
+                            >
+                              <Feather
+                                name='thumbs-up'
+                                size={14}
+                                color={Colors.white}
+                                style={{ marginRight: 5 }}
+                              />
+                              <Text
+                                style={{
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: 'bold',
+                                }}
+                              >
+                                {isConfirming
+                                  ? 'Confirming...'
+                                  : 'Confirm Price'}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                      </>
                     )}
                   </View>
                 </>
