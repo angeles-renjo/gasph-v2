@@ -414,6 +414,7 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
           rotateEnabled={false}
           pitchEnabled={false}
           removeClippedSubviews={Platform.OS === 'ios'} // iOS only performance optimization
+          onPanDrag={() => {}} // Workaround for iOS panning lag issue #4937
         >
           {points.map((point) => {
             if (isPointCluster(point)) {
