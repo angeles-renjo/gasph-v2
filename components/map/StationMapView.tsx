@@ -1,4 +1,10 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, {
+  useState,
+  useRef,
+  useMemo,
+  useCallback, // Import forwardRef
+  forwardRef,
+} from 'react';
 import {
   StyleSheet,
   View,
@@ -12,9 +18,6 @@ import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import {
   useClusterer,
   isPointCluster,
-  // ClustererFeature, // Removed - Use GeoJSON types
-  // ClustererPointProperties, // Removed - Use GeoJSON types
-  // ClustererClusterProperties, // Removed - Use GeoJSON types
   coordsToGeoJSONFeature,
 } from 'react-native-clusterer';
 import type { Feature, Point, GeoJsonProperties } from 'geojson'; // Import GeoJSON types
@@ -46,11 +49,13 @@ const { width: INITIAL_MAP_WIDTH, height: INITIAL_MAP_HEIGHT } =
   Dimensions.get('window');
 // --- End Constants ---
 
-interface StationMapViewProps {
-  stations: GasStation[]; // Expecting raw station data
+export interface StationMapViewProps {
+  stations: GasStation[];
   initialLocation: LocationData;
-  isLoading?: boolean; // Map loading, not price loading
+  isLoading?: boolean;
   defaultFuelType: FuelType | null;
+  onRegionChangeComplete?: (region: Region) => void;
+  favoriteStationIds?: string[]; // Add favorite station IDs
 }
 
 // --- Memoized Marker Components ---
@@ -65,13 +70,16 @@ type ClusterProperties = GeoJsonProperties & {
 type PointProperties = GasStation & GeoJsonProperties;
 
 interface StationMarkerProps {
-  point: Feature<Point, PointProperties>; // Use GeoJSON Feature type
+  point: Feature<Point, PointProperties>;
   isSelected: boolean;
   onPress: (station: GasStation) => void;
+  isFavorite?: boolean; // Add favorite prop
 }
 
+import { MaterialIcons } from '@expo/vector-icons';
+
 const StationMarker = React.memo(
-  ({ point, isSelected, onPress }: StationMarkerProps) => {
+  ({ point, isSelected, onPress, isFavorite }: StationMarkerProps) => {
     const station = point.properties;
     const priceText =
       station.price !== null && station.price !== undefined
@@ -85,39 +93,49 @@ const StationMarker = React.memo(
           latitude: station.latitude,
           longitude: station.longitude,
         }}
-        anchor={{ x: 0.5, y: 0.5 }} // Center anchor
+        anchor={{ x: 0.5, y: 0.5 }}
         onPress={(e) => {
           e.stopPropagation();
           onPress(station);
         }}
-        // Force re-render if selected (Android) or if there's a price to display.
-        // This ensures the price text updates when the station data changes.
         tracksViewChanges={
           Platform.OS === 'android'
             ? isSelected || station.price !== null
             : station.price !== null
         }
+        accessibilityLabel={isFavorite ? 'Favorite station' : 'Station'}
       >
-        {/* Revised Dot/Ring Marker Style */}
-        <View style={styles.markerContainer}>
-          <View style={[styles.markerWrap]}>
-            <Animated.View
-              style={[
-                styles.markerRing,
-                isSelected && styles.selectedMarkerRing,
-              ]}
+        {isFavorite ? (
+          <View style={styles.favoriteMarkerContainer}>
+            <MaterialIcons
+              name='star'
+              size={32}
+              color='#FFD700'
+              style={styles.favoriteStarIcon}
             />
-            <View style={styles.marker} />
+            <Text style={styles.favoriteMarkerPriceText}>{priceText}</Text>
           </View>
-          <Text
-            style={[
-              styles.markerPriceText,
-              isSelected && styles.selectedMarkerPriceText,
-            ]}
-          >
-            {priceText}
-          </Text>
-        </View>
+        ) : (
+          <View style={styles.markerContainer}>
+            <View style={[styles.markerWrap]}>
+              <Animated.View
+                style={[
+                  styles.markerRing,
+                  isSelected && styles.selectedMarkerRing,
+                ]}
+              />
+              <View style={styles.marker} />
+            </View>
+            <Text
+              style={[
+                styles.markerPriceText,
+                isSelected && styles.selectedMarkerPriceText,
+              ]}
+            >
+              {priceText}
+            </Text>
+          </View>
+        )}
       </Marker>
     );
   }
@@ -140,11 +158,6 @@ const ClusterMarker = React.memo(
     const priceDisplayText = bestPrice !== null ? formatPrice(bestPrice) : '--'; // Keep price text separate
     const countDisplayText = point_count.toString(); // Text for the count inside circle
 
-    // Optional: Adjust size based on point_count if desired
-    // const clusterSize = 28 + Math.min(point_count, 10);
-    // const ringSize = clusterSize - 4;
-    // const dotSize = 12;
-
     return (
       <Marker
         key={`cluster-${clusterId}`}
@@ -161,35 +174,14 @@ const ClusterMarker = React.memo(
       >
         {/* Use similar Dot/Ring Style for Clusters */}
         <View style={styles.markerContainer}>
-          <View
-            style={[
-              styles.markerWrap /*, { width: clusterSize, height: clusterSize } */,
-            ]}
-          >
-            <Animated.View
-              style={[
-                styles.markerRing,
-                // isSelected && styles.selectedMarkerRing, // Apply selection style if needed
-                // { width: ringSize, height: ringSize, borderRadius: ringSize / 2 } // Apply dynamic size if needed
-              ]}
-            >
+          <View style={[styles.markerWrap]}>
+            <Animated.View style={[styles.markerRing]}>
               {/* Add Text for count inside the ring - Apply style later */}
               <Text style={styles.clusterCountText}>{countDisplayText}</Text>
             </Animated.View>
-            {/* Remove the inner dot View */}
-            {/* <View
-              style={[
-                styles.marker // , { width: dotSize, height: dotSize, borderRadius: dotSize / 2 } ,
-              ]}
-            /> */}
           </View>
           {/* Text below the marker (for price) */}
-          <Text
-            style={[
-              styles.markerPriceText, // Keep this style for the price below
-              // isSelected && styles.selectedMarkerPriceText, // Apply selection style if needed
-            ]}
-          >
+          <Text style={[styles.markerPriceText]}>
             {priceDisplayText} {/* Display the price text */}
           </Text>
         </View>
@@ -199,280 +191,277 @@ const ClusterMarker = React.memo(
 );
 // --- End Memoized Marker Components ---
 
-export function StationMapView({
-  stations,
-  initialLocation,
-  isLoading = false,
-  defaultFuelType,
-}: StationMapViewProps) {
-  const [selectedStationData, setSelectedStationData] =
-    useState<GasStation | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const mapViewRef = useRef<MapView>(null);
-
-  // --- State for Map Interaction ---
-  const [mapDimensions, setMapDimensions] = useState({
-    width: INITIAL_MAP_WIDTH,
-    height: INITIAL_MAP_HEIGHT,
-  });
-
-  // Calculate initial region - ALWAYS focus on Philippines
-  const calculatedInitialRegion = useMemo(() => {
-    return {
-      ...PHILIPPINES_CENTER,
-      ...PHILIPPINES_DELTA,
-    };
-  }, []); // Dependency array empty as it only uses constants
-
-  const [region, setRegion] = useState<Region | undefined>(
-    calculatedInitialRegion
-  );
-
-  // Update region state and enforce bounds when map moves
-  const onRegionChangeComplete = useCallback((newRegion: Region) => {
-    let targetLat = newRegion.latitude;
-    let targetLng = newRegion.longitude;
-    let needsAdjustment = false;
-
-    // --- Boundary Clamping Logic ---
-    // Prevent zooming out too far (using delta as a fallback/complement to minZoomLevel)
-    if (
-      newRegion.latitudeDelta > PHILIPPINES_DELTA.latitudeDelta + 5 || // Allow slightly more than initial delta
-      newRegion.longitudeDelta > PHILIPPINES_DELTA.longitudeDelta + 5
-    ) {
-      targetLat = PHILIPPINES_CENTER.latitude;
-      targetLng = PHILIPPINES_CENTER.longitude;
-      // Use a reasonable delta if zoom is too far out
-      newRegion.latitudeDelta = PHILIPPINES_DELTA.latitudeDelta;
-      newRegion.longitudeDelta = PHILIPPINES_DELTA.longitudeDelta;
-      needsAdjustment = true;
-    } else {
-      // Clamp Latitude
-      if (newRegion.latitude < PHILIPPINES_BOUNDS.sw.latitude) {
-        targetLat = PHILIPPINES_BOUNDS.sw.latitude;
-        needsAdjustment = true;
-      } else if (newRegion.latitude > PHILIPPINES_BOUNDS.ne.latitude) {
-        targetLat = PHILIPPINES_BOUNDS.ne.latitude;
-        needsAdjustment = true;
-      }
-
-      // Clamp Longitude
-      if (newRegion.longitude < PHILIPPINES_BOUNDS.sw.longitude) {
-        targetLng = PHILIPPINES_BOUNDS.sw.longitude;
-        needsAdjustment = true;
-      } else if (newRegion.longitude > PHILIPPINES_BOUNDS.ne.longitude) {
-        targetLng = PHILIPPINES_BOUNDS.ne.longitude;
-        needsAdjustment = true;
-      }
-    }
-    // --- End Clamping Logic ---
-
-    const currentTargetRegion = {
-      latitude: targetLat,
-      longitude: targetLng,
-      latitudeDelta: newRegion.latitudeDelta, // Keep user's zoom level if within delta limits
-      longitudeDelta: newRegion.longitudeDelta,
-    };
-
-    // Update the state regardless (needed for clusterer)
-    setRegion(currentTargetRegion);
-
-    // Animate back smoothly only if adjustments were needed
-    if (needsAdjustment && mapViewRef.current) {
-      // --- Animate back towards the center ---
-      const centerFocusedRegion = {
-        latitude: PHILIPPINES_CENTER.latitude, // Target the center latitude
-        longitude: PHILIPPINES_CENTER.longitude, // Target the center longitude
-        latitudeDelta: currentTargetRegion.latitudeDelta, // Keep the current zoom level (unless it was adjusted above)
-        longitudeDelta: currentTargetRegion.longitudeDelta, // Keep the current zoom level (unless it was adjusted above)
-      };
-      mapViewRef.current.animateToRegion(centerFocusedRegion, 200); // Slightly longer animation for centering
-    }
-  }, []); // Dependencies: PHILIPPINES_BOUNDS, PHILIPPINES_CENTER, PHILIPPINES_DELTA
-
-  // Update map dimensions on layout
-  const onMapLayout = useCallback((event: LayoutChangeEvent) => {
-    const { width, height } = event.nativeEvent.layout;
-    if (width > 0 && height > 0) {
-      setMapDimensions({ width, height });
-    }
-  }, []);
-  // --- End State for Map Interaction ---
-
-  // --- Prepare Data for Clusterer ---
-  const geoJsonPoints = useMemo(() => {
-    return stations.map(
-      (station) =>
-        // Convert station data to GeoJSON Feature format
-        coordsToGeoJSONFeature(
-          [station.longitude, station.latitude], // Use array format [lng, lat]
-          { ...station } // Pass original station data as properties
-        ) as Feature<Point, PointProperties> // Assert type
-    );
-  }, [stations]);
-  // --- End Prepare Data ---
-
-  // --- Use Clusterer Hook ---
-  // Provide a fallback region if state.region is undefined initially
-  const currentRegionForHook = region ??
-    calculatedInitialRegion ?? { ...PHILIPPINES_CENTER, ...PHILIPPINES_DELTA };
-
-  const [points, superclusterInstance] = useClusterer(
-    geoJsonPoints,
-    mapDimensions,
-    currentRegionForHook, // Use the guaranteed defined region
+// Wrap component with forwardRef
+export const StationMapView = forwardRef<MapView, StationMapViewProps>(
+  (
     {
-      radius: 15, // Adjust cluster radius as needed
-      maxZoom: 12, // Corresponds to react-native-maps zoom levels
-      minPoints: 4,
-    } // Optional: Add clustering options here
-  );
-  // --- End Use Clusterer Hook ---
+      stations,
+      initialLocation,
+      isLoading = false,
+      defaultFuelType,
+      onRegionChangeComplete: onRegionChangeCompleteProp,
+      favoriteStationIds, // <-- Add this line
+    },
+    ref
+  ) => {
+    const [selectedStationData, setSelectedStationData] =
+      useState<GasStation | null>(null);
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    // Use the forwarded ref if provided, otherwise use a local ref for internal use
+    const internalMapRef = useRef<MapView>(null);
+    const mapViewRef = ref || internalMapRef; // Prioritize forwarded ref
 
-  // --- Calculate Best Price per Cluster ---
-  const clusterBestPrices = useMemo(() => {
-    const bestPrices = new Map<number, number | null>();
-    if (!superclusterInstance) {
-      return bestPrices;
-    }
-
-    points.forEach((point) => {
-      if (isPointCluster(point)) {
-        const clusterId = point.properties.cluster_id;
-        const leaves = superclusterInstance.getLeaves(
-          clusterId,
-          Infinity // Get all leaves within the cluster
-        ) as Feature<Point, PointProperties>[]; // Assert type for leaves
-
-        let minPrice: number | null = null;
-        leaves.forEach((leaf) => {
-          const price = leaf.properties.price; // Access price from station properties
-          if (price !== null && price !== undefined) {
-            if (minPrice === null || price < minPrice) {
-              minPrice = price;
-            }
-          }
-        });
-        bestPrices.set(clusterId, minPrice);
-      }
+    // --- State for Map Interaction ---
+    const [mapDimensions, setMapDimensions] = useState({
+      width: INITIAL_MAP_WIDTH,
+      height: INITIAL_MAP_HEIGHT,
     });
 
-    return bestPrices;
-  }, [points, superclusterInstance]);
-  // --- End Calculate Best Price ---
+    // Calculate initial region based on the provided initialLocation
+    const calculatedInitialRegion = useMemo(() => {
+      return {
+        latitude: initialLocation.latitude,
+        longitude: initialLocation.longitude,
+        // Use a reasonable delta for initial zoom, maybe USER_DELTA or a bit wider
+        latitudeDelta: 0.0922, // Standard delta
+        longitudeDelta: 0.0421, // Standard delta
+      };
+    }, [initialLocation]); // Depend on initialLocation
 
-  // --- Handlers ---
-  const handleMarkerPress = useCallback((station: GasStation) => {
-    setSelectedStationData(station);
-    setIsModalVisible(true);
-    mapViewRef.current?.animateToRegion(
-      {
-        latitude: station.latitude,
-        longitude: station.longitude,
-        ...CLUSTER_ZOOM_DELTA, // Zoom in closer
-      },
-      300
+    const [region, setRegion] = useState<Region | undefined>(
+      calculatedInitialRegion // Use the calculated region based on prop
     );
-  }, []);
 
-  const handleClusterPress = useCallback(
-    (clusterId: number) => {
-      if (!superclusterInstance) return;
+    // Update region state and enforce bounds when map moves
+    const handleInternalRegionChangeComplete = useCallback(
+      (newRegion: Region) => {
+        let targetLat = newRegion.latitude;
+        let targetLng = newRegion.longitude;
+        let needsAdjustment = false;
 
-      const expansionRegion =
-        superclusterInstance.getClusterExpansionRegion(clusterId);
+        // Boundary Clamping Logic (simplified for brevity, assume it's correct)
+        if (
+          newRegion.latitudeDelta > PHILIPPINES_DELTA.latitudeDelta + 5 ||
+          newRegion.longitudeDelta > PHILIPPINES_DELTA.longitudeDelta + 5
+        ) {
+          targetLat = PHILIPPINES_CENTER.latitude;
+          targetLng = PHILIPPINES_CENTER.longitude;
+          newRegion.latitudeDelta = PHILIPPINES_DELTA.latitudeDelta;
+          newRegion.longitudeDelta = PHILIPPINES_DELTA.longitudeDelta;
+          needsAdjustment = true;
+        } else {
+          if (newRegion.latitude < PHILIPPINES_BOUNDS.sw.latitude)
+            targetLat = PHILIPPINES_BOUNDS.sw.latitude;
+          else if (newRegion.latitude > PHILIPPINES_BOUNDS.ne.latitude)
+            targetLat = PHILIPPINES_BOUNDS.ne.latitude;
+          if (newRegion.longitude < PHILIPPINES_BOUNDS.sw.longitude)
+            targetLng = PHILIPPINES_BOUNDS.sw.longitude;
+          else if (newRegion.longitude > PHILIPPINES_BOUNDS.ne.longitude)
+            targetLng = PHILIPPINES_BOUNDS.ne.longitude;
+          needsAdjustment =
+            targetLat !== newRegion.latitude ||
+            targetLng !== newRegion.longitude;
+        }
 
-      if (expansionRegion) {
-        mapViewRef.current?.animateToRegion(expansionRegion, 300);
+        const currentTargetRegion = {
+          latitude: targetLat,
+          longitude: targetLng,
+          latitudeDelta: newRegion.latitudeDelta,
+          longitudeDelta: newRegion.longitudeDelta,
+        };
+
+        setRegion(currentTargetRegion);
+
+        // Call the prop handler passed from the parent
+        if (onRegionChangeCompleteProp) {
+          onRegionChangeCompleteProp(currentTargetRegion);
+        }
+
+        // Animate back smoothly only if adjustments were needed
+        if (
+          needsAdjustment &&
+          typeof mapViewRef === 'object' &&
+          mapViewRef?.current
+        ) {
+          // Check if ref is an object and current exists
+          const centerFocusedRegion = {
+            latitude: PHILIPPINES_CENTER.latitude,
+            longitude: PHILIPPINES_CENTER.longitude,
+            latitudeDelta: currentTargetRegion.latitudeDelta,
+            longitudeDelta: currentTargetRegion.longitudeDelta,
+          };
+          mapViewRef.current.animateToRegion(centerFocusedRegion, 200);
+        }
+      },
+      [onRegionChangeCompleteProp, mapViewRef] // Include mapViewRef
+    );
+
+    const onMapLayout = useCallback((event: LayoutChangeEvent) => {
+      const { width, height } = event.nativeEvent.layout;
+      if (width > 0 && height > 0) {
+        setMapDimensions({ width, height });
       }
-    },
-    [superclusterInstance]
-  );
+    }, []);
 
-  const handleCloseModal = useCallback(() => {
-    setIsModalVisible(false);
-    setSelectedStationData(null);
-  }, []);
-  // --- End Handlers ---
+    const geoJsonPoints = useMemo(() => {
+      return stations.map(
+        (station) =>
+          coordsToGeoJSONFeature([station.longitude, station.latitude], {
+            ...station,
+          }) as Feature<Point, PointProperties>
+      );
+    }, [stations]);
 
-  // --- Render Logic ---
-  if (!region) {
-    // Show loading or placeholder if region isn't set yet
+    const currentRegionForHook = region ?? calculatedInitialRegion;
+
+    const [points, superclusterInstance] = useClusterer(
+      geoJsonPoints,
+      mapDimensions,
+      currentRegionForHook,
+      { radius: 15, maxZoom: 12, minPoints: 4 }
+    );
+
+    const clusterBestPrices = useMemo(() => {
+      const bestPrices = new Map<number, number | null>();
+      if (!superclusterInstance) return bestPrices;
+      points.forEach((point) => {
+        if (isPointCluster(point)) {
+          const clusterId = point.properties.cluster_id;
+          const leaves = superclusterInstance.getLeaves(
+            clusterId,
+            Infinity
+          ) as Feature<Point, PointProperties>[];
+          let minPrice: number | null = null;
+          leaves.forEach((leaf) => {
+            const price = leaf.properties.price;
+            if (price !== null && price !== undefined) {
+              if (minPrice === null || price < minPrice) minPrice = price;
+            }
+          });
+          bestPrices.set(clusterId, minPrice);
+        }
+      });
+      return bestPrices;
+    }, [points, superclusterInstance]);
+
+    const handleMarkerPress = useCallback(
+      (station: GasStation) => {
+        setSelectedStationData(station);
+        setIsModalVisible(true);
+        if (typeof mapViewRef === 'object' && mapViewRef?.current) {
+          // Check ref type
+          mapViewRef.current.animateToRegion(
+            {
+              latitude: station.latitude,
+              longitude: station.longitude,
+              ...CLUSTER_ZOOM_DELTA,
+            },
+            300
+          );
+        }
+      },
+      [mapViewRef] // Include mapViewRef
+    );
+
+    const handleClusterPress = useCallback(
+      (clusterId: number) => {
+        if (
+          !superclusterInstance ||
+          typeof mapViewRef !== 'object' ||
+          !mapViewRef?.current
+        )
+          return; // Check ref type
+        const expansionRegion =
+          superclusterInstance.getClusterExpansionRegion(clusterId);
+        if (expansionRegion) {
+          mapViewRef.current.animateToRegion(expansionRegion, 300);
+        }
+      },
+      [superclusterInstance, mapViewRef] // Include mapViewRef
+    );
+
+    const handleCloseModal = useCallback(() => {
+      setIsModalVisible(false);
+      setSelectedStationData(null);
+    }, []);
+
+    if (!region) {
+      return (
+        <View style={styles.loadingContainer}>
+          <Text>Initializing map...</Text>
+        </View>
+      );
+    }
+
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Initializing map...</Text>
+      <View style={styles.container}>
+        <MapView
+          ref={mapViewRef} // Pass the ref here
+          style={styles.map}
+          provider={PROVIDER_GOOGLE}
+          initialRegion={calculatedInitialRegion}
+          onRegionChangeComplete={handleInternalRegionChangeComplete} // Use internal handler
+          onLayout={onMapLayout}
+          showsUserLocation={true} // <-- Change to true
+          showsMyLocationButton={true} // <-- Also enable the button
+          loadingEnabled={isLoading}
+          loadingIndicatorColor={theme.Colors.primary}
+          loadingBackgroundColor={theme.Colors.white}
+          customMapStyle={mapStyle}
+          showsCompass={false}
+          showsTraffic={false}
+          toolbarEnabled={false}
+          onPress={handleCloseModal}
+          minZoomLevel={MIN_ZOOM_LEVEL}
+          maxZoomLevel={MAX_ZOOM_LEVEL}
+          rotateEnabled={false}
+          pitchEnabled={false}
+        >
+          {points.map((point) => {
+            if (isPointCluster(point)) {
+              const clusterId = point.properties.cluster_id;
+              const bestPrice = clusterBestPrices.get(clusterId) ?? null;
+              return (
+                <ClusterMarker
+                  key={`cluster-${clusterId}`}
+                  point={point}
+                  bestPrice={bestPrice}
+                  onPress={handleClusterPress}
+                />
+              );
+            } else {
+              const pointFeature = point as Feature<Point, PointProperties>;
+              const isSelected =
+                selectedStationData?.id === pointFeature.properties.id;
+              const isFavorite =
+                Array.isArray(favoriteStationIds) &&
+                favoriteStationIds.includes(pointFeature.properties.id);
+              return (
+                <StationMarker
+                  key={`station-${pointFeature.properties.id}`}
+                  point={pointFeature}
+                  isSelected={isSelected}
+                  onPress={handleMarkerPress}
+                  isFavorite={isFavorite}
+                />
+              );
+            }
+          })}
+        </MapView>
+
+        <StationInfoModal
+          station={selectedStationData}
+          fuelType={defaultFuelType}
+          isVisible={isModalVisible}
+          onClose={handleCloseModal}
+        />
       </View>
     );
   }
-
-  return (
-    <View style={styles.container}>
-      <MapView
-        ref={mapViewRef}
-        style={styles.map}
-        provider={PROVIDER_GOOGLE}
-        initialRegion={calculatedInitialRegion} // Use the calculated one
-        // region={region} // DO NOT control region directly when animating in onRegionChangeComplete
-        onRegionChangeComplete={onRegionChangeComplete}
-        onLayout={onMapLayout} // Get map dimensions
-        showsUserLocation={false} // ++ Disable user location dot ++
-        showsMyLocationButton={false} // ++ Disable location button ++
-        loadingEnabled={isLoading}
-        loadingIndicatorColor={theme.Colors.primary}
-        loadingBackgroundColor={theme.Colors.white}
-        customMapStyle={mapStyle}
-        showsCompass={false}
-        showsTraffic={false}
-        toolbarEnabled={false}
-        onPress={handleCloseModal}
-        // ++ Add Zoom Limits and disable rotation/pitch ++
-        minZoomLevel={MIN_ZOOM_LEVEL}
-        maxZoomLevel={MAX_ZOOM_LEVEL} // Optional
-        rotateEnabled={false}
-        pitchEnabled={false}
-      >
-        {points.map((point) => {
-          if (isPointCluster(point)) {
-            // Render Cluster Marker
-            const clusterId = point.properties.cluster_id;
-            const bestPrice = clusterBestPrices.get(clusterId) ?? null;
-            return (
-              <ClusterMarker
-                key={`cluster-${clusterId}`}
-                point={point}
-                bestPrice={bestPrice} // Pass calculated best price
-                onPress={handleClusterPress}
-              />
-            );
-          } else {
-            // Render Individual Station Marker
-            // Type assertion for individual points
-            const pointFeature = point as Feature<Point, PointProperties>;
-            const isSelected =
-              selectedStationData?.id === pointFeature.properties.id;
-            return (
-              <StationMarker
-                key={`station-${pointFeature.properties.id}`}
-                point={pointFeature}
-                isSelected={isSelected}
-                onPress={handleMarkerPress}
-              />
-            );
-          }
-        })}
-      </MapView>
-
-      <StationInfoModal
-        station={selectedStationData}
-        fuelType={defaultFuelType}
-        isVisible={isModalVisible}
-        onClose={handleCloseModal}
-      />
-    </View>
-  );
-}
+);
 // --- End Render Logic ---
 
+// Styles remain the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -487,14 +476,52 @@ const styles = StyleSheet.create({
   },
   // --- Revised Marker Styles ---
   markerContainer: {
-    alignItems: 'center', // Center the dot/ring and the text below
+    alignItems: 'center',
   },
   markerWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 34, // Increased size
-    height: 34, // Increased size
-    marginBottom: 2, // Space between marker and text
+    width: 34,
+    height: 34,
+    marginBottom: 2,
+  },
+  starContainer: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 0,
+    zIndex: 2,
+  },
+  starText: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textShadowColor: '#fff',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  favoriteMarkerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteStarIcon: {
+    textShadowColor: '#fff',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  favoriteMarkerPriceText: {
+    fontSize: theme.Typography.fontSizeSmall,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: '#FFD700',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    paddingHorizontal: theme.Spacing.xs,
+    paddingVertical: 1,
+    borderRadius: theme.BorderRadius.sm,
+    overflow: 'hidden',
+    marginTop: -2,
   },
   markerRing: {
     width: 29, // Increased size (approx 1.2x)

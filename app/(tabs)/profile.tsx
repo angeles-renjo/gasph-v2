@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore';
 import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme';
 import { FuelType, ALL_FUEL_TYPES } from '@/hooks/queries/prices/useBestPrices';
 import { Picker } from '@react-native-picker/picker';
+import { formatFuelType } from '@/utils/formatters';
 
 interface UserContribution {
   id: string;
@@ -255,7 +256,7 @@ export default function ProfileScreen() {
             />
             <Text style={styles.listItemLabel}>Default Fuel Type</Text>
             <Text style={styles.listItemValue}>
-              {defaultFuelType || 'None'}
+              {defaultFuelType ? formatFuelType(defaultFuelType) : 'None'}
             </Text>
             <FontAwesome5
               name='chevron-right'
@@ -354,7 +355,11 @@ export default function ProfileScreen() {
             >
               <Picker.Item label='None (Use best available)' value={null} />
               {ALL_FUEL_TYPES.map((fuelType) => (
-                <Picker.Item key={fuelType} label={fuelType} value={fuelType} />
+                <Picker.Item
+                  key={fuelType}
+                  label={formatFuelType(fuelType)}
+                  value={fuelType}
+                />
               ))}
             </Picker>
           </TouchableOpacity>

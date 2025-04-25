@@ -196,7 +196,6 @@ export function useImportStations() {
     },
     onError: (error) => {
       console.error('Import mutation failed:', error);
-      // Error is handled more specifically in processCityImport
     },
   });
 

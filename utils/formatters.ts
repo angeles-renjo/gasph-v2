@@ -1,4 +1,30 @@
 import { format, formatDistanceToNow } from 'date-fns';
+import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
+
+/**
+ * Transforms technical fuel type codes into more user-friendly,
+ * locally-familiar names for display in the Philippines context.
+ *
+ * For example, "RON 91" becomes "Unleaded" as it's commonly referred to in the Philippines,
+ * while higher RON values are typically referred to as "Premium"
+ *
+ * @param fuelType The technical fuel type code
+ * @returns User-friendly fuel type name
+ */
+export function formatFuelType(fuelType: FuelType): string {
+  switch (fuelType) {
+    case 'RON 91':
+      return 'Unleaded';
+    case 'RON 95':
+      return 'Premium (95)';
+    case 'RON 97':
+      return 'Premium (97)';
+    case 'RON 100':
+      return 'Premium (100)';
+    default:
+      return fuelType; // Keep Diesel and Diesel Plus as is
+  }
+}
 
 /**
  * Formats a distance in kilometers to a human-readable string

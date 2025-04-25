@@ -1,15 +1,7 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  Platform,
-} from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme'; // Import theme constants
 // Removed formatDate import as it's no longer needed
 import type { PriceCycle } from '@/hooks/queries/prices/usePriceCycles';

@@ -55,7 +55,6 @@ export const Colors = {
   // Note: tabIconDefault is already defined within light/dark themes
 };
 
-// TODO: Define typography styles (font families, sizes, weights)
 export const Typography = {
   // Font Weights
   fontWeightRegular: '400' as const,
@@ -80,7 +79,6 @@ export const Typography = {
   // buttonText: { fontSize: fontSizeMedium, fontWeight: fontWeightSemiBold },
 };
 
-// TODO: Define spacing units
 export const Spacing = {
   xxxs: 2, // From PriceCard tag marginTop & BestPriceCard DOE header marginBottom
   xxs: 4, // From PriceCard label marginBottom & confirm text marginLeft & BestPriceCard stationRow/confirmationRow marginBottom

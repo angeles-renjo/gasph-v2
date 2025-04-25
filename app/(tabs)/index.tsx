@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // Add useEffect back
+import { useState, useEffect } from 'react'; // Add useEffect back
 import {
   View,
   Text,
@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { useRouter } from 'expo-router'; // Import useRouter
+import { Link, useRouter } from 'expo-router'; // Import useRouter
 import { useBestPrices, FuelType } from '@/hooks/queries/prices/useBestPrices';
-import { useLocation } from '@/hooks/useLocation';
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Use Zustand store
 import { BestPriceCard } from '@/components/price/BestPriceCard';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/Button';
 import { FilterControlBubble } from '@/components/ui/FilterControlBubble'; // Import the new component
 import theme from '@/styles/theme';
 import { formatDistance } from '@/utils/formatters'; // Import formatDistance
+import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
 
 const FUEL_TYPES: FuelType[] = [
   'Diesel',
@@ -53,19 +54,26 @@ const getEmptyStateMessage = (
 };
 
 export default function BestPricesScreen() {
-  const {
-    location,
-    loading: locationLoading,
-    error: locationError,
-    refreshLocation,
-  } = useLocation();
+  // Get state and actions from Zustand store using individual selectors to prevent re-renders
+  const location = useLocationStore((state) => state.location);
+  const locationLoading = useLocationStore((state) => state.loading);
+  const locationError = useLocationStore((state) => state.error);
+  const refreshLocation = useLocationStore((state) => state.refreshLocation);
+
+  // Get default fuel type from preferences store
+  const defaultFuelTypeFromStore = usePreferencesStore(
+    (state) => state.defaultFuelType
+  );
 
   const [selectedFuelType, setSelectedFuelType] = useState<
     FuelType | undefined
-  >();
+  >(defaultFuelTypeFromStore ?? undefined); // Initialize with preference, fallback to undefined if null
   const [maxDistance, setMaxDistance] = useState<DistanceOption>(15);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null); // Add state for selected card ID
   const router = useRouter(); // Get router instance
+
+  // Log the location being used for the query removed
+  // console.log('[BestPricesScreen] Location passed to useBestPrices:', location);
 
   const { data, isLoading, error, refetch, isRefetching } = useBestPrices({
     fuelType: selectedFuelType,
@@ -129,7 +137,7 @@ export default function BestPricesScreen() {
           />
           <Button
             title='Try Again'
-            onPress={refreshLocation}
+            onPress={refreshLocation} // Use refresh action from store
             variant='outline'
             style={styles.fallbackButton}
           />
@@ -138,11 +146,6 @@ export default function BestPricesScreen() {
     </SafeAreaView>
   );
 
-  // Removed renderFuelTypeFilters function
-
-  // Removed renderDistanceFilters function
-
-  // Modernized stats dashboard
   const renderStatsHeader = () => {
     // Ensure data and prices exist
     if (!data?.stats || !data.prices || data.prices.length === 0) return null;
@@ -308,6 +311,8 @@ export default function BestPricesScreen() {
         onDistanceSelect={handleDistanceChange}
         distanceOptions={DISTANCE_OPTIONS}
       />
+      <Link href='/faq'>FAQ</Link>
+      <Link href='/location-test'>Test Location</Link>
       {/* Main content - Renders below the filter bubble */}
       {renderContent()}
     </SafeAreaView>

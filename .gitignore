@@ -41,3 +41,7 @@ yarn-error.*
 
 # Project specific
 CLEANUP_CHECKLIST.md
+
+/ios/
+/android/
+/memory-bank

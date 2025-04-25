@@ -3,7 +3,6 @@ import { DashboardCard } from '@/components/admin/DashboardCard';
 import { useAdminStats } from '@/hooks/queries/admin/useAdminStats';
 import { formatDate } from '@/utils/formatters';
 import { Button } from '@/components/ui/Button';
-import { Colors } from '@/styles/theme'; // Updated import path
 
 export default function AdminDashboard() {
   const { data: stats, isLoading, error, refetch } = useAdminStats();
@@ -71,6 +70,18 @@ export default function AdminDashboard() {
           icon='cloud-download'
           href='/admin/import-stations'
           isLoading={isLoading}
+        />
+
+        <DashboardCard
+          title='Station Reports'
+          // We don't have a count for pending reports in useAdminStats yet,
+          // so we'll just show a static subtitle for now.
+          // value={stats?.pendingReportsCount ?? 0} // TODO: Add this to useAdminStats later
+          value='View' // Use a string value
+          subtitle='Review user-submitted reports'
+          icon='alert-circle' // Try a different icon
+          href={'/admin/reports' as any} // Cast href to any temporarily
+          isLoading={isLoading} // Can reuse the main loading state for now
         />
       </View>
     </ScrollView>

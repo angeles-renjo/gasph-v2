@@ -1,17 +1,21 @@
-import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Pressable,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { TouchableCard } from '@/components/ui/Card';
-import { formatPrice, formatDistance } from '@/utils/formatters';
+import {
+  formatPrice,
+  formatDistance,
+  formatFuelType,
+} from '@/utils/formatters';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
+import { openDirections } from '@/utils/navigation';
 import { DOEPriceDisplay } from './DOEPriceDisplay';
 import type { BestPrice } from '@/hooks/queries/prices/useBestPrices';
 
@@ -67,8 +71,12 @@ export function BestPriceCard({
   };
 
   const openDirections = () => {
-    // This would open directions in a maps app
-    console.log(`Opening directions to station ${id}`);
+    // TODO: Need station coordinates to implement this
+    // Will need to fetch station details or pass coordinates as props
+    Alert.alert(
+      'Directions Unavailable',
+      'Station coordinates not available for navigation'
+    );
   };
 
   // Calculate if this price is below average (for highlighting)
@@ -84,7 +92,9 @@ export function BestPriceCard({
       {/* Price Section - Most visually prominent */}
       <View style={styles.priceSection}>
         <View style={styles.fuelTypeContainer}>
-          <Text style={styles.fuelType}>{fuel_type ?? 'Unknown Fuel'}</Text>
+          <Text style={styles.fuelType}>
+            {fuel_type ? formatFuelType(fuel_type) : 'Unknown Fuel'}
+          </Text>
         </View>
         <View style={styles.priceContainer}>
           <Text style={styles.price}>{price ? formatPrice(price) : '--'}</Text>

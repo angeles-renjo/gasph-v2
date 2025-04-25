@@ -24,6 +24,7 @@ export type Database = {
           province: string;
           status: string;
           updated_at: string | null;
+          place_id?: string | null; // Add place_id
         };
         Insert: {
           address: string;
@@ -39,6 +40,7 @@ export type Database = {
           province: string;
           status?: string;
           updated_at?: string | null;
+          place_id?: string | null; // Add place_id
         };
         Update: {
           address?: string;
@@ -54,6 +56,7 @@ export type Database = {
           province?: string;
           status?: string;
           updated_at?: string | null;
+          place_id?: string | null; // Add place_id
         };
         Relationships: [];
       };
@@ -198,6 +201,7 @@ export type Database = {
           is_admin: boolean | null;
           reputation_score: number | null;
           username: string;
+          is_pro: boolean; // Add is_pro field
         };
         Insert: {
           avatar_url?: string | null;
@@ -206,6 +210,7 @@ export type Database = {
           is_admin?: boolean | null;
           reputation_score?: number | null;
           username: string;
+          is_pro?: boolean; // Add is_pro field
         };
         Update: {
           avatar_url?: string | null;
@@ -214,6 +219,7 @@ export type Database = {
           is_admin?: boolean | null;
           reputation_score?: number | null;
           username?: string;
+          is_pro?: boolean; // Add is_pro field
         };
         Relationships: [];
       };
@@ -279,6 +285,116 @@ export type Database = {
             columns: ['user_id'];
             isOneToOne: false;
             referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      station_reports: {
+        Row: {
+          created_at: string;
+          id: string;
+          latitude: number | null;
+          longitude: number | null;
+          reason: string | null;
+          report_type: Database['public']['Enums']['report_type'];
+          reported_data: Json | null;
+          resolved_at: string | null;
+          resolver_id: string | null;
+          station_id: string | null;
+          status: Database['public']['Enums']['report_status'];
+          user_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          reason?: string | null;
+          report_type: Database['public']['Enums']['report_type'];
+          reported_data?: Json | null;
+          resolved_at?: string | null;
+          resolver_id?: string | null;
+          station_id?: string | null;
+          status?: Database['public']['Enums']['report_status'];
+          user_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          reason?: string | null;
+          report_type?: Database['public']['Enums']['report_type'];
+          reported_data?: Json | null;
+          resolved_at?: string | null;
+          resolver_id?: string | null;
+          station_id?: string | null;
+          status?: Database['public']['Enums']['report_status'];
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'station_reports_resolver_id_fkey';
+            columns: ['resolver_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'station_reports_station_id_fkey';
+            columns: ['station_id'];
+            isOneToOne: false;
+            referencedRelation: 'doe_price_view';
+            referencedColumns: ['gas_station_id'];
+          },
+          {
+            foreignKeyName: 'station_reports_station_id_fkey';
+            columns: ['station_id'];
+            isOneToOne: false;
+            referencedRelation: 'gas_stations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'station_reports_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      user_favorites: {
+        Row: {
+          id: string;
+          user_id: string;
+          station_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          station_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          station_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_favorites_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_favorites_station_id_fkey';
+            columns: ['station_id'];
+            isOneToOne: false;
+            referencedRelation: 'gas_stations';
             referencedColumns: ['id'];
           }
         ];
@@ -452,6 +568,8 @@ export type Database = {
     };
     Enums: {
       price_type: 'brand_range' | 'overall_range' | 'common';
+      report_status: 'pending' | 'approved' | 'rejected';
+      report_type: 'add' | 'update' | 'delete';
     };
     CompositeTypes: {
       [_ in never]: never;

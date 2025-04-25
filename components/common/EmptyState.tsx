@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';

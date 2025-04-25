@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { FontAwesome5 } from '@expo/vector-icons';

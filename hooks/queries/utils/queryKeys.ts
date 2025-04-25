@@ -65,6 +65,18 @@ export const queryKeys = {
         'doePrice',
         fuelType,
       ] as const,
+    favorites: {
+      list: (userId: string) =>
+        [...queryKeys.stations.all, 'favorites', 'list', userId] as const,
+      isFavorite: (userId: string, stationId: string) =>
+        [
+          ...queryKeys.stations.all,
+          'favorites',
+          'isFavorite',
+          userId,
+          stationId,
+        ] as const,
+    },
   },
   users: {
     all: ['users'] as const, // Keep this as an array
@@ -95,6 +107,13 @@ export const queryKeys = {
     },
     stats: {
       all: () => [...queryKeys.admin.all, 'stats'] as const,
+    },
+    // Add keys for station reports
+    reports: {
+      all: () => [...queryKeys.admin.all, 'reports'] as const,
+      // Key for listing reports by status (e.g., 'pending')
+      list: (status: string) =>
+        [...queryKeys.admin.reports.all(), 'list', status] as const,
     },
   },
   auth: {

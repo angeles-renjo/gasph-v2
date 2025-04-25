@@ -1,6 +1,5 @@
 import 'expo-dev-client';
-import { useEffect } from 'react';
-// Re-add useRouter, useSegments, useRootNavigationState
+import { useEffect, useState } from 'react';
 import {
   Stack,
   useRouter,
@@ -16,17 +15,19 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import { queryClient } from '@/lib/query-client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/hooks/stores/useAuthStore';
-import { Colors } from '@/styles/theme'; // Import Colors
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import Zustand store
+import { Colors } from '@/styles/theme';
+import { View, Text } from 'react-native';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 // Separate auth-aware navigation component
 function AuthenticatedNavigator() {
-  const { user, loading } = useAuth(); // Need loading state again
+  const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const rootNavigationState = useRootNavigationState(); // Hook to check router readiness
+  const rootNavigationState = useRootNavigationState();
 
   useEffect(() => {
     // Wait for auth loading AND router navigation state to be ready
@@ -50,9 +51,9 @@ function AuthenticatedNavigator() {
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: Colors.primary, // Use theme primary color
+          backgroundColor: Colors.primary,
         },
-        headerTintColor: Colors.white, // Use theme white color
+        headerTintColor: Colors.white,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -90,16 +91,39 @@ function AuthenticatedNavigator() {
 // Splash screen handler component
 function SplashScreenHandler({ children }: { children: React.ReactNode }) {
   const { loading, initialized, initialize } = useAuthStore();
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (!initialized) {
-      initialize();
-    }
+    // Define async function for initialization
+    const initApp = async () => {
+      // Initialize auth if not already done
+      if (!initialized) {
+        await initialize();
+      }
 
-    if (!loading && initialized) {
-      SplashScreen.hideAsync();
-    }
+      // Mark initialization as complete
+      setIsInitialized(true);
+
+      // Hide splash screen if auth is done loading
+      if (!loading) {
+        await SplashScreen.hideAsync().catch((err) => {
+          console.warn('Error hiding splash screen:', err);
+        });
+      }
+    };
+
+    // Start initialization
+    initApp();
   }, [loading, initialized]);
+
+  // Hide splash screen whenever loading completes if we're already initialized
+  useEffect(() => {
+    if (isInitialized && !loading) {
+      SplashScreen.hideAsync().catch((err) => {
+        console.warn('Error hiding splash screen:', err);
+      });
+    }
+  }, [loading, isInitialized]);
 
   // Always render children, even if loading/uninitialized
   // The splash screen covers the content until hidden
@@ -108,6 +132,11 @@ function SplashScreenHandler({ children }: { children: React.ReactNode }) {
 
 // Main app layout
 export default function RootLayout() {
+  // Initialize location store on mount
+  useEffect(() => {
+    useLocationStore.getState().initializeLocation();
+  }, []);
+
   return (
     <PersistQueryClientProvider
       client={queryClient}
@@ -130,6 +159,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StatusBar style='auto' />
         <SplashScreenHandler>
+          {/* LocationProvider removed, store is initialized above */}
           <AuthenticatedNavigator />
         </SplashScreenHandler>
       </SafeAreaProvider>

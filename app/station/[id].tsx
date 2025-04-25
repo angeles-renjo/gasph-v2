@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router'; // Import useRouter
+import { openDirections } from '@/utils/navigation';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query'; // Import useQueryClient
 import { useStationDetails } from '@/hooks/queries/stations/useStationDetails';
@@ -23,16 +24,21 @@ import { Card } from '@/components/ui/Card';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { Input } from '@/components/ui/Input';
-import { formatDate, formatOperatingHours } from '@/utils/formatters';
+import { formatOperatingHours } from '@/utils/formatters';
 import { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys'; // Import queryKeys
+import ReportStationModal from '@/components/station/ReportStationModal'; // Import the report modal
+import FavoriteButton from '@/components/station/FavoriteButton';
+import { useFavoriteStations } from '@/hooks/queries/stations/useFavoriteStations';
 
 export default function StationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const router = useRouter(); // Get router instance
   const queryClient = useQueryClient(); // Get query client instance
-  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false); // For price reporting
+  const [isStationReportModalVisible, setIsStationReportModalVisible] =
+    useState(false); // For station problem reporting
   const [selectedFuelType, setSelectedFuelType] = useState<FuelType>('Diesel');
   const [price, setPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -46,6 +52,10 @@ export default function StationDetailScreen() {
     error: stationError, // Use the error object from the query
     refetch,
   } = useStationDetails(id || null);
+
+  // Fetch favorite station IDs for the current user
+  const { favoriteStationIds, isLoading: isFavoritesLoading } =
+    useFavoriteStations(user?.id);
 
   // Fetch current price cycle
   useEffect(() => {
@@ -82,27 +92,11 @@ export default function StationDetailScreen() {
   };
 
   const openMapsApp = () => {
-    if (station?.latitude && station?.longitude) {
-      const scheme = Platform.OS === 'ios' ? 'maps://0,0?q=' : 'geo:0,0?q=';
-      const latLng = `${station.latitude},${station.longitude}`;
-      const label = station.name;
-      const url =
-        Platform.OS === 'ios'
-          ? `${scheme}${label}@${latLng}`
-          : `${scheme}${latLng}(${label})`;
-
-      Linking.canOpenURL(url)
-        .then((supported) => {
-          if (supported) {
-            return Linking.openURL(url);
-          } else {
-            Alert.alert('Error', 'Could not open map application.');
-          }
-        })
-        .catch((err) => console.error('An error occurred opening map', err));
-    } else {
+    if (!station?.latitude || !station?.longitude) {
       Alert.alert('Error', 'Station location not available.');
+      return;
     }
+    openDirections(station.latitude, station.longitude, station.name);
   };
 
   const handleReportPrice = async () => {
@@ -224,11 +218,30 @@ export default function StationDetailScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.stationName}>{station.name}</Text>
-          <Text style={styles.stationBrand}>{station.brand}</Text>
-          <Text style={styles.stationAddress}>
-            {station.address}, {station.city}
-          </Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.stationName}>{station.name}</Text>
+              <Text style={styles.stationBrand}>{station.brand}</Text>
+              <Text style={styles.stationAddress}>
+                {station.address}, {station.city}
+              </Text>
+            </View>
+            {/* Favorite Button */}
+            {user && (
+              <FavoriteButton
+                stationId={station.id}
+                userId={user.id}
+                favoriteStationIds={favoriteStationIds}
+                size={32}
+              />
+            )}
+          </View>
         </View>
       </View>
 
@@ -248,6 +261,19 @@ export default function StationDetailScreen() {
           variant='outline'
           leftIcon={
             <FontAwesome5 name='directions' size={16} color='#2a9d8f' />
+          }
+        />
+        <Button
+          title='Report Problem'
+          onPress={() => setIsStationReportModalVisible(true)} // Open the station report modal
+          style={styles.actionButton}
+          variant='outline' // Use outline or a different style
+          leftIcon={
+            <FontAwesome5
+              name='exclamation-triangle'
+              size={16}
+              color='#f59e0b' // Example warning icon
+            />
           }
         />
       </View>
@@ -500,6 +526,16 @@ export default function StationDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Station Problem Report Modal */}
+      {station && (
+        <ReportStationModal
+          isVisible={isStationReportModalVisible}
+          onClose={() => setIsStationReportModalVisible(false)}
+          stationId={station.id}
+          stationName={station.name}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -540,10 +576,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    gap: 8, // Add gap between buttons
   },
   actionButton: {
     flex: 1,
-    marginHorizontal: 4,
+    // marginHorizontal: 4, // Remove horizontal margin if using gap
   },
   section: {
     padding: 16,
