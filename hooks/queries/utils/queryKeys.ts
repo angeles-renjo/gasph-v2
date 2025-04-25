@@ -65,6 +65,18 @@ export const queryKeys = {
         'doePrice',
         fuelType,
       ] as const,
+    favorites: {
+      list: (userId: string) =>
+        [...queryKeys.stations.all, 'favorites', 'list', userId] as const,
+      isFavorite: (userId: string, stationId: string) =>
+        [
+          ...queryKeys.stations.all,
+          'favorites',
+          'isFavorite',
+          userId,
+          stationId,
+        ] as const,
+    },
   },
   users: {
     all: ['users'] as const, // Keep this as an array

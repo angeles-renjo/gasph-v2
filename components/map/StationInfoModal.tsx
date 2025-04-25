@@ -24,6 +24,8 @@ import PriceReportModal from '../price/PriceReportModal'; // Import the PriceRep
 import { usePriceConfirmation } from '@/hooks/queries/prices/usePriceConfirmation';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
+import FavoriteButton from '@/components/station/FavoriteButton';
+import { useFavoriteStations } from '@/hooks/queries/stations/useFavoriteStations';
 
 // Import the new hook for DOE price
 import { useStationDoePrice } from '@/hooks/queries/stations/useStationDoePrice';
@@ -66,6 +68,9 @@ export function StationInfoModal({
   // --- Price Confirmation ---
   const { mutate: confirmPrice, isPending: isConfirming } =
     usePriceConfirmation();
+
+  // --- Favorite Stations ---
+  const { favoriteStationIds } = useFavoriteStations(user?.id);
 
   // --- Fetch Community Price ---
   const {
@@ -215,7 +220,23 @@ export function StationInfoModal({
           {/* Header */}
           <View style={styles.headerContainer}>
             <View style={styles.headerTextContainer}>
-              <Text style={styles.modalTitle}>{station.name}</Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Text style={styles.modalTitle}>{station.name}</Text>
+                {user && (
+                  <FavoriteButton
+                    stationId={station.id}
+                    userId={user.id}
+                    favoriteStationIds={favoriteStationIds}
+                    size={28}
+                  />
+                )}
+              </View>
               <View style={styles.addressContainer}>
                 <Feather
                   name='map-pin'

@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/utils/supabase/supabase";
-import { useAuth } from "@/hooks/useAuth";
-import { queryKeys } from "@/hooks/queries/utils/queryKeys";
-import { defaultQueryOptions } from "@/hooks/queries/utils/queryOptions";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/utils/supabase/supabase';
+import { useAuth } from '@/hooks/useAuth';
+import { queryKeys } from '@/hooks/queries/utils/queryKeys';
+import { defaultQueryOptions } from '@/hooks/queries/utils/queryOptions';
 
 // Define a type for the profile data if you have one
 // Example:
@@ -12,6 +12,7 @@ interface UserProfile {
   avatar_url: string | null;
   updated_at: string;
   is_admin: boolean;
+  is_pro: boolean; // Add is_pro field
   // Add other fields as needed from your 'profiles' table
 }
 
@@ -31,14 +32,14 @@ export function useUserProfile() {
       }
 
       const { data, error } = await supabase
-        .from("profiles")
-        .select("*") // Select all fields or specify the ones you need
-        .eq("id", userId)
+        .from('profiles')
+        .select('*') // Select all fields or specify the ones you need
+        .eq('id', userId)
         .single(); // Expecting only one row
 
       if (error) {
         // Log the error for debugging
-        console.error("Error fetching user profile:", error.message);
+        console.error('Error fetching user profile:', error.message);
         // Let TanStack Query handle the error state by throwing it
         throw error;
       }

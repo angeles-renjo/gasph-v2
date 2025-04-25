@@ -50,12 +50,12 @@ const { width: INITIAL_MAP_WIDTH, height: INITIAL_MAP_HEIGHT } =
 // --- End Constants ---
 
 export interface StationMapViewProps {
-  // Export the interface
-  stations: GasStation[]; // Expecting raw station data
+  stations: GasStation[];
   initialLocation: LocationData;
-  isLoading?: boolean; // Map loading, not price loading
+  isLoading?: boolean;
   defaultFuelType: FuelType | null;
-  onRegionChangeComplete?: (region: Region) => void; // Add this prop
+  onRegionChangeComplete?: (region: Region) => void;
+  favoriteStationIds?: string[]; // Add favorite station IDs
 }
 
 // --- Memoized Marker Components ---
@@ -70,13 +70,16 @@ type ClusterProperties = GeoJsonProperties & {
 type PointProperties = GasStation & GeoJsonProperties;
 
 interface StationMarkerProps {
-  point: Feature<Point, PointProperties>; // Use GeoJSON Feature type
+  point: Feature<Point, PointProperties>;
   isSelected: boolean;
   onPress: (station: GasStation) => void;
+  isFavorite?: boolean; // Add favorite prop
 }
 
+import { MaterialIcons } from '@expo/vector-icons';
+
 const StationMarker = React.memo(
-  ({ point, isSelected, onPress }: StationMarkerProps) => {
+  ({ point, isSelected, onPress, isFavorite }: StationMarkerProps) => {
     const station = point.properties;
     const priceText =
       station.price !== null && station.price !== undefined
@@ -90,39 +93,49 @@ const StationMarker = React.memo(
           latitude: station.latitude,
           longitude: station.longitude,
         }}
-        anchor={{ x: 0.5, y: 0.5 }} // Center anchor
+        anchor={{ x: 0.5, y: 0.5 }}
         onPress={(e) => {
           e.stopPropagation();
           onPress(station);
         }}
-        // Force re-render if selected (Android) or if there's a price to display.
-        // This ensures the price text updates when the station data changes.
         tracksViewChanges={
           Platform.OS === 'android'
             ? isSelected || station.price !== null
             : station.price !== null
         }
+        accessibilityLabel={isFavorite ? 'Favorite station' : 'Station'}
       >
-        {/* Revised Dot/Ring Marker Style */}
-        <View style={styles.markerContainer}>
-          <View style={[styles.markerWrap]}>
-            <Animated.View
-              style={[
-                styles.markerRing,
-                isSelected && styles.selectedMarkerRing,
-              ]}
+        {isFavorite ? (
+          <View style={styles.favoriteMarkerContainer}>
+            <MaterialIcons
+              name='star'
+              size={32}
+              color='#FFD700'
+              style={styles.favoriteStarIcon}
             />
-            <View style={styles.marker} />
+            <Text style={styles.favoriteMarkerPriceText}>{priceText}</Text>
           </View>
-          <Text
-            style={[
-              styles.markerPriceText,
-              isSelected && styles.selectedMarkerPriceText,
-            ]}
-          >
-            {priceText}
-          </Text>
-        </View>
+        ) : (
+          <View style={styles.markerContainer}>
+            <View style={[styles.markerWrap]}>
+              <Animated.View
+                style={[
+                  styles.markerRing,
+                  isSelected && styles.selectedMarkerRing,
+                ]}
+              />
+              <View style={styles.marker} />
+            </View>
+            <Text
+              style={[
+                styles.markerPriceText,
+                isSelected && styles.selectedMarkerPriceText,
+              ]}
+            >
+              {priceText}
+            </Text>
+          </View>
+        )}
       </Marker>
     );
   }
@@ -186,9 +199,10 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
       initialLocation,
       isLoading = false,
       defaultFuelType,
-      onRegionChangeComplete: onRegionChangeCompleteProp, // Rename prop
+      onRegionChangeComplete: onRegionChangeCompleteProp,
+      favoriteStationIds, // <-- Add this line
     },
-    ref // Accept the ref
+    ref
   ) => {
     const [selectedStationData, setSelectedStationData] =
       useState<GasStation | null>(null);
@@ -419,12 +433,16 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
               const pointFeature = point as Feature<Point, PointProperties>;
               const isSelected =
                 selectedStationData?.id === pointFeature.properties.id;
+              const isFavorite =
+                Array.isArray(favoriteStationIds) &&
+                favoriteStationIds.includes(pointFeature.properties.id);
               return (
                 <StationMarker
                   key={`station-${pointFeature.properties.id}`}
                   point={pointFeature}
                   isSelected={isSelected}
                   onPress={handleMarkerPress}
+                  isFavorite={isFavorite}
                 />
               );
             }
@@ -458,14 +476,52 @@ const styles = StyleSheet.create({
   },
   // --- Revised Marker Styles ---
   markerContainer: {
-    alignItems: 'center', // Center the dot/ring and the text below
+    alignItems: 'center',
   },
   markerWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 34, // Increased size
-    height: 34, // Increased size
-    marginBottom: 2, // Space between marker and text
+    width: 34,
+    height: 34,
+    marginBottom: 2,
+  },
+  starContainer: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 0,
+    zIndex: 2,
+  },
+  starText: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textShadowColor: '#fff',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  favoriteMarkerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteStarIcon: {
+    textShadowColor: '#fff',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  favoriteMarkerPriceText: {
+    fontSize: theme.Typography.fontSizeSmall,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: '#FFD700',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    paddingHorizontal: theme.Spacing.xs,
+    paddingVertical: 1,
+    borderRadius: theme.BorderRadius.sm,
+    overflow: 'hidden',
+    marginTop: -2,
   },
   markerRing: {
     width: 29, // Increased size (approx 1.2x)

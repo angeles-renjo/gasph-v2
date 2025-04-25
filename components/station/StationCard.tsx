@@ -34,9 +34,10 @@ type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
 
 interface StationCardProps {
   station: GasStation;
+  isFavorite?: boolean;
 }
 
-export function StationCard({ station }: StationCardProps) {
+export function StationCard({ station, isFavorite }: StationCardProps) {
   const router = useRouter();
 
   const navigateToStation = () => {
@@ -61,11 +62,17 @@ export function StationCard({ station }: StationCardProps) {
       onPress={navigateToStation}
     >
       <View style={styles.header}>
-        {/* Apply flex: 1 to this container */}
         <View style={styles.nameAndBrandContainer}>
-          <Text style={styles.stationName} numberOfLines={1}>
-            {station.name}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.stationName} numberOfLines={1}>
+              {station.name}
+            </Text>
+            {isFavorite && (
+              <Text style={styles.starIcon} accessibilityLabel='Favorite'>
+                ★
+              </Text>
+            )}
+          </View>
           <Text style={styles.stationBrand}>{station.brand}</Text>
         </View>
 
@@ -257,5 +264,14 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeightMedium, // Use theme typography
     marginLeft: Spacing.xs, // Use theme spacing
     fontSize: Typography.fontSizeMedium, // Use theme typography
+  },
+  starIcon: {
+    color: '#FFD700',
+    fontSize: 18,
+    marginLeft: 6,
+    marginTop: 1,
+    textShadowColor: '#fff',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });

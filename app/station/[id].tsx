@@ -28,6 +28,8 @@ import { formatOperatingHours } from '@/utils/formatters';
 import { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys'; // Import queryKeys
 import ReportStationModal from '@/components/station/ReportStationModal'; // Import the report modal
+import FavoriteButton from '@/components/station/FavoriteButton';
+import { useFavoriteStations } from '@/hooks/queries/stations/useFavoriteStations';
 
 export default function StationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -50,6 +52,10 @@ export default function StationDetailScreen() {
     error: stationError, // Use the error object from the query
     refetch,
   } = useStationDetails(id || null);
+
+  // Fetch favorite station IDs for the current user
+  const { favoriteStationIds, isLoading: isFavoritesLoading } =
+    useFavoriteStations(user?.id);
 
   // Fetch current price cycle
   useEffect(() => {
@@ -212,11 +218,30 @@ export default function StationDetailScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.stationName}>{station.name}</Text>
-          <Text style={styles.stationBrand}>{station.brand}</Text>
-          <Text style={styles.stationAddress}>
-            {station.address}, {station.city}
-          </Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.stationName}>{station.name}</Text>
+              <Text style={styles.stationBrand}>{station.brand}</Text>
+              <Text style={styles.stationAddress}>
+                {station.address}, {station.city}
+              </Text>
+            </View>
+            {/* Favorite Button */}
+            {user && (
+              <FavoriteButton
+                stationId={station.id}
+                userId={user.id}
+                favoriteStationIds={favoriteStationIds}
+                size={32}
+              />
+            )}
+          </View>
         </View>
       </View>
 

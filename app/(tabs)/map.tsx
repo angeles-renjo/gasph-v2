@@ -23,6 +23,8 @@ const openAppSettings = () => {
 };
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices'; // Import FuelType
 import { Button } from '@/components/ui/Button'; // Import the standard Button component (named export)
+import { useAuth } from '@/hooks/useAuth';
+import { useFavoriteStations } from '@/hooks/queries/stations/useFavoriteStations';
 
 export default function MapScreen() {
   const [isAddStationModalVisible, setIsAddStationModalVisible] =
@@ -106,36 +108,38 @@ export default function MapScreen() {
     setIsAddStationModalVisible(true);
   };
 
+  // Fetch favorite station IDs for the current user
+  const { user } = useAuth();
+  const { favoriteStationIds } = useFavoriteStations(user?.id);
+
   // Render map once location is available
   return (
     <View
       style={[
         styles.container,
-        { backgroundColor: theme.Colors[colorScheme].background }, // Apply dynamic background color
+        { backgroundColor: theme.Colors[colorScheme].background },
       ]}
     >
-      {/* Render map directly, StationMapView handles its own loading/initial state */}
       <StationMapView
-        ref={mapRef} // Assign ref
-        stations={stations || []} // Pass empty array if stations are null/undefined initially
+        ref={mapRef}
+        stations={stations || []}
         initialLocation={locationData}
-        isLoading={stationsLoading || stationsRefetching} // Indicate loading on the map
-        defaultFuelType={fuelTypeForMap} // Pass the determined fuel type
-        onRegionChangeComplete={handleRegionChangeComplete} // Pass the handler
+        isLoading={stationsLoading || stationsRefetching}
+        defaultFuelType={fuelTypeForMap}
+        onRegionChangeComplete={handleRegionChangeComplete}
+        favoriteStationIds={favoriteStationIds}
       />
-      {/* Add Station Button (Top Right) */}
       <Button
         title='Add Station'
         onPress={handleAddStationPress}
         style={styles.addStationButton}
-        textStyle={styles.addStationButtonText} // Add text style
+        textStyle={styles.addStationButtonText}
       />
 
-      {/* Add Station Modal */}
       <AddStationModal
         isVisible={isAddStationModalVisible}
         onClose={() => setIsAddStationModalVisible(false)}
-        initialCoordinates={currentMapCenter ?? locationData} // Pass current center or initial location
+        initialCoordinates={currentMapCenter ?? locationData}
       />
     </View>
   );

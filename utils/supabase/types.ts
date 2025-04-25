@@ -201,6 +201,7 @@ export type Database = {
           is_admin: boolean | null;
           reputation_score: number | null;
           username: string;
+          is_pro: boolean; // Add is_pro field
         };
         Insert: {
           avatar_url?: string | null;
@@ -209,6 +210,7 @@ export type Database = {
           is_admin?: boolean | null;
           reputation_score?: number | null;
           username: string;
+          is_pro?: boolean; // Add is_pro field
         };
         Update: {
           avatar_url?: string | null;
@@ -217,6 +219,7 @@ export type Database = {
           is_admin?: boolean | null;
           reputation_score?: number | null;
           username?: string;
+          is_pro?: boolean; // Add is_pro field
         };
         Relationships: [];
       };
@@ -356,6 +359,42 @@ export type Database = {
             columns: ['user_id'];
             isOneToOne: false;
             referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      user_favorites: {
+        Row: {
+          id: string;
+          user_id: string;
+          station_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          station_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          station_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_favorites_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_favorites_station_id_fkey';
+            columns: ['station_id'];
+            isOneToOne: false;
+            referencedRelation: 'gas_stations';
             referencedColumns: ['id'];
           }
         ];
