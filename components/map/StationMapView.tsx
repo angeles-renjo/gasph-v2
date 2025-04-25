@@ -98,11 +98,7 @@ const StationMarker = React.memo(
           e.stopPropagation();
           onPress(station);
         }}
-        tracksViewChanges={
-          Platform.OS === 'android'
-            ? isSelected || station.price !== null
-            : station.price !== null
-        }
+        tracksViewChanges={isSelected} // Simplified for performance
         accessibilityLabel={isFavorite ? 'Favorite station' : 'Station'}
       >
         {isFavorite ? (
@@ -318,7 +314,7 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
       geoJsonPoints,
       mapDimensions,
       currentRegionForHook,
-      { radius: 15, maxZoom: 12, minPoints: 4 }
+      { radius: 30, maxZoom: 14, minPoints: 4 } // Adjusted radius and maxZoom
     );
 
     const clusterBestPrices = useMemo(() => {
@@ -348,19 +344,20 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
       (station: GasStation) => {
         setSelectedStationData(station);
         setIsModalVisible(true);
-        if (typeof mapViewRef === 'object' && mapViewRef?.current) {
-          // Check ref type
+        // Use current zoom level instead of fixed delta
+        if (typeof mapViewRef === 'object' && mapViewRef?.current && region) {
           mapViewRef.current.animateToRegion(
             {
               latitude: station.latitude,
               longitude: station.longitude,
-              ...CLUSTER_ZOOM_DELTA,
+              latitudeDelta: region.latitudeDelta, // Use current delta
+              longitudeDelta: region.longitudeDelta, // Use current delta
             },
             300
           );
         }
       },
-      [mapViewRef] // Include mapViewRef
+      [mapViewRef, region] // Add region dependency
     );
 
     const handleClusterPress = useCallback(
@@ -416,6 +413,8 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
           maxZoomLevel={MAX_ZOOM_LEVEL}
           rotateEnabled={false}
           pitchEnabled={false}
+          removeClippedSubviews={Platform.OS === 'ios'} // iOS only performance optimization
+          onPanDrag={() => {}} // Workaround for iOS panning lag issue #4937
         >
           {points.map((point) => {
             if (isPointCluster(point)) {
