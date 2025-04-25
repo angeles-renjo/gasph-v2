@@ -652,9 +652,9 @@ const styles = StyleSheet.create({
   },
   amenityBadge: {
     backgroundColor: '#e6f7f5',
-    paddingHorizontal: 10, // Slightly more padding
+    paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 15, // More rounded
+    borderRadius: 15,
     marginRight: 6,
     marginBottom: 6,
   },
