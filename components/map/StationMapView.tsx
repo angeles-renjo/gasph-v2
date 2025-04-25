@@ -29,6 +29,7 @@ import { StationInfoModal } from './StationInfoModal';
 import theme from '@/styles/theme';
 import mapStyle from '@/styles/mapStyle.json';
 import { formatPrice } from '@/utils/formatters'; // Import correct formatter
+import { useGoogleMapIosPerfFix } from '@/hooks/useGoogleMapIosPerfFix'; // Import the perf fix hook
 
 // --- Constants for Map Views ---
 const PHILIPPINES_CENTER = { latitude: 12.8797, longitude: 121.774 }; // Approx center
@@ -200,6 +201,9 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
     },
     ref
   ) => {
+    // Apply the iOS performance fix hook (no-op on other platforms)
+    useGoogleMapIosPerfFix();
+
     const [selectedStationData, setSelectedStationData] =
       useState<GasStation | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
