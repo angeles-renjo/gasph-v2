@@ -314,7 +314,7 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
       geoJsonPoints,
       mapDimensions,
       currentRegionForHook,
-      { radius: 40, maxZoom: 14, minPoints: 4 } // Adjusted radius and maxZoom
+      { radius: 30, maxZoom: 14, minPoints: 4 } // Adjusted radius and maxZoom
     );
 
     const clusterBestPrices = useMemo(() => {
