@@ -39,42 +39,53 @@ export function useLocation() {
     // Main location function
     const initLocation = async () => {
       try {
-        // Check for stored permission status first
-        const storedPermission = await AsyncStorage.getItem(
-          LOCATION_PERMISSION_KEY
+        // First check the actual system permission status
+        const { status: systemStatus } =
+          await Location.getForegroundPermissionsAsync();
+        console.log(
+          '[useLocation] Current system permission status:',
+          systemStatus
         );
 
-        // Check if we've previously determined permission is denied
-        if (storedPermission === 'denied') {
-          if (isMountedRef.current) {
-            console.log('Using stored permission: denied');
-            setPermissionDenied(true);
-            setLocation(DEFAULT_LOCATION);
-            setLoading(false);
-            return;
-          }
-        }
-
-        // Get the current permission status
-        const { status: currentStatus } =
-          await Location.getForegroundPermissionsAsync();
-
-        // If permission is already granted, we can proceed
-        if (currentStatus === 'granted') {
-          console.log('Permission already granted, getting location');
+        // If permission is already granted by the system, we can proceed
+        if (systemStatus === 'granted') {
+          console.log(
+            '[useLocation] Permission already granted, getting location'
+          );
+          // Update stored permission status
+          await AsyncStorage.setItem(LOCATION_PERMISSION_KEY, systemStatus);
         } else {
-          // Request permission if not already granted
-          console.log('Requesting permission');
-          const { status } = await Location.requestForegroundPermissionsAsync();
+          // If system says not granted, check if we've previously determined permission is denied
+          if (systemStatus === 'denied') {
+            const storedPermission = await AsyncStorage.getItem(
+              LOCATION_PERMISSION_KEY
+            );
+            if (storedPermission === 'denied') {
+              console.log(
+                '[useLocation] Permission previously denied and stored'
+              );
+              if (isMountedRef.current) {
+                setPermissionDenied(true);
+                setLocation(DEFAULT_LOCATION);
+                setLoading(false);
+                return;
+              }
+            }
+          }
+
+          // If we get here, we need to request permission
+          console.log('[useLocation] Requesting permission');
+          const { status: newStatus } =
+            await Location.requestForegroundPermissionsAsync();
 
           // Early exit if component unmounted during async operation
           if (!isMountedRef.current) return;
 
           // Save the permission status
-          await AsyncStorage.setItem(LOCATION_PERMISSION_KEY, status);
+          await AsyncStorage.setItem(LOCATION_PERMISSION_KEY, newStatus);
 
-          if (status !== 'granted') {
-            console.log('Permission denied');
+          if (newStatus !== 'granted') {
+            console.log('[useLocation] Permission denied');
             setPermissionDenied(true);
             setLocation(DEFAULT_LOCATION);
             setLoading(false);
@@ -151,18 +162,48 @@ export function useLocation() {
     setError(null);
 
     try {
-      // Check permission status first
-      const { status } = await Location.getForegroundPermissionsAsync();
+      // First check the actual system permission status
+      const { status: systemStatus } =
+        await Location.getForegroundPermissionsAsync();
+      console.log(
+        '[useLocation] Refresh - Current system permission status:',
+        systemStatus
+      );
 
-      if (status !== 'granted') {
-        // Try requesting permission again
+      // If permission is already granted by the system, we can proceed
+      if (systemStatus === 'granted') {
+        console.log(
+          '[useLocation] Refresh - Permission already granted, getting location'
+        );
+        // Update stored permission status
+        await AsyncStorage.setItem(LOCATION_PERMISSION_KEY, systemStatus);
+      } else {
+        // If system says not granted, check if we've previously determined permission is denied
+        if (systemStatus === 'denied') {
+          const storedPermission = await AsyncStorage.getItem(
+            LOCATION_PERMISSION_KEY
+          );
+          if (storedPermission === 'denied') {
+            console.log(
+              '[useLocation] Refresh - Permission previously denied and stored'
+            );
+            setPermissionDenied(true);
+            setLocation(DEFAULT_LOCATION);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // If we get here, we need to request permission
+        console.log('[useLocation] Refresh - Requesting permission');
         const { status: newStatus } =
           await Location.requestForegroundPermissionsAsync();
 
-        // Update stored status
+        // Save the permission status
         await AsyncStorage.setItem(LOCATION_PERMISSION_KEY, newStatus);
 
         if (newStatus !== 'granted') {
+          console.log('[useLocation] Refresh - Permission denied');
           setPermissionDenied(true);
           setLocation(DEFAULT_LOCATION);
           setLoading(false);
