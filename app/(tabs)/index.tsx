@@ -60,9 +60,20 @@ export default function BestPricesScreen() {
   const locationError = useLocationStore((state) => state.error);
   const refreshLocation = useLocationStore((state) => state.refreshLocation);
 
-  // Directly subscribe to the store for the fuel type preference
-  const selectedFuelType =
-    usePreferencesStore((state) => state.defaultFuelType) ?? undefined; // Use undefined as fallback if null
+  // Get default fuel type from preferences store
+  const defaultFuelTypeFromStore = usePreferencesStore(
+    (state) => state.defaultFuelType
+  );
+
+  // Use local state for the filter bubble, initialized with the preference
+  const [selectedFuelType, setSelectedFuelType] = useState<
+    FuelType | undefined
+  >(defaultFuelTypeFromStore ?? undefined);
+
+  // Update local state when preference changes
+  useEffect(() => {
+    setSelectedFuelType(defaultFuelTypeFromStore ?? undefined);
+  }, [defaultFuelTypeFromStore]);
   const [maxDistance, setMaxDistance] = useState<DistanceOption>(15);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null); // Add state for selected card ID
   const router = useRouter(); // Get router instance
@@ -88,13 +99,11 @@ export default function BestPricesScreen() {
   }, [data, selectedCardId]);
 
   const handleFuelTypeSelect = (fuelType: FuelType | undefined) => {
-    // If selecting the same type, clear it (set to null)
-    // If fuelType is undefined, convert to null (as the store expects FuelType | null)
-    const newValue =
-      fuelType === selectedFuelType || fuelType === undefined ? null : fuelType;
+    // If selecting the same type, clear it (set to undefined)
+    const newValue = fuelType === selectedFuelType ? undefined : fuelType;
 
-    // Update the preferences store directly
-    usePreferencesStore.getState().setDefaultFuelType(newValue);
+    // Update only the local state, not the preferences store
+    setSelectedFuelType(newValue);
   };
 
   const handleDistanceChange = (distance: DistanceOption) => {
@@ -220,8 +229,8 @@ export default function BestPricesScreen() {
           onAction={{
             label: 'Reset Filters',
             onPress: () => {
-              // Reset fuel type preference in the store
-              usePreferencesStore.getState().setDefaultFuelType(null);
+              // Reset local filter state only, not the preferences store
+              setSelectedFuelType(undefined);
               // Reset distance to default
               setMaxDistance(15);
             },

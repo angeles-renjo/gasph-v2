@@ -64,6 +64,13 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.dividerGray, // Use theme color
   },
+  filterLabel: {
+    fontSize: Typography.fontSizeMedium,
+    fontWeight: Typography.fontWeightMedium,
+    color: Colors.darkGray,
+    marginLeft: Spacing.xl,
+    marginBottom: Spacing.xs,
+  },
   brandList: {
     paddingHorizontal: Spacing.xl, // Use theme spacing
   },

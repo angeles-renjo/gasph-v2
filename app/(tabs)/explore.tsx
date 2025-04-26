@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import { FontAwesome5 } from '@expo/vector-icons';
 // Removed FlashList import
 import { useNearbyStations } from '@/hooks/queries/stations/useNearbyStations';
 import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Use Zustand store
+import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
+import { FuelType } from '@/hooks/queries/prices/useBestPrices'; // Import FuelType type
 import { StationCard } from '@/components/station/StationCard';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
@@ -34,6 +36,15 @@ const POPULAR_BRANDS = [
   'Phoenix',
   'Seaoil',
   'CleanFuel',
+];
+
+const FUEL_TYPES: FuelType[] = [
+  'Diesel',
+  'RON 91',
+  'RON 95',
+  'RON 97',
+  'RON 100',
+  'Diesel Plus',
 ];
 
 /**
@@ -60,6 +71,21 @@ export default function ExploreScreen() {
   const [filteredStations, setFilteredStations] = useState<GasStation[]>([]);
   const [usingDefaultLocation, setUsingDefaultLocation] = useState(false);
 
+  // Get default fuel type from preferences store
+  const defaultFuelTypeFromStore = usePreferencesStore(
+    (state) => state.defaultFuelType
+  );
+
+  // Use local state for the fuel type filter, initialized with the preference
+  const [selectedFuelType, setSelectedFuelType] = useState<
+    FuelType | undefined
+  >(defaultFuelTypeFromStore ?? undefined);
+
+  // Update local state when preference changes
+  useEffect(() => {
+    setSelectedFuelType(defaultFuelTypeFromStore ?? undefined);
+  }, [defaultFuelTypeFromStore]);
+
   const {
     data: stations,
     isLoading,
@@ -77,7 +103,7 @@ export default function ExploreScreen() {
     setUsingDefaultLocation(!!locationData.isDefaultLocation);
   }, [locationData.isDefaultLocation]);
 
-  // Filter stations based on search query and selected brand
+  // Filter stations based on search query, selected brand, and fuel type
   useEffect(() => {
     if (!stations) {
       setFilteredStations([]);
@@ -106,11 +132,26 @@ export default function ExploreScreen() {
       );
     }
 
+    // Apply fuel type filter if selected
+    // Note: This is a simplified filter since we don't have fuel type data in the station objects
+    // In a real implementation, you would filter based on available fuel types at each station
+    if (selectedFuelType) {
+      // This is a placeholder - in a real app, you would filter based on stations that offer this fuel type
+      // For now, we're not actually filtering by fuel type since we don't have that data
+      console.log(`Filtering for fuel type: ${selectedFuelType}`);
+      // filtered = filtered.filter(station => station.availableFuelTypes?.includes(selectedFuelType));
+    }
+
     setFilteredStations(filtered);
-  }, [stations, searchQuery, selectedBrand]);
+  }, [stations, searchQuery, selectedBrand, selectedFuelType]); // Added selectedFuelType dependency
 
   const handleBrandSelect = (brand: string) => {
     setSelectedBrand(selectedBrand === brand ? null : brand);
+  };
+
+  const handleFuelTypeSelect = (fuelType: FuelType) => {
+    // If selecting the same type, clear it (set to undefined)
+    setSelectedFuelType(selectedFuelType === fuelType ? undefined : fuelType);
   };
 
   if (locationLoading) {
@@ -183,7 +224,9 @@ export default function ExploreScreen() {
           </View>
         </View>
 
+        {/* Brand Filter */}
         <View style={styles.brandFilterContainer}>
+          <Text style={styles.filterLabel}>Brand:</Text>
           <FlatList
             horizontal
             data={POPULAR_BRANDS}
@@ -200,6 +243,36 @@ export default function ExploreScreen() {
                   style={[
                     styles.brandChipText,
                     selectedBrand === item && styles.selectedBrandChipText,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            )}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.brandList}
+          />
+        </View>
+
+        {/* Fuel Type Filter */}
+        <View style={styles.brandFilterContainer}>
+          <Text style={styles.filterLabel}>Fuel Type:</Text>
+          <FlatList
+            horizontal
+            data={FUEL_TYPES}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.brandChip,
+                  selectedFuelType === item && styles.selectedBrandChip,
+                ]}
+                onPress={() => handleFuelTypeSelect(item)}
+              >
+                <Text
+                  style={[
+                    styles.brandChipText,
+                    selectedFuelType === item && styles.selectedBrandChipText,
                   ]}
                 >
                   {item}
@@ -228,19 +301,22 @@ export default function ExploreScreen() {
           <EmptyState
             title='No Stations Found'
             message={
-              searchQuery || selectedBrand
+              searchQuery || selectedBrand || selectedFuelType
                 ? "We couldn't find any stations matching your filters. Try a different search or clear your filters."
                 : "We couldn't find any gas stations near you. Try increasing the search radius."
             }
             icon='gas-pump'
             actionLabel={
-              searchQuery || selectedBrand ? 'Clear Filters' : undefined
+              searchQuery || selectedBrand || selectedFuelType
+                ? 'Clear Filters'
+                : undefined
             }
             onAction={
-              searchQuery || selectedBrand
+              searchQuery || selectedBrand || selectedFuelType
                 ? () => {
                     setSearchQuery('');
                     setSelectedBrand(null);
+                    setSelectedFuelType(undefined);
                   }
                 : undefined
             }
