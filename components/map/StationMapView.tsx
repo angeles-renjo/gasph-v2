@@ -413,8 +413,6 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
           showsTraffic={false}
           toolbarEnabled={false}
           onPress={handleCloseModal}
-          minZoomLevel={MIN_ZOOM_LEVEL}
-          maxZoomLevel={MAX_ZOOM_LEVEL}
           rotateEnabled={false}
           pitchEnabled={false}
           removeClippedSubviews={Platform.OS === 'ios'} // iOS only performance optimization
