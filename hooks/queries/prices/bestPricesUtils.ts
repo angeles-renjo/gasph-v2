@@ -16,28 +16,52 @@ export async function fetchCommunityPrices(
   fuelType?: FuelType
 ): Promise<Map<string, CommunityPriceInfo>> {
   if (stationIds.length === 0) return new Map();
-  let query = supabase
-    .from('active_price_reports')
-    .select(
-      `id, station_id, fuel_type, price, user_id, reported_at, cycle_id,
-       reporter_username, confirmations_count, confidence_score`
-    )
-    .in('station_id', stationIds); // Use station_id here as it's the column name
-  if (fuelType) query = query.eq('fuel_type', fuelType);
 
-  const { data, error } = await query;
-  if (error) {
-    console.error('Error fetching community prices:', error);
-    throw error;
+  try {
+    // For large datasets, we need to chunk the station IDs to prevent query size issues
+    // Supabase has limits on the number of items in an 'in' clause
+    const CHUNK_SIZE = 100;
+    const chunks = [];
+
+    for (let i = 0; i < stationIds.length; i += CHUNK_SIZE) {
+      chunks.push(stationIds.slice(i, i + CHUNK_SIZE));
+    }
+
+    // Process each chunk and combine results
+    const map = new Map<string, CommunityPriceInfo>();
+
+    await Promise.all(
+      chunks.map(async (chunk) => {
+        let query = supabase
+          .from('active_price_reports')
+          .select(
+            `id, station_id, fuel_type, price, user_id, reported_at, cycle_id,
+             reporter_username, confirmations_count, confidence_score`
+          )
+          .in('station_id', chunk);
+
+        if (fuelType) query = query.eq('fuel_type', fuelType);
+
+        const { data, error } = await query;
+        if (error) {
+          console.error('Error fetching community prices chunk:', error);
+          return; // Continue with other chunks even if one fails
+        }
+
+        data?.forEach((cp) => {
+          // Key uses station_id from the report data
+          const key = `${cp.station_id}_${cp.fuel_type}`;
+          if (!map.has(key)) map.set(key, cp as CommunityPriceInfo);
+        });
+      })
+    );
+
+    return map;
+  } catch (error) {
+    console.error('Error in fetchCommunityPrices:', error);
+    // Return empty map instead of throwing to allow partial data display
+    return new Map();
   }
-
-  const map = new Map<string, CommunityPriceInfo>();
-  data?.forEach((cp) => {
-    // Key uses station_id from the report data
-    const key = `${cp.station_id}_${cp.fuel_type}`;
-    if (!map.has(key)) map.set(key, cp as CommunityPriceInfo);
-  });
-  return map;
 }
 
 /** Fetches DOE prices for given station IDs and fuel types */
@@ -46,58 +70,82 @@ export async function fetchDoePrices(
   fuelTypes: FuelType[]
 ): Promise<Map<string, DoePriceInfo>> {
   if (stationIds.length === 0 || fuelTypes.length === 0) return new Map();
-  const { data, error } = await supabase
-    .from('doe_price_view')
-    .select(
-      'gas_station_id, fuel_type, min_price, common_price, max_price, week_of, source_type'
-    )
-    .in('gas_station_id', stationIds); // Use gas_station_id here
 
-  // Filter fuel types *after* fetching if necessary, or adjust query if possible
-  // For simplicity, keeping the .in('fuel_type', fuelTypes) for now
-  // .in('fuel_type', fuelTypes); // This might need adjustment based on exact needs
+  try {
+    // For large datasets, we need to chunk the station IDs to prevent query size issues
+    const CHUNK_SIZE = 100;
+    const chunks = [];
 
-  if (error) {
-    console.error('Error fetching DOE prices:', error);
-    return new Map(); // Return empty map on error
-  }
-  // console.log('[bestPricesUtils] Raw DOE Data:', data); // Log raw data - REMOVED
-
-  const map = new Map<string, DoePriceInfo>();
-  data?.forEach((dp) => {
-    if (!dp.gas_station_id || !dp.fuel_type) return; // Skip if essential keys are missing
-
-    // Normalize fuel_type to uppercase for consistent key matching
-    const key = `${dp.gas_station_id}_${dp.fuel_type.toUpperCase()}`;
-    const currentEntry = map.get(key);
-    const newEntryHasPrice =
-      dp.min_price !== null ||
-      dp.common_price !== null ||
-      dp.max_price !== null;
-    const currentEntryHasPrice =
-      currentEntry &&
-      (currentEntry.min_price !== null ||
-        currentEntry.common_price !== null ||
-        currentEntry.max_price !== null);
-
-    // Set if:
-    // 1. No current entry exists OR
-    // 2. New entry has prices and current entry does not OR
-    // 3. Both have prices (let the last one processed win, assuming view order is consistent, e.g., specific then general)
-    //    OR if we want to explicitly prioritize non-nulls, we could add more checks here.
-    //    Let's stick with prioritizing if the current one is null.
-    if (!currentEntry || (newEntryHasPrice && !currentEntryHasPrice)) {
-      map.set(key, {
-        min_price: dp.min_price,
-        common_price: dp.common_price,
-        max_price: dp.max_price,
-        week_of: dp.week_of,
-        source_type: dp.source_type,
-      });
+    for (let i = 0; i < stationIds.length; i += CHUNK_SIZE) {
+      chunks.push(stationIds.slice(i, i + CHUNK_SIZE));
     }
-  });
-  // console.log('[bestPricesUtils] Processed DOE Price Map:', map); // Log processed map - REMOVED
-  return map;
+
+    // Process each chunk and combine results
+    const map = new Map<string, DoePriceInfo>();
+
+    await Promise.all(
+      chunks.map(async (chunk) => {
+        const { data, error } = await supabase
+          .from('doe_price_view')
+          .select(
+            'gas_station_id, fuel_type, min_price, common_price, max_price, week_of, source_type'
+          )
+          .in('gas_station_id', chunk);
+
+        if (error) {
+          console.error('Error fetching DOE prices chunk:', error);
+          return; // Continue with other chunks even if one fails
+        }
+
+        data?.forEach((dp) => {
+          if (!dp.gas_station_id || !dp.fuel_type) return; // Skip if essential keys are missing
+
+          // Filter by fuel types if needed
+          if (
+            fuelTypes.length > 0 &&
+            !fuelTypes.some(
+              (ft) => ft.toUpperCase() === dp.fuel_type.toUpperCase()
+            )
+          ) {
+            return; // Skip if fuel type doesn't match any in the requested list
+          }
+
+          // Normalize fuel_type to uppercase for consistent key matching
+          const key = `${dp.gas_station_id}_${dp.fuel_type.toUpperCase()}`;
+          const currentEntry = map.get(key);
+          const newEntryHasPrice =
+            dp.min_price !== null ||
+            dp.common_price !== null ||
+            dp.max_price !== null;
+          const currentEntryHasPrice =
+            currentEntry &&
+            (currentEntry.min_price !== null ||
+              currentEntry.common_price !== null ||
+              currentEntry.max_price !== null);
+
+          // Set if:
+          // 1. No current entry exists OR
+          // 2. New entry has prices and current entry does not OR
+          // 3. Both have prices (let the last one processed win, assuming view order is consistent)
+          if (!currentEntry || (newEntryHasPrice && !currentEntryHasPrice)) {
+            map.set(key, {
+              min_price: dp.min_price,
+              common_price: dp.common_price,
+              max_price: dp.max_price,
+              week_of: dp.week_of,
+              source_type: dp.source_type,
+            });
+          }
+        });
+      })
+    );
+
+    return map;
+  } catch (error) {
+    console.error('Error in fetchDoePrices:', error);
+    // Return empty map instead of throwing to allow partial data display
+    return new Map();
+  }
 }
 
 /** Combines station, community, and DOE data into potential price points */

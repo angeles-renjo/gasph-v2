@@ -46,8 +46,11 @@ export const queryKeys = {
     all: ['stations'] as const,
     list: () => [...queryKeys.stations.all, 'list'] as const,
     detail: (id: string) => [...queryKeys.stations.all, 'detail', id] as const,
-    nearby: (params: { location: LocationData | null; radiusKm: number }) =>
-      [...queryKeys.stations.all, 'nearby', params] as const,
+    nearby: (params: {
+      location: LocationData | null;
+      radiusKm: number;
+      isOptimized?: boolean;
+    }) => [...queryKeys.stations.all, 'nearby', params] as const,
     // Add key for fetching stations with price for a specific fuel type
     listWithPrice: (fuelType: FuelType | 'none') =>
       [...queryKeys.stations.all, 'listWithPrice', fuelType] as const,

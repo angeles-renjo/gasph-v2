@@ -101,6 +101,9 @@ export function useBestPrices({
   // Use the prop if provided, otherwise use the stored preference
   const effectiveFuelType = fuelType ?? defaultFuelTypeFromStore;
 
+  // For 30km queries, we need to be more careful with the data volume
+  const isLargeDistance = maxDistance >= 25;
+
   const {
     data: nearbyStations,
     isLoading: isLoadingStations,
@@ -109,6 +112,8 @@ export function useBestPrices({
     radiusKm: maxDistance,
     enabled: !!location && enabled,
     providedLocation: location,
+    // Apply a limit for large distances to prevent excessive data fetching
+    limit: isLargeDistance ? 500 : undefined,
   });
 
   const isQueryEnabled =
