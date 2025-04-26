@@ -60,14 +60,9 @@ export default function BestPricesScreen() {
   const locationError = useLocationStore((state) => state.error);
   const refreshLocation = useLocationStore((state) => state.refreshLocation);
 
-  // Get default fuel type from preferences store
-  const defaultFuelTypeFromStore = usePreferencesStore(
-    (state) => state.defaultFuelType
-  );
-
-  const [selectedFuelType, setSelectedFuelType] = useState<
-    FuelType | undefined
-  >(defaultFuelTypeFromStore ?? undefined); // Initialize with preference, fallback to undefined if null
+  // Directly subscribe to the store for the fuel type preference
+  const selectedFuelType =
+    usePreferencesStore((state) => state.defaultFuelType) ?? undefined; // Use undefined as fallback if null
   const [maxDistance, setMaxDistance] = useState<DistanceOption>(15);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null); // Add state for selected card ID
   const router = useRouter(); // Get router instance
@@ -93,7 +88,13 @@ export default function BestPricesScreen() {
   }, [data, selectedCardId]);
 
   const handleFuelTypeSelect = (fuelType: FuelType | undefined) => {
-    setSelectedFuelType(fuelType === selectedFuelType ? undefined : fuelType);
+    // If selecting the same type, clear it (set to null)
+    // If fuelType is undefined, convert to null (as the store expects FuelType | null)
+    const newValue =
+      fuelType === selectedFuelType || fuelType === undefined ? null : fuelType;
+
+    // Update the preferences store directly
+    usePreferencesStore.getState().setDefaultFuelType(newValue);
   };
 
   const handleDistanceChange = (distance: DistanceOption) => {
@@ -219,7 +220,9 @@ export default function BestPricesScreen() {
           onAction={{
             label: 'Reset Filters',
             onPress: () => {
-              setSelectedFuelType(undefined);
+              // Reset fuel type preference in the store
+              usePreferencesStore.getState().setDefaultFuelType(null);
+              // Reset distance to default
               setMaxDistance(15);
             },
           }}
