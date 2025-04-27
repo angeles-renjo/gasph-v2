@@ -9,25 +9,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
-// Removed FlashList import
-import { useNearbyStations } from '@/hooks/queries/stations/useNearbyStations';
-import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Use Zustand store
-import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
-import { FuelType } from '@/hooks/queries/prices/useBestPrices'; // Import FuelType type
+import {
+  useInfiniteStationsSortedByDistance,
+  StationWithDistance,
+} from '@/hooks/queries/stations/useInfiniteStationsSortedByDistance';
+import { useLocationStore } from '@/hooks/stores/useLocationStore';
 import { StationCard } from '@/components/station/StationCard';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
-import { Database } from '@/utils/supabase/types';
 import { styles } from '@/styles/screens/ExploreScreen.styles';
 import { Colors } from '@/styles/theme';
-
-type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
-  distance?: number;
-};
 
 const POPULAR_BRANDS = [
   'Shell',
@@ -38,24 +34,14 @@ const POPULAR_BRANDS = [
   'CleanFuel',
 ];
 
-const FUEL_TYPES: FuelType[] = [
-  'Diesel',
-  'RON 91',
-  'RON 95',
-  'RON 97',
-  'RON 100',
-  'Diesel Plus',
-];
-
 /**
- * ExploreScreen component provides a user interface for exploring nearby gas stations.
- * It fetches location data and displays stations within a specified radius.
+ * ExploreScreen component provides a user interface for exploring gas stations.
+ * It fetches location data and displays stations sorted by distance.
  * Users can search for stations by name, brand, or address, and filter results by popular brands.
  * The screen handles location errors and displays a loading indicator while fetching data.
  * It manages user permissions and shows notifications when using a default location.
  * The component also allows refreshing the station list and shows an empty state if no stations are found.
  */
-
 export default function ExploreScreen() {
   // Get state and actions from Zustand store using individual selectors to prevent re-renders
   const getLocationWithFallback = useLocationStore(
@@ -67,35 +53,26 @@ export default function ExploreScreen() {
 
   const locationData = getLocationWithFallback();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
-  const [filteredStations, setFilteredStations] = useState<GasStation[]>([]);
+  const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
   const [usingDefaultLocation, setUsingDefaultLocation] = useState(false);
 
-  // Get default fuel type from preferences store
-  const defaultFuelTypeFromStore = usePreferencesStore(
-    (state) => state.defaultFuelType
-  );
-
-  // Use local state for the fuel type filter, initialized with the preference
-  const [selectedFuelType, setSelectedFuelType] = useState<
-    FuelType | undefined
-  >(defaultFuelTypeFromStore ?? undefined);
-
-  // Update local state when preference changes
-  useEffect(() => {
-    setSelectedFuelType(defaultFuelTypeFromStore ?? undefined);
-  }, [defaultFuelTypeFromStore]);
-
+  // Use the infinite query hook with filters
   const {
-    data: stations,
+    data,
     isLoading,
+    isError,
     error,
     refetch,
     isRefetching,
-  } = useNearbyStations({
-    radiusKm: 15,
-    enabled: true,
-    providedLocation: locationData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteStationsSortedByDistance({
+    location: locationData,
+    searchTerm: searchQuery,
+    brandFilter:
+      selectedBrands.size > 0 ? Array.from(selectedBrands) : undefined,
+    enabled: !locationLoading,
   });
 
   // Update notification banner when using default location
@@ -103,55 +80,34 @@ export default function ExploreScreen() {
     setUsingDefaultLocation(!!locationData.isDefaultLocation);
   }, [locationData.isDefaultLocation]);
 
-  // Filter stations based on search query, selected brand, and fuel type
-  useEffect(() => {
-    if (!stations) {
-      setFilteredStations([]);
-      return;
-    }
-
-    // Ensure stations is iterable before spreading
-    let filtered = Array.isArray(stations) ? [...stations] : [];
-
-    // Apply brand filter
-    if (selectedBrand) {
-      filtered = filtered.filter(
-        (station) => station.brand.toLowerCase() === selectedBrand.toLowerCase()
-      );
-    }
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(
-        (station) =>
-          station.name.toLowerCase().includes(query) ||
-          station.brand.toLowerCase().includes(query) ||
-          station.address.toLowerCase().includes(query) ||
-          station.city.toLowerCase().includes(query)
-      );
-    }
-
-    // Apply fuel type filter if selected
-    // Note: This is a simplified filter since we don't have fuel type data in the station objects
-    // In a real implementation, you would filter based on available fuel types at each station
-    if (selectedFuelType) {
-      // This is a placeholder - in a real app, you would filter based on stations that offer this fuel type
-      // For now, we're not actually filtering by fuel type since we don't have that data
-      console.log(`Filtering for fuel type: ${selectedFuelType}`);
-      // filtered = filtered.filter(station => station.availableFuelTypes?.includes(selectedFuelType));
-    }
-
-    setFilteredStations(filtered);
-  }, [stations, searchQuery, selectedBrand, selectedFuelType]); // Added selectedFuelType dependency
+  // Flatten the pages of stations data for rendering
+  const stations = useMemo(() => {
+    return data?.pages.flatMap((page) => page.stations) || [];
+  }, [data]);
 
   const handleBrandSelect = (brand: string) => {
-    setSelectedBrand(selectedBrand === brand ? null : brand);
+    setSelectedBrands((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(brand)) {
+        newSet.delete(brand); // Deselect if already selected
+      } else {
+        newSet.add(brand); // Select if not selected
+      }
+      return newSet;
+    });
   };
 
-  const handleFuelTypeSelect = (fuelType: FuelType) => {
-    // If selecting the same type, clear it (set to undefined)
-    setSelectedFuelType(selectedFuelType === fuelType ? undefined : fuelType);
+  // Handle end reached for infinite scrolling
+  const handleEndReached = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedBrands(new Set());
   };
 
   if (locationLoading) {
@@ -160,7 +116,7 @@ export default function ExploreScreen() {
     );
   }
 
-  if (error) {
+  if (isError && error) {
     return (
       <ErrorDisplay
         fullScreen
@@ -215,18 +171,17 @@ export default function ExploreScreen() {
             <TextInput
               style={styles.searchInput}
               placeholder='Search stations, brands, or addresses'
-              placeholderTextColor={Colors.placeholderGray} // Add prop here
+              placeholderTextColor={Colors.placeholderGray}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              clearButtonMode='while-editing' // Rely on this for iOS clear button
+              clearButtonMode='while-editing'
             />
-            {/* Removed custom TouchableOpacity clear button to avoid duplication on iOS */}
           </View>
         </View>
 
         {/* Brand Filter */}
         <View style={styles.brandFilterContainer}>
-          <Text style={styles.filterLabel}>Brand:</Text>
+          <Text style={styles.filterLabel}>Brand</Text>
           <FlatList
             horizontal
             data={POPULAR_BRANDS}
@@ -235,14 +190,14 @@ export default function ExploreScreen() {
               <TouchableOpacity
                 style={[
                   styles.brandChip,
-                  selectedBrand === item && styles.selectedBrandChip,
+                  selectedBrands.has(item) && styles.selectedBrandChip,
                 ]}
                 onPress={() => handleBrandSelect(item)}
               >
                 <Text
                   style={[
                     styles.brandChipText,
-                    selectedBrand === item && styles.selectedBrandChipText,
+                    selectedBrands.has(item) && styles.selectedBrandChipText,
                   ]}
                 >
                   {item}
@@ -254,71 +209,51 @@ export default function ExploreScreen() {
           />
         </View>
 
-        {/* Fuel Type Filter */}
-        <View style={styles.brandFilterContainer}>
-          <Text style={styles.filterLabel}>Fuel Type:</Text>
-          <FlatList
-            horizontal
-            data={FUEL_TYPES}
-            keyExtractor={(item) => item}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.brandChip,
-                  selectedFuelType === item && styles.selectedBrandChip,
-                ]}
-                onPress={() => handleFuelTypeSelect(item)}
-              >
-                <Text
-                  style={[
-                    styles.brandChipText,
-                    selectedFuelType === item && styles.selectedBrandChipText,
-                  ]}
-                >
-                  {item}
-                </Text>
-              </TouchableOpacity>
-            )}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.brandList}
-          />
-        </View>
-
-        {isLoading ? (
+        {isLoading && !data ? (
           <LoadingIndicator message='Finding stations near you...' />
-        ) : filteredStations.length > 0 ? (
+        ) : stations.length > 0 ? (
           <FlatList
-            data={filteredStations}
+            data={stations}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <StationCard station={item} />}
-            // Removed estimatedItemSize
+            renderItem={({ item }) => (
+              <StationCard
+                station={item}
+                isFavorite={false} // You can implement favorite functionality if needed
+              />
+            )}
             contentContainerStyle={styles.stationList}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+            }
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <View style={styles.loadingMoreContainer}>
+                  <ActivityIndicator size='small' color={Colors.primary} />
+                  <Text style={styles.loadingMoreText}>
+                    Loading more stations...
+                  </Text>
+                </View>
+              ) : null
             }
           />
         ) : (
           <EmptyState
             title='No Stations Found'
             message={
-              searchQuery || selectedBrand || selectedFuelType
+              searchQuery || selectedBrands.size > 0
                 ? "We couldn't find any stations matching your filters. Try a different search or clear your filters."
-                : "We couldn't find any gas stations near you. Try increasing the search radius."
+                : "We couldn't find any gas stations. Try adjusting your search criteria."
             }
             icon='gas-pump'
             actionLabel={
-              searchQuery || selectedBrand || selectedFuelType
+              searchQuery || selectedBrands.size > 0
                 ? 'Clear Filters'
                 : undefined
             }
             onAction={
-              searchQuery || selectedBrand || selectedFuelType
-                ? () => {
-                    setSearchQuery('');
-                    setSelectedBrand(null);
-                    setSelectedFuelType(undefined);
-                  }
-                : undefined
+              searchQuery || selectedBrands.size > 0 ? clearFilters : undefined
             }
           />
         )}

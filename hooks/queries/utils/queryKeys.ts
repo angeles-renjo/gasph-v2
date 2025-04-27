@@ -54,6 +54,12 @@ export const queryKeys = {
     // Add key for fetching stations with price for a specific fuel type
     listWithPrice: (fuelType: FuelType | 'none') =>
       [...queryKeys.stations.all, 'listWithPrice', fuelType] as const,
+    // Add key for infinite list of stations sorted by distance
+    listInfinite: (params: {
+      location: string;
+      searchTerm?: string;
+      brandFilter?: string | string[];
+    }) => [...queryKeys.stations.all, 'listInfinite', params] as const,
     // Add key for fetching all prices of a specific fuel type for a station
     fuelTypePrices: (stationId: string, fuelType: string) =>
       [

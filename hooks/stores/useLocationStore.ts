@@ -7,6 +7,9 @@ import {
   openDeviceLocationSettings,
 } from '@/utils/locationUtils';
 
+// Re-export LocationData type
+export type { LocationData };
+
 interface LocationState {
   location: LocationData;
   loading: boolean;
