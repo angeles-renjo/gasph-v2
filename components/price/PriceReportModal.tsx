@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
+import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import location store
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
 import { formatFuelType } from '@/utils/formatters';
 
@@ -35,6 +37,9 @@ export function PriceReportModal({
 }: PriceReportModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  // Get necessary state for invalidating the favorites prices query
+  const userPreferredFuelType = usePreferencesStore.getState().defaultFuelType;
+  const location = useLocationStore.getState().location;
   const [selectedFuelType, setSelectedFuelType] =
     useState<FuelType>(defaultFuelType);
   const [price, setPrice] = useState('');
@@ -137,6 +142,18 @@ export function PriceReportModal({
       await queryClient.invalidateQueries({
         queryKey: queryKeys.stations.listWithPrice(selectedFuelType),
       });
+      // --- Invalidate Favorite Prices Query ---
+      if (user?.id) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.stations.favorites.prices(
+            user.id,
+            userPreferredFuelType ?? undefined, // Use the user's preferred type for the key
+            location?.latitude,
+            location?.longitude
+          ),
+        });
+      }
+      // --- End Invalidation ---
 
       // Success feedback
       resetAndClose();

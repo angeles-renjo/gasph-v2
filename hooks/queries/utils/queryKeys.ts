@@ -85,6 +85,21 @@ export const queryKeys = {
           userId,
           stationId,
         ] as const,
+      // Add key for fetching prices for favorite stations
+      prices: (
+        userId: string | undefined,
+        fuelType: FuelType | undefined,
+        lat?: number,
+        lng?: number
+      ) =>
+        [
+          ...queryKeys.stations.all,
+          'favorites',
+          'prices',
+          userId,
+          fuelType,
+          { lat, lng }, // Include location coords
+        ] as const,
     },
   },
   users: {

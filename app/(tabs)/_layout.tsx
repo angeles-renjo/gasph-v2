@@ -30,6 +30,18 @@ export default function TabsLayout() {
           },
         }}
       >
+        {/* Home Tab - Added as the first tab */}
+        <Tabs.Screen
+          name='home' // Corresponds to app/(tabs)/home.tsx
+          options={{
+            title: 'Home',
+            href: '/home', // Explicitly set href
+            tabBarIcon: ({ color, size }) => (
+              <FontAwesome5 name='home' size={size} color={color} /> // Use 'home' icon
+            ),
+          }}
+        />
+
         {/* Common Tabs */}
         <Tabs.Screen
           name='index'
