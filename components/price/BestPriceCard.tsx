@@ -15,7 +15,6 @@ import {
   formatFuelType,
 } from '@/utils/formatters';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
-import { openDirections } from '@/utils/navigation';
 import { DOEPriceDisplay } from './DOEPriceDisplay';
 import type { BestPrice } from '@/hooks/queries/prices/useBestPrices';
 
@@ -190,7 +189,6 @@ export function BestPriceCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginVertical: Spacing.md, // Increased margin for separation
     padding: isSmallScreen ? Spacing.md : Spacing.xl,
     borderRadius: BorderRadius.lg,
     elevation: 2,
@@ -199,7 +197,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
   },
-  // Removed selectedCard style definition from here
   priceSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',

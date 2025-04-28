@@ -35,7 +35,6 @@ export default function TabsLayout() {
           name='home' // Corresponds to app/(tabs)/home.tsx
           options={{
             title: 'Home',
-            href: '/home', // Explicitly set href
             tabBarIcon: ({ color, size }) => (
               <FontAwesome5 name='home' size={size} color={color} /> // Use 'home' icon
             ),

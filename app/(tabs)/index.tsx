@@ -323,8 +323,6 @@ export default function BestPricesScreen() {
         onDistanceSelect={handleDistanceChange}
         distanceOptions={DISTANCE_OPTIONS}
       />
-      <Link href='/faq'>FAQ</Link>
-      <Link href='/location-test'>Test Location</Link>
       {/* Main content - Renders below the filter bubble */}
       {renderContent()}
     </SafeAreaView>
