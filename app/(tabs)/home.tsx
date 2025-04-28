@@ -1,11 +1,12 @@
 import {
   View,
   Text,
-  FlatList,
-  RefreshControl,
   StatusBar,
   StyleSheet,
+  TouchableOpacity,
 } from 'react-native';
+import { useState } from 'react';
+import PagerView from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFavoriteStationPrices } from '@/hooks/queries/stations/useFavoriteStationPrices';
@@ -20,6 +21,7 @@ import { Button } from '@/components/ui/Button'; // For location error button
 import { FontAwesome5 } from '@expo/vector-icons'; // For location error icon
 
 export default function HomeScreen() {
+  const [currentPage, setCurrentPage] = useState(0);
   const router = useRouter();
   const {
     data: favoriteStations,
@@ -35,18 +37,13 @@ export default function HomeScreen() {
   const locationLoading = useLocationStore((state) => state.loading);
   const refreshLocation = useLocationStore((state) => state.refreshLocation);
 
-  const handleRefresh = async () => {
-    await refetch();
-  };
-
   const navigateToStation = (stationId: string) => {
     router.push(`/station/${stationId}`);
   };
 
   // --- Location Error Handling (Similar to BestPricesScreen) ---
   const renderLocationError = () => (
-    <SafeAreaView style={styles.fullScreenContainer}>
-      <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
+    <View style={styles.fullScreenContainer}>
       <View style={styles.fallbackContainer}>
         <View style={styles.iconContainer}>
           <FontAwesome5
@@ -76,7 +73,7 @@ export default function HomeScreen() {
           />
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
   // --- End Location Error Handling ---
 
@@ -111,56 +108,75 @@ export default function HomeScreen() {
     }
 
     return (
-      <FlatList
-        data={favoriteStations}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          // Provide fallbacks for potentially null values expected as strings by BestPriceCard
-          const name = item.name ?? 'Unknown Station';
-          const brand = item.brand ?? 'Unknown Brand';
-          const city = item.city ?? 'Unknown City';
-          // BestPriceCard expects fuel_type as FuelType, handle null case
-          const fuel_type = item.fuel_type ?? 'Diesel'; // Default to Diesel or handle differently?
-
-          // BestPriceCard expects distance/confirmations as number | undefined, handle null
-          const distance = item.distance ?? undefined;
-          const confirmations_count = item.confirmations_count ?? 0; // Default to 0 confirmations
-
-          return (
-            <BestPriceCard
-              id={item.id}
-              name={name}
-              brand={brand}
-              fuel_type={fuel_type} // Use the handled fuel_type
-              price={item.price} // Price can be null, BestPriceCard should handle this
-              distance={distance} // Use the handled distance
-              city={city}
-              confirmations_count={confirmations_count} // Use the handled count
-              // Pass null/false for props not relevant to favorites
-              min_price={null}
-              common_price={null}
-              max_price={null}
-              source_type={null}
-              isLowestPrice={false}
-              isSelected={false} // Selection not implemented here yet
-              onPress={() => navigateToStation(item.id)} // Navigate on press
-            />
-          ); // Add missing semicolon
-        }} // Add missing closing brace for renderItem
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={handleRefresh}
-            colors={[theme.Colors.primary]}
-            tintColor={theme.Colors.primary}
-          />
-        }
-        ListHeaderComponent={
+      <View>
+        <View style={styles.headerContainer}>
           <Text style={styles.headerTitle}>Favorite Stations</Text>
-        }
-        showsVerticalScrollIndicator={false}
-      />
+          <TouchableOpacity
+            style={styles.viewAllButton}
+            onPress={() => router.push('/favorites')}
+          >
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
+        </View>
+
+        <PagerView
+          style={styles.pagerView}
+          initialPage={0}
+          pageMargin={10}
+          onPageSelected={(e) => setCurrentPage(e.nativeEvent.position)}
+        >
+          {favoriteStations.map((item) => {
+            // Provide fallbacks for potentially null values expected as strings by BestPriceCard
+            const name = item.name ?? 'Unknown Station';
+            const brand = item.brand ?? 'Unknown Brand';
+            const city = item.city ?? 'Unknown City';
+            // BestPriceCard expects fuel_type as FuelType, handle null case
+            const fuel_type = item.fuel_type ?? 'Diesel';
+
+            // BestPriceCard expects distance/confirmations as number | undefined, handle null
+            const distance = item.distance ?? undefined;
+            const confirmations_count = item.confirmations_count ?? 0;
+
+            return (
+              <View key={item.id} collapsable={false}>
+                <BestPriceCard
+                  id={item.id}
+                  name={name}
+                  brand={brand}
+                  fuel_type={fuel_type}
+                  price={item.price}
+                  distance={distance}
+                  city={city}
+                  confirmations_count={confirmations_count}
+                  // Pass DOE price data
+                  min_price={item.min_price}
+                  common_price={item.common_price}
+                  max_price={item.max_price}
+                  source_type={item.source_type}
+                  isLowestPrice={false}
+                  isSelected={false}
+                  onPress={() => navigateToStation(item.id)}
+                />
+              </View>
+            );
+          })}
+        </PagerView>
+
+        <View style={styles.pagerIndicator}>
+          {favoriteStations.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.pagerDot,
+                {
+                  backgroundColor: theme.Colors.primary,
+                  opacity: currentPage === index ? 1 : 0.5,
+                },
+              ]}
+            />
+          ))}
+        </View>
+      </View>
     );
   };
 
@@ -192,12 +208,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.Colors.light.background,
   },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.Spacing.md,
+    marginBottom: theme.Spacing.md,
+  },
   headerTitle: {
     fontSize: theme.Typography.fontSizeXXLarge,
     fontWeight: theme.Typography.fontWeightBold,
     color: theme.Colors.darkGray,
-    marginBottom: theme.Spacing.lg,
-    paddingHorizontal: theme.Spacing.md, // Add some horizontal padding
+  },
+  viewAllButton: {
+    padding: theme.Spacing.sm,
+  },
+  viewAllText: {
+    color: theme.Colors.primary,
+    fontWeight: theme.Typography.fontWeightMedium,
+    fontSize: theme.Typography.fontSizeMedium,
+  },
+  pagerView: {
+    height: 220,
+    marginBottom: theme.Spacing.sm,
+  },
+  pagerIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.Spacing.md,
+  },
+  pagerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+    opacity: 0.5,
   },
   listContent: {
     padding: theme.Spacing.md,

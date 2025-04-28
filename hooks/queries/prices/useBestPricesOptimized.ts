@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../utils/queryKeys';
 import { defaultQueryOptions } from '../utils/queryOptions';
-import type { LocationData } from '@/hooks/useLocation';
 import { useNearbyStations } from '../stations/useNearbyStations';
 import type { GasStation } from '../stations/useNearbyStations';
 import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore';
@@ -18,14 +17,7 @@ import {
 } from './bestPricesUtils';
 
 // Import types and values from the original hook
-import type {
-  FuelType,
-  CommunityPriceInfo,
-  DoePriceInfo,
-  PotentialPricePoint,
-  BestPrice,
-  UseBestPricesOptions,
-} from './useBestPrices';
+import type { BestPrice, UseBestPricesOptions } from './useBestPrices';
 
 import { ALL_FUEL_TYPES } from './useBestPrices';
 

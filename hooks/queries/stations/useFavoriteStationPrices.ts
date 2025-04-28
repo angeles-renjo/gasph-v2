@@ -19,6 +19,12 @@ export interface FavoriteStationPrice {
   // Add latitude/longitude if needed for features like 'Directions'
   latitude: number | null;
   longitude: number | null;
+  // DOE price data fields
+  min_price: number | null;
+  max_price: number | null;
+  common_price: number | null;
+  week_of: string | null;
+  source_type: string | null;
 }
 
 interface UseFavoriteStationPricesResult {

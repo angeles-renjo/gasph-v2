@@ -17,7 +17,13 @@ returns table (
     distance double precision,
     fuel_type text,
     price numeric, -- Match active_price_reports view type
-    confirmations_count integer
+    confirmations_count integer,
+    -- DOE price data fields
+    min_price numeric,
+    max_price numeric,
+    common_price numeric,
+    week_of date,
+    source_type text
 )
 language plpgsql
 as $$
@@ -78,10 +84,17 @@ begin
         ))) as distance,
         p_fuel_type as fuel_type, -- Return the requested fuel type
         lp.price, -- The latest price for the specific fuel type
-        coalesce(lp.confirmations_count, 0) as confirmations_count -- Default to 0 if no price found
+        coalesce(lp.confirmations_count, 0) as confirmations_count, -- Default to 0 if no price found
+        -- DOE price data fields with null handling
+        dpv.min_price as min_price,
+        dpv.max_price as max_price,
+        dpv.common_price as common_price,
+        dpv.week_of as week_of,
+        dpv.source_type as source_type
     from public.gas_stations s
     join favorite_stations fs on s.id = fs.station_id
     left join latest_prices lp on s.id = lp.station_id and lp.rn = 1 -- Join only the latest price (rn=1)
+    left join public.doe_price_view dpv on s.id = dpv.gas_station_id and dpv.fuel_type = p_fuel_type -- Join with DOE price view
     order by distance; -- Order results by distance
 
 end;
