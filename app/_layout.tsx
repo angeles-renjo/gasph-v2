@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { queryClient } from '@/lib/query-client';
+import { setupReactQueryForReactNative } from '@/lib/react-query-native';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/hooks/stores/useAuthStore';
 import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import Zustand store
@@ -132,9 +133,16 @@ function SplashScreenHandler({ children }: { children: React.ReactNode }) {
 
 // Main app layout
 export default function RootLayout() {
-  // Initialize location store on mount
+  // Initialize location store and React Query for React Native on mount
   useEffect(() => {
+    // Initialize location
     useLocationStore.getState().initializeLocation();
+
+    // Setup React Query for React Native
+    const cleanup = setupReactQueryForReactNative();
+
+    // Return cleanup function
+    return cleanup;
   }, []);
 
   return (
