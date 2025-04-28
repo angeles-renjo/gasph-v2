@@ -68,34 +68,32 @@ export default function HomeScreen() {
   // --- Location Error Handling (Similar to BestPricesScreen) ---
   const renderLocationError = () => (
     <View style={styles.fullScreenContainer}>
-      <View style={styles.fallbackContainer}>
-        <View style={styles.iconContainer}>
-          <FontAwesome5
-            name='map-marker-alt'
-            size={64}
-            color={theme.Colors.primary}
-            style={styles.fallbackIcon}
-          />
-        </View>
-        <Text style={styles.fallbackTitle}>Location Access Required</Text>
-        <Text style={styles.fallbackMessage}>
-          GasPH needs your location to calculate distances to your favorite
-          stations.
-        </Text>
-        <View style={styles.fallbackButtonContainer}>
-          <Button
-            title='Enable Location'
-            onPress={openDeviceLocationSettings} // Use utility function
-            variant='primary'
-            style={styles.fallbackButton}
-          />
-          <Button
-            title='Try Again'
-            onPress={refreshLocation} // Use refresh action from store
-            variant='outline'
-            style={styles.fallbackButton}
-          />
-        </View>
+      <View style={styles.iconContainer}>
+        <FontAwesome5
+          name='map-marker-alt'
+          size={64}
+          color={theme.Colors.primary}
+          style={styles.fallbackIcon}
+        />
+      </View>
+      <Text style={styles.fallbackTitle}>Location Access Required</Text>
+      <Text style={styles.fallbackMessage}>
+        GasPH needs your location to calculate distances to your favorite
+        stations.
+      </Text>
+      <View style={styles.fallbackButtonContainer}>
+        <Button
+          title='Enable Location'
+          onPress={openDeviceLocationSettings} // Use utility function
+          variant='primary'
+          style={styles.fallbackButton}
+        />
+        <Button
+          title='Try Again'
+          onPress={refreshLocation} // Use refresh action from store
+          variant='outline'
+          style={styles.fallbackButton}
+        />
       </View>
     </View>
   );
@@ -119,163 +117,165 @@ export default function HomeScreen() {
 
     // Show welcome section, contributions, and FAQ regardless of favorites
     return (
-      <ScrollView style={styles.scrollContainer}>
-        {/* Welcome Section */}
-        <View style={styles.welcomeContainer}>
-          <Text style={styles.welcomeText}>
-            Hi, {userProfile?.username || user?.email?.split('@')[0] || 'there'}
-            !
-          </Text>
-          <Text style={styles.sloganText}>
-            Find the best fuel prices near you
-          </Text>
-        </View>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView style={styles.scrollContainer}>
+          {/* Welcome Section */}
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeText}>
+              Hi,{' '}
+              {userProfile?.username || user?.email?.split('@')[0] || 'there'}!
+            </Text>
+            <Text style={styles.sloganText}>
+              Find the best fuel prices near you
+            </Text>
+          </View>
 
-        {/* Conditionally render favorites, empty state, or prerequisites missing message */}
-        {!user?.id ? (
-          <EmptyState
-            title='Sign In Required'
-            message='Please sign in to see your favorite stations.'
-            icon='user' // Use a user icon for sign in
-            onAction={{
-              label: 'Sign In',
-              onPress: () => router.push('/auth/sign-in'), // Navigate to sign in screen
-            }}
+          {/* Conditionally render favorites, empty state, or prerequisites missing message */}
+          {!user?.id ? (
+            <EmptyState
+              title='Sign In Required'
+              message='Please sign in to see your favorite stations.'
+              icon='user' // Use a user icon for sign in
+              onAction={{
+                label: 'Sign In',
+                onPress: () => router.push('/auth/sign-in'), // Navigate to sign in screen
+              }}
+            />
+          ) : !location ? (
+            <EmptyState
+              title='Location Access Required'
+              message='GasPH needs your location to show favorite stations with distances.'
+              icon='map-marker-alt' // Use a location icon
+              onAction={{
+                label: 'Enable Location',
+                onPress: openDeviceLocationSettings, // Open location settings
+              }}
+            />
+          ) : !defaultFuelType ? (
+            <EmptyState
+              title='Fuel Type Preference Required'
+              message='Please set your preferred fuel type in your profile settings.'
+              icon='gas-pump' // Use a gas pump icon
+              onAction={{
+                label: 'Go to Profile',
+                onPress: () => router.push('/profile'), // Navigate to profile screen
+              }}
+            />
+          ) : !favoriteStations || favoriteStations.length === 0 ? (
+            <EmptyState
+              title='No Favorite Stations'
+              message='Add stations to your favorites from the Explore or Map tabs to see them here.'
+              icon='heart' // Use a heart icon for favorites
+              onAction={{
+                label: 'Explore Stations',
+                onPress: () => router.push('/explore'), // Navigate to explore tab
+              }}
+            />
+          ) : (
+            <View>
+              <View style={styles.headerContainer}>
+                <Text style={styles.headerTitle}>Favorite Stations</Text>
+                <TouchableOpacity
+                  style={styles.viewAllButton}
+                  onPress={() => router.push('/favorites')}
+                >
+                  <Text style={styles.viewAllText}>View All</Text>
+                </TouchableOpacity>
+              </View>
+
+              <PagerView
+                style={styles.pagerView}
+                initialPage={0}
+                pageMargin={10}
+                onPageSelected={(e) => setCurrentPage(e.nativeEvent.position)}
+              >
+                {favoriteStations.map((item) => {
+                  // Provide fallbacks for potentially null values expected as strings by BestPriceCard
+                  const name = item.name ?? 'Unknown Station';
+                  const brand = item.brand ?? 'Unknown Brand';
+                  const city = item.city ?? 'Unknown City';
+                  // BestPriceCard expects fuel_type as FuelType, handle null case
+                  const fuel_type = item.fuel_type ?? 'Diesel';
+
+                  // BestPriceCard expects distance/confirmations as number | undefined, handle null
+                  const distance = item.distance ?? undefined;
+                  const confirmations_count = item.confirmations_count ?? 0;
+
+                  return (
+                    <View key={item.id} collapsable={false}>
+                      <BestPriceCard
+                        id={item.id}
+                        name={name}
+                        brand={brand}
+                        fuel_type={fuel_type}
+                        price={item.price}
+                        distance={distance}
+                        city={city}
+                        confirmations_count={confirmations_count}
+                        onPress={() => navigateToStation(item.id)}
+                      />
+                    </View>
+                  );
+                })}
+              </PagerView>
+
+              <View style={styles.pagerIndicator}>
+                {favoriteStations.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.pagerDot,
+                      {
+                        backgroundColor: theme.Colors.primary,
+                        opacity: currentPage === index ? 1 : 0.5,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Your Contributions Section */}
+          <ContributionsCard
+            confirmations={confirmationsCount}
+            priceReports={priceReportsCount}
           />
-        ) : !location ? (
-          <EmptyState
-            title='Location Access Required'
-            message='GasPH needs your location to show favorite stations with distances.'
-            icon='map-marker-alt' // Use a location icon
-            onAction={{
-              label: 'Enable Location',
-              onPress: openDeviceLocationSettings, // Open location settings
-            }}
-          />
-        ) : !defaultFuelType ? (
-          <EmptyState
-            title='Fuel Type Preference Required'
-            message='Please set your preferred fuel type in your profile settings.'
-            icon='gas-pump' // Use a gas pump icon
-            onAction={{
-              label: 'Go to Profile',
-              onPress: () => router.push('/profile'), // Navigate to profile screen
-            }}
-          />
-        ) : !favoriteStations || favoriteStations.length === 0 ? (
-          <EmptyState
-            title='No Favorite Stations'
-            message='Add stations to your favorites from the Explore or Map tabs to see them here.'
-            icon='heart' // Use a heart icon for favorites
-            onAction={{
-              label: 'Explore Stations',
-              onPress: () => router.push('/explore'), // Navigate to explore tab
-            }}
-          />
-        ) : (
-          <View>
+
+          {/* FAQ Section */}
+          <View style={styles.faqContainer}>
             <View style={styles.headerContainer}>
-              <Text style={styles.headerTitle}>Favorite Stations</Text>
+              <Text style={styles.headerTitle}>FAQ</Text>
               <TouchableOpacity
                 style={styles.viewAllButton}
-                onPress={() => router.push('/favorites')}
+                onPress={() => router.push('/faq')}
               >
-                <Text style={styles.viewAllText}>View All</Text>
+                <Text style={styles.viewAllText}>See More {'>'}</Text>
               </TouchableOpacity>
             </View>
 
-            <PagerView
-              style={styles.pagerView}
-              initialPage={0}
-              pageMargin={10}
-              onPageSelected={(e) => setCurrentPage(e.nativeEvent.position)}
-            >
-              {favoriteStations.map((item) => {
-                // Provide fallbacks for potentially null values expected as strings by BestPriceCard
-                const name = item.name ?? 'Unknown Station';
-                const brand = item.brand ?? 'Unknown Brand';
-                const city = item.city ?? 'Unknown City';
-                // BestPriceCard expects fuel_type as FuelType, handle null case
-                const fuel_type = item.fuel_type ?? 'Diesel';
+            <View style={styles.faqItemContainer}>
+              <FAQAccordionItem
+                item={{
+                  question: 'How are prices verified?',
+                  answer:
+                    'Prices are verified through user confirmations and our moderation team.',
+                }}
+              />
+            </View>
 
-                // BestPriceCard expects distance/confirmations as number | undefined, handle null
-                const distance = item.distance ?? undefined;
-                const confirmations_count = item.confirmations_count ?? 0;
-
-                return (
-                  <View key={item.id} collapsable={false}>
-                    <BestPriceCard
-                      id={item.id}
-                      name={name}
-                      brand={brand}
-                      fuel_type={fuel_type}
-                      price={item.price}
-                      distance={distance}
-                      city={city}
-                      confirmations_count={confirmations_count}
-                      onPress={() => navigateToStation(item.id)}
-                    />
-                  </View>
-                );
-              })}
-            </PagerView>
-
-            <View style={styles.pagerIndicator}>
-              {favoriteStations.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.pagerDot,
-                    {
-                      backgroundColor: theme.Colors.primary,
-                      opacity: currentPage === index ? 1 : 0.5,
-                    },
-                  ]}
-                />
-              ))}
+            <View style={styles.faqItemContainer}>
+              <FAQAccordionItem
+                item={{
+                  question: 'How can I contribute?',
+                  answer:
+                    'You can report prices, confirm existing reports, or add new stations.',
+                }}
+              />
             </View>
           </View>
-        )}
-
-        {/* Your Contributions Section */}
-        <ContributionsCard
-          confirmations={confirmationsCount}
-          priceReports={priceReportsCount}
-        />
-
-        {/* FAQ Section */}
-        <View style={styles.faqContainer}>
-          <View style={styles.headerContainer}>
-            <Text style={styles.headerTitle}>FAQ</Text>
-            <TouchableOpacity
-              style={styles.viewAllButton}
-              onPress={() => router.push('/faq')}
-            >
-              <Text style={styles.viewAllText}>See More {'>'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.faqItemContainer}>
-            <FAQAccordionItem
-              item={{
-                question: 'How are prices verified?',
-                answer:
-                  'Prices are verified through user confirmations and our moderation team.',
-              }}
-            />
-          </View>
-
-          <View style={styles.faqItemContainer}>
-            <FAQAccordionItem
-              item={{
-                question: 'How can I contribute?',
-                answer:
-                  'You can report prices, confirm existing reports, or add new stations.',
-              }}
-            />
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
     );
   };
 
@@ -349,13 +349,7 @@ const styles = StyleSheet.create({
     padding: theme.Spacing.md,
     paddingTop: theme.Spacing.sm,
   },
-  // --- Fallback Styles (Copied from BestPricesScreen) ---
-  fallbackContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: theme.Spacing.xxl,
-  },
+
   iconContainer: {
     width: 120,
     height: 120,

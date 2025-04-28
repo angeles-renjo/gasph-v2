@@ -151,6 +151,7 @@ const styles = StyleSheet.create({
   },
   addStationButton: {
     position: 'absolute',
+    marginTop: theme.Spacing.xxl,
     top: theme.Spacing.xl, // Use theme spacing (e.g., 16)
     right: theme.Spacing.xl, // Use theme spacing (e.g., 16)
     backgroundColor: theme.Colors.primary, // Use theme primary color

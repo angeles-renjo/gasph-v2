@@ -311,7 +311,7 @@ export default function BestPricesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Ensure 'top' edge is included */}
       <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
       {/* Filter Bubble - Placed at the top of the layout */}
