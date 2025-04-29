@@ -1,22 +1,12 @@
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Linking } from 'react-native';
-
-export interface LocationData {
-  latitude: number;
-  longitude: number;
-  isDefaultLocation?: boolean;
-}
-
-// Location permission storage key
-const LOCATION_PERMISSION_KEY = 'gasph_location_permission_status';
-
-// Default location coordinates for Metro Manila
-export const DEFAULT_LOCATION: LocationData = {
-  latitude: 13.1391,
-  longitude: 123.7438,
-  isDefaultLocation: true,
-};
+import {
+  LocationData,
+  DEFAULT_LOCATION,
+  LOCATION_PERMISSION_KEY,
+  LOCATION_TIMEOUT,
+} from '@/constants/map/locationConstants';
 
 /**
  * Checks the current location permission status or requests it if not determined.
@@ -83,7 +73,7 @@ export const checkOrRequestLocationPermission = async (): Promise<boolean> => {
  * @throws {Error} If location fetching fails or times out.
  */
 export const fetchCurrentLocation = async (
-  timeoutMs = 20000
+  timeoutMs = LOCATION_TIMEOUT.INITIAL
 ): Promise<LocationData> => {
   console.log('Fetching current location...');
   try {

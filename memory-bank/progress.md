@@ -30,10 +30,20 @@
     - Created optimized versions of key hooks with targeted query invalidation.
     - Created comprehensive documentation in `docs/react-query-optimization.md`.
 
+- **Resolved (2025-04-29): Location Constants Inconsistencies:** Identified inconsistencies in default location coordinates, zoom levels, and animation durations across different files.
+
+  - _Fix:_ Created a centralized constants file (`constants/map/locationConstants.ts`) with standardized values:
+    - Defined `DEFAULT_LOCATION` for Metro Manila (`14.5995, 120.9842`) as the single source of truth.
+    - Defined `PHILIPPINES_CENTER` (`12.8797, 121.774`) for country-wide view.
+    - Standardized zoom levels with semantic names (`COUNTRY`, `REGION`, `CITY`, `NEIGHBORHOOD`, `STREET`).
+    - Standardized animation durations (`SHORT`, `MEDIUM`, `LONG`).
+    - Updated all relevant files to use these constants.
+
 - **Android Location Timeout:** Users may still experience `Location error: Inner location request timed out` on Android if location acquisition takes longer than 20 seconds, even with granted permissions.
 
   - _Attempted Fix 1 (2025-04-24):_ Increased the `Promise.race` timeout in `hooks/useLocation.ts` from 10 seconds to 20 seconds.
   - _Attempted Fix 2 (2025-04-24):_ Changed location accuracy request to `Location.Accuracy.Low` and simplified timeout logic in `hooks/useLocation.ts`.
+  - _Attempted Fix 3 (2025-04-29):_ Centralized timeout values in `constants/map/locationConstants.ts` to ensure consistency.
 
 - **Resolved (2025-04-24): Multiple Location Hook Calls:** The `useLocation` hook was being called multiple times (in `_layout.tsx` and individual tab screens), causing redundant location requests and excessive logging.
 
@@ -60,3 +70,4 @@
 - **Map Performance Strategy (2025-04-26):** Due to persistent iOS lag with Google Maps provider (known community issue #4937), current strategy involves testing marker simplification. If unsuccessful, the next step is likely switching to Apple Maps provider for iOS.
 - **React Query Optimization (2025-04-28):** Implemented React Native specific optimizations for React Query to improve performance and battery usage. This includes online status management, app focus management, screen focus awareness, and targeted query invalidation. Created utilities for focus-aware query hooks and optimized versions of key hooks. This aligns with the project's focus on performance and user experience.
 - **Favorite Stations UI Improvements (2025-04-28):** Implemented a horizontal slider for favorite stations in the home tab using `react-native-pager-view` and added a "View All" button that navigates to a dedicated screen. Created a new screen (`app/favorites.tsx`) to display all favorite stations in a list. This improves the user experience by providing a more intuitive way to browse favorite stations.
+- **Location Constants Centralization (2025-04-29):** Created a centralized constants file (`constants/map/locationConstants.ts`) to ensure consistency across the application. This aligns with the project's focus on maintainability and code quality. Standardized default locations, zoom levels, and animation durations to provide a consistent user experience.

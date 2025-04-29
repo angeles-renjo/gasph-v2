@@ -2,21 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Linking } from 'react-native';
+import {
+  LocationData,
+  DEFAULT_LOCATION,
+  LOCATION_PERMISSION_KEY,
+  LOCATION_TIMEOUT,
+} from '@/constants/map/locationConstants';
 
-// Location permission storage key
-const LOCATION_PERMISSION_KEY = 'gasph_location_permission_status';
-// Default location coordinates for Metro Manila
-const DEFAULT_LOCATION = {
-  latitude: 13.1391,
-  longitude: 123.7438,
-  isDefaultLocation: true,
-};
-
-export interface LocationData {
-  latitude: number;
-  longitude: number;
-  isDefaultLocation?: boolean;
-}
+// Re-export LocationData interface for backward compatibility
+export type { LocationData };
 
 export function useLocation() {
   const [location, setLocation] = useState<LocationData | null>(null);
@@ -104,7 +98,7 @@ export function useLocation() {
           new Promise<null>((_, reject) =>
             setTimeout(
               () => reject(new Error('Inner location request timed out')),
-              20000 // Increased timeout to 20 seconds
+              LOCATION_TIMEOUT.INITIAL
             )
           ),
         ]);
@@ -219,7 +213,7 @@ export function useLocation() {
         console.warn('Location refresh timed out');
         setLoading(false);
         setError('Location refresh timed out. Using previous location.');
-      }, 10000);
+      }, LOCATION_TIMEOUT.REFRESH);
 
       // Get new location
       const position = await Location.getCurrentPositionAsync({

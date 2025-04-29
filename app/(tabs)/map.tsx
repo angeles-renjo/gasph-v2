@@ -13,6 +13,10 @@ import { View } from '@/components/Themed'; // Keep this View for the main conta
 import AddStationModal from '@/components/station/AddStationModal'; // Import the Add modal
 import { useState, useRef } from 'react'; // Import useState and useRef
 import MapView, { Region } from 'react-native-maps'; // Import MapView types
+import {
+  ZOOM_LEVELS,
+  ANIMATION_DURATION,
+} from '@/constants/map/locationConstants';
 
 // Helper function to open app settings (copied from explore.tsx logic)
 const openAppSettings = () => {
@@ -117,10 +121,10 @@ export default function MapScreen() {
         {
           latitude: locationData.latitude,
           longitude: locationData.longitude,
-          latitudeDelta: 0.01, // Zoom in closer
-          longitudeDelta: 0.01,
+          latitudeDelta: ZOOM_LEVELS.NEIGHBORHOOD.latitudeDelta, // Zoom in closer
+          longitudeDelta: ZOOM_LEVELS.NEIGHBORHOOD.longitudeDelta,
         },
-        500 // Animation duration
+        ANIMATION_DURATION.LONG // Animation duration
       );
     }
   };

@@ -25,28 +25,23 @@ import {
 import type { Feature, Point, GeoJsonProperties } from 'geojson'; // Import GeoJSON types
 
 import { GasStation } from '@/hooks/queries/stations/useNearbyStations';
-import { LocationData } from '@/hooks/useLocation';
+import { LocationData } from '@/constants/map/locationConstants';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { StationInfoModal } from './StationInfoModal';
 import theme from '@/styles/theme';
 import mapStyle from '@/styles/mapStyle.json';
 import { formatPrice } from '@/utils/formatters'; // Import correct formatter
 import { useGoogleMapIosPerfFix } from '@/hooks/useGoogleMapIosPerfFix'; // Import the perf fix hook
-
-// --- Constants for Map Views ---
-const PHILIPPINES_CENTER = { latitude: 12.8797, longitude: 121.774 }; // Approx center
-const PHILIPPINES_DELTA = { latitudeDelta: 15, longitudeDelta: 15 }; // Zoom level for whole country view
-const USER_DELTA = { latitudeDelta: 0.1, longitudeDelta: 0.1 }; // Keep for potential future use?
-const CLUSTER_ZOOM_DELTA = { latitudeDelta: 0.02, longitudeDelta: 0.02 }; // Zoom level when clicking a cluster
-
-// ++ Add Bounding Box and Zoom Limits ++
-const PHILIPPINES_BOUNDS = {
-  // Looser bounds to allow slight over-panning before snapping back
-  sw: { latitude: 4.0, longitude: 116.0 }, // Approx Southwest corner
-  ne: { latitude: 21.5, longitude: 127.5 }, // Approx Northeast corner
-};
-const MIN_ZOOM_LEVEL = 6; // Prevent zooming out too far (Higher number = more zoomed in)
-const MAX_ZOOM_LEVEL = 18; // Optional: Limit max zoom
+import {
+  PHILIPPINES_CENTER,
+  PHILIPPINES_WIDE_REGION,
+  PHILIPPINES_BOUNDS,
+  MIN_ZOOM_LEVEL,
+  MAX_ZOOM_LEVEL,
+  ZOOM_LEVELS,
+  ANIMATION_DURATION,
+  DEFAULT_MAP_REGION,
+} from '@/constants/map/locationConstants';
 
 const { width: INITIAL_MAP_WIDTH, height: INITIAL_MAP_HEIGHT } =
   Dimensions.get('window');
@@ -223,12 +218,16 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
 
     // Calculate initial region based on the provided initialLocation
     const calculatedInitialRegion = useMemo(() => {
+      // Use the centralized default region if location is the fallback
+      if (initialLocation.isDefaultLocation) {
+        return DEFAULT_MAP_REGION;
+      }
+      // Otherwise, use user's location but with the default zoom level for consistency
       return {
         latitude: initialLocation.latitude,
         longitude: initialLocation.longitude,
-        // Use a reasonable delta for initial zoom, maybe USER_DELTA or a bit wider
-        latitudeDelta: 0.0922, // Standard delta
-        longitudeDelta: 0.0421, // Standard delta
+        latitudeDelta: ZOOM_LEVELS.CITY.latitudeDelta,
+        longitudeDelta: ZOOM_LEVELS.CITY.longitudeDelta,
       };
     }, [initialLocation]); // Depend on initialLocation
 
@@ -245,13 +244,13 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
 
         // Boundary Clamping Logic (simplified for brevity, assume it's correct)
         if (
-          newRegion.latitudeDelta > PHILIPPINES_DELTA.latitudeDelta + 5 ||
-          newRegion.longitudeDelta > PHILIPPINES_DELTA.longitudeDelta + 5
+          newRegion.latitudeDelta > PHILIPPINES_WIDE_REGION.latitudeDelta + 5 ||
+          newRegion.longitudeDelta > PHILIPPINES_WIDE_REGION.longitudeDelta + 5
         ) {
           targetLat = PHILIPPINES_CENTER.latitude;
           targetLng = PHILIPPINES_CENTER.longitude;
-          newRegion.latitudeDelta = PHILIPPINES_DELTA.latitudeDelta;
-          newRegion.longitudeDelta = PHILIPPINES_DELTA.longitudeDelta;
+          newRegion.latitudeDelta = PHILIPPINES_WIDE_REGION.latitudeDelta;
+          newRegion.longitudeDelta = PHILIPPINES_WIDE_REGION.longitudeDelta;
           needsAdjustment = true;
         } else {
           if (newRegion.latitude < PHILIPPINES_BOUNDS.sw.latitude)
@@ -294,7 +293,10 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
             latitudeDelta: currentTargetRegion.latitudeDelta,
             longitudeDelta: currentTargetRegion.longitudeDelta,
           };
-          mapViewRef.current.animateToRegion(centerFocusedRegion, 200);
+          mapViewRef.current.animateToRegion(
+            centerFocusedRegion,
+            ANIMATION_DURATION.SHORT
+          );
         }
       },
       [onRegionChangeCompleteProp, mapViewRef] // Include mapViewRef
@@ -361,7 +363,7 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
               latitudeDelta: region.latitudeDelta, // Use current delta
               longitudeDelta: region.longitudeDelta, // Use current delta
             },
-            300
+            ANIMATION_DURATION.MEDIUM
           );
         }
       },
@@ -379,7 +381,10 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
         const expansionRegion =
           superclusterInstance.getClusterExpansionRegion(clusterId);
         if (expansionRegion) {
-          mapViewRef.current.animateToRegion(expansionRegion, 300);
+          mapViewRef.current.animateToRegion(
+            expansionRegion,
+            ANIMATION_DURATION.MEDIUM
+          );
         }
       },
       [superclusterInstance, mapViewRef] // Include mapViewRef

@@ -72,10 +72,16 @@ Previous focus:
   - Monitor the performance impact of the optimizations and make further adjustments as needed.
 
 - **Map Performance:**
+
   - **Evaluate Marker Simplification Test:** Build and test the app on an iOS device with the simplified markers to observe the impact on the glide animation lag.
   - **Based on Test Results:**
     - **If lag is gone:** Revert the temporary marker simplification and begin meticulously optimizing the original `StationMarker` and `ClusterMarker` components (e.g., reduce view nesting, optimize styles, consider image-based markers).
     - **If lag persists:** Revert the temporary marker simplification. Strongly consider switching the map provider to Apple Maps for iOS (`provider={undefined}`) as the next most likely solution for performance issues related to `react-native-maps` + Google Maps SDK on iOS.
+
+- **Location Constants Refactoring:**
+  - Update any remaining files that might still be using hardcoded location constants.
+  - Consider adding more zoom level presets for different use cases.
+  - Add documentation for the location constants to help developers understand their purpose and usage.
 
 ## Active Decisions and Considerations
 
@@ -86,8 +92,14 @@ Previous focus:
   - Evaluating the trade-offs between client-side and server-side data processing.
 
 - **Map Performance:**
+
   - Determining the root cause of the iOS map glide animation lag (Marker complexity vs. deeper library/SDK issue).
   - Weighing the trade-offs between optimizing complex markers, using workarounds like `onPanDrag`/Reanimated, or switching map providers for iOS.
+
+- **Location Management:**
+  - Centralized location constants in `constants/map/locationConstants.ts` to ensure consistency across the application.
+  - Standardized default locations, zoom levels, and animation durations.
+  - Improved boundary enforcement logic to work with the default location.
 
 ## Important Patterns and Preferences
 
@@ -100,6 +112,9 @@ Previous focus:
   - Implement targeted query invalidation to reduce unnecessary refetches.
   - Use the `subscribed` option to disable queries when screens are not focused.
   - Implement proper error handling for offline scenarios.
+- Centralize constants in dedicated files to ensure consistency and maintainability:
+  - Location-related constants in `constants/map/locationConstants.ts`
+  - Use these constants throughout the application instead of hardcoding values
 
 ## Learnings and Project Insights
 
@@ -117,6 +132,13 @@ Previous focus:
   - Workarounds like `onPanDrag` or Reanimated hacks may offer partial improvements but might not fully resolve glide/inertia animation lag.
   - Marker rendering complexity can significantly impact map performance during interactions.
   - Using deprecated props like `min/maxZoomLevel` should be avoided; `cameraZoomRange` is the preferred alternative for iOS 13+.
+
+- **Location Management:**
+
+  - Centralizing location constants in a dedicated file helps ensure consistency across the application.
+  - Different default locations were being used in different parts of the app, causing inconsistent user experiences.
+  - Standardizing zoom levels and animation durations improves the user experience by providing consistent interactions.
+  - Using a single source of truth for location-related constants makes the code more maintainable and easier to update.
 
 - **General:**
   - The GasPh app is a mobile application built with Expo/React Native that aims to provide users with accurate and up-to-date gas price information.

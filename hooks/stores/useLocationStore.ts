@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import {
-  LocationData,
-  DEFAULT_LOCATION,
   checkOrRequestLocationPermission,
   fetchCurrentLocation,
   openDeviceLocationSettings,
 } from '@/utils/locationUtils';
+import {
+  LocationData,
+  DEFAULT_LOCATION,
+} from '@/constants/map/locationConstants';
 
 // Re-export LocationData type
 export type { LocationData };

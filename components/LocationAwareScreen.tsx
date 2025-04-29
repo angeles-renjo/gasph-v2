@@ -4,6 +4,7 @@ import { useLocation } from '@/hooks/useLocation'; // Make sure this path matche
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { Button } from '@/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
+import { LOCATION_TIMEOUT } from '@/constants/map/locationConstants';
 
 // This is a component that can be used to test the enhanced location hook
 export default function LocationAwareScreen() {

@@ -9,6 +9,7 @@
   - `/utils`: Utility functions, including Supabase client setup (`/supabase`) and formatters.
   - `/lib`: Core library code (e.g., geospatial functions, query client setup).
   - `/constants`: Application-wide constants (e.g., static lists, default values).
+    - `/constants/map`: Map-related constants, including location defaults, zoom levels, and animation durations.
   - `/assets`: Static assets like images and fonts.
   - `/docs`: Project documentation (this folder).
   - `/styles`: Contains centralized theme definitions (`theme.ts`) including colors, typography, spacing, and border radius constants used throughout the components.
@@ -26,6 +27,7 @@
 - The app follows the KISS (Keep It Simple, Stupid) principle, with each component having a single responsibility.
 - The app adheres to the SOLID principles, with components and hooks handling specific concerns.
 - The app also adheres to the YAGNI (You Aren't Gonna Need It) principle.
+- The app uses a centralized constants approach, with dedicated files for related constants to ensure consistency and maintainability.
 
 ## Component Relationships
 
@@ -84,3 +86,15 @@ The application uses a Supabase PostgreSQL database. The key tables and views ar
   - `usePreferencesStore`: Manages user preferences (e.g., default fuel type).
   - `useLocationStore`: Manages location state (`location`, `loading`, `error`, `permissionDenied`) and related actions (`initializeLocation`, `refreshLocation`). Initialized in `_layout.tsx` and consumed directly in components needing location data. This centralizes location logic and prevents redundant fetching.
 - **Integration Pattern**: Zustand stores are often used to provide data to React Query hooks, creating a seamless integration between global state and server state. For example, `useLocationStore` provides location data to `useNearbyStations`, and `usePreferencesStore` provides the default fuel type to `useBestPrices`.
+
+## Constants Management
+
+- **Centralized Constants**: The app uses a centralized approach to constants management, with dedicated files for related constants.
+  - **Location Constants**: `constants/map/locationConstants.ts` contains all location-related constants, including default locations, zoom levels, and animation durations.
+  - **Theme Constants**: `styles/theme.ts` contains all theme-related constants, including colors, typography, spacing, and border radius.
+  - **API Constants**: Various constants related to API endpoints and data structures are defined in their respective modules.
+- **Benefits**:
+  - **Consistency**: Ensures consistent values are used throughout the application.
+  - **Maintainability**: Makes it easier to update values in a single place.
+  - **Readability**: Improves code readability by using semantic names instead of magic numbers.
+  - **Type Safety**: Provides TypeScript interfaces for complex data structures.
