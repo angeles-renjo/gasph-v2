@@ -7,7 +7,6 @@ import {
   Alert,
   ScrollView,
   Image,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,11 +18,7 @@ import { useUserProfile } from '@/hooks/queries/users/useUserProfile';
 import { useUserContributions } from '@/hooks/queries/users/useUserContributions';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
-import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore';
 import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme';
-import { FuelType, ALL_FUEL_TYPES } from '@/hooks/queries/prices/useBestPrices';
-import { Picker } from '@react-native-picker/picker';
-import { formatFuelType } from '@/utils/formatters';
 
 interface UserContribution {
   id: string;
@@ -42,9 +37,7 @@ interface UserContribution {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut, isAdmin } = useAuth();
-  const { defaultFuelType, setDefaultFuelType } = usePreferencesStore();
-  const [isFuelModalVisible, setIsFuelModalVisible] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false); // Add loading state
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const {
     data: profileData,
@@ -243,28 +236,6 @@ export default function ProfileScreen() {
             </Text>
           </View>
 
-          {/* Fuel Preference Row */}
-          <TouchableOpacity
-            style={styles.listItem}
-            onPress={() => setIsFuelModalVisible(true)}
-          >
-            <FontAwesome5
-              name='gas-pump'
-              size={18}
-              color={Colors.textGray}
-              style={styles.listItemIcon}
-            />
-            <Text style={styles.listItemLabel}>Default Fuel Type</Text>
-            <Text style={styles.listItemValue}>
-              {defaultFuelType ? formatFuelType(defaultFuelType) : 'None'}
-            </Text>
-            <FontAwesome5
-              name='chevron-right'
-              size={16}
-              color={Colors.mediumGray}
-            />
-          </TouchableOpacity>
-
           {/* My Contributions Row */}
           <TouchableOpacity
             style={styles.listItem}
@@ -318,53 +289,6 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* --- Fuel Preference Picker Modal --- */}
-      <Modal
-        visible={isFuelModalVisible}
-        transparent
-        animationType='slide'
-        onRequestClose={() => setIsFuelModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPressOut={() => setIsFuelModalVisible(false)}
-        >
-          <TouchableOpacity
-            style={styles.modalPickerContainer}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Fuel Type</Text>
-              <Button
-                title='Done'
-                onPress={() => setIsFuelModalVisible(false)}
-                size='small'
-                variant='outline'
-              />
-            </View>
-            <Picker
-              selectedValue={defaultFuelType}
-              onValueChange={(itemValue: FuelType | null) => {
-                setDefaultFuelType(itemValue);
-              }}
-              style={styles.modalPicker}
-              itemStyle={styles.modalPickerItem}
-            >
-              <Picker.Item label='None (Use best available)' value={null} />
-              {ALL_FUEL_TYPES.map((fuelType) => (
-                <Picker.Item
-                  key={fuelType}
-                  label={formatFuelType(fuelType)}
-                  value={fuelType}
-                />
-              ))}
-            </Picker>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -502,34 +426,6 @@ const styles = StyleSheet.create({
   deleteLabel: {
     color: Colors.error, // Use error color for the text
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: Colors.modalBackdrop,
-    justifyContent: 'flex-end',
-  },
-  modalPickerContainer: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: BorderRadius.lg,
-    borderTopRightRadius: BorderRadius.lg,
-    paddingBottom: Spacing.lg,
-    maxHeight: '50%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.dividerGray,
-  },
-  modalTitle: {
-    fontSize: Typography.fontSizeLarge,
-    fontWeight: Typography.fontWeightSemiBold,
-    color: Colors.darkGray,
-  },
-  modalPicker: {},
-  modalPickerItem: {},
   emptyCard: {
     padding: Spacing.xl,
     alignItems: 'center',

@@ -10,6 +10,8 @@ import { useState } from 'react';
 import PagerView from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import FuelPreferenceModal from '@/components/home/FuelPreferenceModal'; // Added import
+import { formatFuelType } from '@/utils/formatters'; // Added import
 import { useFavoriteStationPrices } from '@/hooks/queries/stations/useFavoriteStationPrices';
 import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Needed for location error handling
 import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore';
@@ -26,12 +28,14 @@ import { useUserContributions } from '@/hooks/queries/users/useUserContributions
 import { useUserProfile } from '@/hooks/queries/users/useUserProfile';
 import { useAuth } from '@/hooks/useAuth';
 import ContributionsCard from '@/components/contributions/ContributionsCard';
+import { styles } from '@/styles/screens/home/HomeScreen.styles';
 
 export default function HomeScreen() {
   // Get user profile for welcome message
   const { user } = useAuth();
   const { data: userProfile } = useUserProfile();
   const [currentPage, setCurrentPage] = useState(0);
+  const [isFuelModalVisible, setIsFuelModalVisible] = useState(false); // Added state for modal
   const router = useRouter();
   const {
     data: favoriteStations,
@@ -146,13 +150,36 @@ export default function HomeScreen() {
         <ScrollView style={styles.scrollContainer}>
           {/* Welcome Section */}
           <View style={styles.welcomeContainer}>
-            <Text style={styles.welcomeText}>
-              Hi,{' '}
-              {userProfile?.username || user?.email?.split('@')[0] || 'there'}!
-            </Text>
-            <Text style={styles.sloganText}>
-              Find the best fuel prices near you
-            </Text>
+            <View style={styles.welcomeHeader}>
+              <View>
+                <Text style={styles.welcomeText}>
+                  Hi,{' '}
+                  {userProfile?.username ||
+                    user?.email?.split('@')[0] ||
+                    'there'}
+                  !
+                </Text>
+                <Text style={styles.sloganText}>
+                  Find the best fuel prices near you
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.fuelTypeButton}
+                onPress={() => setIsFuelModalVisible(true)}
+              >
+                <FontAwesome5
+                  name='gas-pump'
+                  size={16}
+                  color={theme.Colors.primary}
+                  style={styles.fuelTypeIcon}
+                />
+                <Text style={styles.fuelTypeText}>
+                  {defaultFuelType
+                    ? formatFuelType(defaultFuelType)
+                    : 'Select fuel type'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Conditionally render favorites, empty state, or prerequisites missing message */}
@@ -178,11 +205,11 @@ export default function HomeScreen() {
           ) : !defaultFuelType ? (
             <EmptyState
               title='Fuel Type Preference Required'
-              message='Please set your preferred fuel type in your profile settings.'
+              message='Please select your preferred fuel type to see the best prices.'
               icon='gas-pump' // Use a gas pump icon
               onAction={{
-                label: 'Go to Profile',
-                onPress: () => router.push('/profile'), // Navigate to profile screen
+                label: 'Select Fuel Type',
+                onPress: () => setIsFuelModalVisible(true), // Open the fuel preference modal
               }}
             />
           ) : isLoading ? ( // Add check for favorite stations loading state here
@@ -310,180 +337,12 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
       {renderContent()}
+
+      {/* Fuel Preference Modal */}
+      <FuelPreferenceModal
+        isVisible={isFuelModalVisible}
+        onClose={() => setIsFuelModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
-
-// Reuse styles from BestPricesScreen where applicable, adjust as needed
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.Colors.light.background,
-  },
-  fullScreenContainer: {
-    flex: 1,
-    backgroundColor: theme.Colors.light.background,
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.Spacing.md,
-    marginBottom: theme.Spacing.md,
-    marginTop: theme.Spacing.lg,
-  },
-  headerTitle: {
-    fontSize: theme.Typography.fontSizeLarge,
-    fontWeight: theme.Typography.fontWeightBold,
-    color: theme.Colors.darkGray,
-  },
-  viewAllButton: {
-    padding: theme.Spacing.sm,
-  },
-  viewAllText: {
-    color: theme.Colors.primary,
-    fontWeight: theme.Typography.fontWeightMedium,
-    fontSize: theme.Typography.fontSizeSmall,
-  },
-  pagerView: {
-    height: 220,
-    marginBottom: theme.Spacing.sm,
-  },
-  pagerIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: theme.Spacing.xl,
-  },
-  pagerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
-    opacity: 0.5,
-  },
-  listContent: {
-    padding: theme.Spacing.md,
-    paddingTop: theme.Spacing.sm,
-  },
-
-  iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: theme.Colors.primaryLightTint,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: theme.Spacing.xl,
-    shadowColor: theme.Colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  fallbackIcon: {
-    opacity: 0.9,
-  },
-  fallbackTitle: {
-    fontSize: theme.Typography.fontSizeXLarge,
-    fontWeight: theme.Typography.fontWeightBold,
-    color: theme.Colors.darkGray,
-    marginBottom: theme.Spacing.md,
-    textAlign: 'center',
-  },
-  fallbackMessage: {
-    fontSize: theme.Typography.fontSizeMedium,
-    color: theme.Colors.textGray,
-    textAlign: 'center',
-    marginBottom: theme.Spacing.xl,
-    lineHeight: 22,
-  },
-  fallbackButtonContainer: {
-    width: '100%',
-  },
-  fallbackButton: {
-    marginBottom: theme.Spacing.md,
-  },
-  scrollContainer: {
-    flex: 1,
-    backgroundColor: theme.Colors.light.background,
-    paddingTop: theme.Spacing.md,
-  },
-  welcomeContainer: {
-    paddingHorizontal: theme.Spacing.md,
-    paddingVertical: theme.Spacing.lg,
-    backgroundColor: theme.Colors.white,
-    marginHorizontal: theme.Spacing.md,
-    marginTop: theme.Spacing.md,
-    marginBottom: theme.Spacing.lg,
-    borderRadius: theme.BorderRadius.md,
-    shadowColor: theme.Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  welcomeText: {
-    fontSize: theme.Typography.fontSizeXXLarge,
-    fontWeight: theme.Typography.fontWeightBold,
-    color: theme.Colors.darkGray,
-    marginBottom: theme.Spacing.xs,
-  },
-  sloganText: {
-    fontSize: theme.Typography.fontSizeMedium,
-    color: theme.Colors.textGray,
-    marginBottom: theme.Spacing.xs,
-  },
-  faqContainer: {
-    backgroundColor: theme.Colors.white,
-    borderRadius: theme.BorderRadius.md,
-    marginHorizontal: theme.Spacing.md,
-    marginTop: theme.Spacing.xl,
-    marginBottom: theme.Spacing.xxl,
-    padding: theme.Spacing.xl,
-    shadowColor: theme.Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  faqItemContainer: {
-    marginBottom: theme.Spacing.md,
-  },
-  // Styles for the inline permission denied message in favorites section
-  permissionDeniedContainer: {
-    alignItems: 'center',
-    paddingVertical: theme.Spacing.xl,
-    paddingHorizontal: theme.Spacing.md,
-    marginHorizontal: theme.Spacing.md,
-    marginBottom: theme.Spacing.lg,
-    backgroundColor: theme.Colors.white, // Match other card backgrounds
-    borderRadius: theme.BorderRadius.md,
-    shadowColor: theme.Colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  permissionDeniedIcon: {
-    marginBottom: theme.Spacing.md,
-    opacity: 0.8,
-  },
-  permissionDeniedTitle: {
-    fontSize: theme.Typography.fontSizeMedium,
-    fontWeight: theme.Typography.fontWeightBold,
-    color: theme.Colors.darkGray,
-    marginBottom: theme.Spacing.sm,
-    textAlign: 'center',
-  },
-  permissionDeniedMessage: {
-    fontSize: theme.Typography.fontSizeSmall,
-    color: theme.Colors.textGray,
-    textAlign: 'center',
-    marginBottom: theme.Spacing.lg,
-    lineHeight: 18,
-  },
-  permissionDeniedButton: {
-    width: '80%', // Make button slightly narrower than full width
-  },
-});
