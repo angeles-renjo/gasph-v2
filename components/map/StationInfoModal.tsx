@@ -218,21 +218,19 @@ export function StationInfoModal({
           {/* Header */}
           <View style={styles.headerContainer}>
             <View style={styles.headerTextContainer}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
+              {/* Container for Title and Favorite Button */}
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
                 <Text style={styles.modalTitle}>{station.name}</Text>
                 {user && (
-                  <FavoriteButton
-                    stationId={station.id}
-                    userId={user.id}
-                    favoriteStationIds={favoriteStationIds}
-                    size={28}
-                  />
+                  /* Add margin to separate button from title */
+                  <View style={{ marginLeft: Spacing.xs }}>
+                    <FavoriteButton
+                      stationId={station.id}
+                      userId={user.id}
+                      favoriteStationIds={favoriteStationIds}
+                      size={28}
+                    />
+                  </View>
                 )}
               </View>
               <View style={styles.addressContainer}>
