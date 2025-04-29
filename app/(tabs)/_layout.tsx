@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import Constants from 'expo-constants'; // Make sure to import Constants
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function TabsLayout() {
   const { isAdmin } = useAuth();
@@ -72,11 +73,11 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name='profile'
+          name='settings'
           options={{
-            title: 'Profile',
+            title: 'settings',
             tabBarIcon: ({ color, size }) => (
-              <FontAwesome5 name='user' size={size} color={color} />
+              <Ionicons name='settings' size={size} color={color} />
             ),
           }}
         />
