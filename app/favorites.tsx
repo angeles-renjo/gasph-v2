@@ -10,15 +10,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { useFavoriteStationPrices } from '@/hooks/queries/stations/useFavoriteStationPrices';
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import location store
 import { BestPriceCard } from '@/components/price/BestPriceCard';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import theme from '@/styles/theme';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { Button } from '@/components/ui/Button'; // Import Button
+import { openDeviceLocationSettings } from '@/utils/locationUtils'; // Import utility
 
 export default function FavoritesScreen() {
   const router = useRouter();
+  // Get permission status
+  const permissionDenied = useLocationStore((state) => state.permissionDenied);
+  const refreshLocation = useLocationStore((state) => state.refreshLocation); // For potential retry button
+
   const {
     data: favoriteStations,
     isLoading,
@@ -36,7 +43,47 @@ export default function FavoritesScreen() {
     router.push(`/station/${stationId}`);
   };
 
+  // --- Reusable Permission Denied Component (similar to home.tsx but full screen) ---
+  const renderPermissionDenied = () => (
+    <View style={styles.fullScreenMessageContainer}>
+      <View style={styles.iconContainer}>
+        <FontAwesome5
+          name='map-marker-alt'
+          size={64}
+          color={theme.Colors.primary}
+          style={styles.fallbackIcon}
+        />
+      </View>
+      <Text style={styles.fallbackTitle}>Location Access Required</Text>
+      <Text style={styles.fallbackMessage}>
+        GasPH needs your location to show distances to your favorite stations.
+      </Text>
+      <View style={styles.fallbackButtonContainer}>
+        <Button
+          title='Enable Location'
+          onPress={openDeviceLocationSettings}
+          variant='primary'
+          style={styles.fallbackButton}
+        />
+        {/* Optional: Add a retry button if needed */}
+        {/* <Button
+          title='Try Again'
+          onPress={refreshLocation}
+          variant='outline'
+          style={styles.fallbackButton}
+        /> */}
+      </View>
+    </View>
+  );
+  // --- End Permission Denied Component ---
+
   const renderContent = () => {
+    // Check permission denied first
+    if (permissionDenied) {
+      return renderPermissionDenied();
+    }
+
+    // Then check loading state
     if (isLoading) {
       return <LoadingIndicator message='Loading favorite stations...' />;
     }
@@ -153,5 +200,52 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: theme.Spacing.sm,
+  },
+  // Styles for the full-screen permission denied message
+  fullScreenMessageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.Spacing.xl,
+    backgroundColor: theme.Colors.light.background,
+  },
+  iconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: theme.Colors.primaryLightTint,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: theme.Spacing.xl,
+    shadowColor: theme.Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  fallbackIcon: {
+    opacity: 0.9,
+  },
+  fallbackTitle: {
+    fontSize: theme.Typography.fontSizeXLarge,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: theme.Colors.darkGray,
+    marginBottom: theme.Spacing.md,
+    textAlign: 'center',
+  },
+  fallbackMessage: {
+    fontSize: theme.Typography.fontSizeMedium,
+    color: theme.Colors.textGray,
+    textAlign: 'center',
+    marginBottom: theme.Spacing.xl,
+    lineHeight: 22,
+  },
+  fallbackButtonContainer: {
+    width: '100%',
+    alignItems: 'center', // Center button(s)
+  },
+  fallbackButton: {
+    width: '80%', // Make button slightly narrower
+    marginBottom: theme.Spacing.md,
   },
 });

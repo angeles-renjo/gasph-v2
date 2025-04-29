@@ -40,6 +40,7 @@ export function useFavoriteStationPrices(): UseFavoriteStationPricesResult {
   const { data: userProfile } = useUserProfile();
   const userId = userProfile?.id;
   const location = useLocationStore((state) => state.location);
+  const permissionDenied = useLocationStore((state) => state.permissionDenied); // Get permission status
   const defaultFuelType = usePreferencesStore((state) => state.defaultFuelType);
 
   // No longer need to fetch favorite IDs separately
@@ -94,8 +95,8 @@ export function useFavoriteStationPrices(): UseFavoriteStationPricesResult {
       // Assuming the RPC returns the exact structure defined in the SQL function:
       return data as FavoriteStationPrice[];
     },
-    // Enable the query only when all necessary parameters are available
-    enabled: !!userId && !!location && !!defaultFuelType,
+    // Enable the query only when permission is granted and all necessary parameters are available
+    enabled: !permissionDenied && !!userId && !!location && !!defaultFuelType,
     staleTime: 1000 * 60 * 2, // 2 minutes stale time
     refetchOnWindowFocus: true,
   });

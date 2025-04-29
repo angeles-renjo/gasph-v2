@@ -56,9 +56,10 @@ export default function HomeScreen() {
 
   const priceReportsCount = userContributions.length;
 
-  // Get location status for error handling
+  // Get location status for error handling and permission status
   const locationError = useLocationStore((state) => state.error);
   const locationLoading = useLocationStore((state) => state.loading);
+  const permissionDenied = useLocationStore((state) => state.permissionDenied); // Get permission status
   const refreshLocation = useLocationStore((state) => state.refreshLocation);
 
   const navigateToStation = (stationId: string) => {
@@ -99,7 +100,31 @@ export default function HomeScreen() {
   );
   // --- End Location Error Handling ---
 
+  // --- Inline Location Permission Denied Message for Favorites ---
+  const renderFavoritesPermissionDenied = () => (
+    <View style={styles.permissionDeniedContainer}>
+      <FontAwesome5
+        name='map-marker-alt'
+        size={32} // Smaller icon for inline message
+        color={theme.Colors.primary}
+        style={styles.permissionDeniedIcon}
+      />
+      <Text style={styles.permissionDeniedTitle}>Location Needed</Text>
+      <Text style={styles.permissionDeniedMessage}>
+        Enable location access to see distances to your favorite stations.
+      </Text>
+      <Button
+        title='Enable Location'
+        onPress={openDeviceLocationSettings}
+        variant='primary'
+        style={styles.permissionDeniedButton}
+      />
+    </View>
+  );
+  // --- End Inline Message ---
+
   const renderContent = () => {
+    // Note: isLoading check for favoriteStations query is still relevant
     if (isLoading) {
       return <LoadingIndicator message='Loading favorite stations...' />;
     }
@@ -141,15 +166,14 @@ export default function HomeScreen() {
                 onPress: () => router.push('/auth/sign-in'), // Navigate to sign in screen
               }}
             />
-          ) : !location ? (
+          ) : permissionDenied ? ( // Check permission denied first
+            renderFavoritesPermissionDenied() // Show specific message for favorites section
+          ) : !location ? ( // Then check if location is null (still loading or failed without denial)
             <EmptyState
-              title='Location Access Required'
-              message='GasPH needs your location to show favorite stations with distances.'
+              title='Getting Location...' // Changed message slightly
+              message='Waiting for location to show favorite stations with distances.'
               icon='map-marker-alt' // Use a location icon
-              onAction={{
-                label: 'Enable Location',
-                onPress: openDeviceLocationSettings, // Open location settings
-              }}
+              // Removed action button here as permission denied case handles it
             />
           ) : !defaultFuelType ? (
             <EmptyState
@@ -161,6 +185,8 @@ export default function HomeScreen() {
                 onPress: () => router.push('/profile'), // Navigate to profile screen
               }}
             />
+          ) : isLoading ? ( // Add check for favorite stations loading state here
+            <LoadingIndicator message='Loading favorite stations...' />
           ) : !favoriteStations || favoriteStations.length === 0 ? (
             <EmptyState
               title='No Favorite Stations'
@@ -279,16 +305,7 @@ export default function HomeScreen() {
     );
   };
 
-  // Prioritize showing location loading/error first
-  if (locationLoading) {
-    return <LoadingIndicator fullScreen message='Getting your location...' />;
-  }
-
-  if (locationError) {
-    return renderLocationError();
-  }
-
-  // If location is fine, render the main content or its loading/error states
+  // Render the main content, handling loading/error states internally within renderContent
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
@@ -432,5 +449,41 @@ const styles = StyleSheet.create({
   },
   faqItemContainer: {
     marginBottom: theme.Spacing.md,
+  },
+  // Styles for the inline permission denied message in favorites section
+  permissionDeniedContainer: {
+    alignItems: 'center',
+    paddingVertical: theme.Spacing.xl,
+    paddingHorizontal: theme.Spacing.md,
+    marginHorizontal: theme.Spacing.md,
+    marginBottom: theme.Spacing.lg,
+    backgroundColor: theme.Colors.white, // Match other card backgrounds
+    borderRadius: theme.BorderRadius.md,
+    shadowColor: theme.Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  permissionDeniedIcon: {
+    marginBottom: theme.Spacing.md,
+    opacity: 0.8,
+  },
+  permissionDeniedTitle: {
+    fontSize: theme.Typography.fontSizeMedium,
+    fontWeight: theme.Typography.fontWeightBold,
+    color: theme.Colors.darkGray,
+    marginBottom: theme.Spacing.sm,
+    textAlign: 'center',
+  },
+  permissionDeniedMessage: {
+    fontSize: theme.Typography.fontSizeSmall,
+    color: theme.Colors.textGray,
+    textAlign: 'center',
+    marginBottom: theme.Spacing.lg,
+    lineHeight: 18,
+  },
+  permissionDeniedButton: {
+    width: '80%', // Make button slightly narrower than full width
   },
 });
