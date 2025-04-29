@@ -221,7 +221,12 @@ export default function HomeScreen() {
                   const confirmations_count = item.confirmations_count ?? 0;
 
                   return (
-                    <View key={item.id} collapsable={false}>
+                    // Re-applying negative margin to counteract PagerView padding
+                    <View
+                      key={item.id}
+                      collapsable={false}
+                      style={{ marginVertical: -10, marginHorizontal: -5 }}
+                    >
                       <BestPriceCard
                         id={item.id}
                         name={name}

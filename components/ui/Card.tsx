@@ -83,11 +83,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg, // Use theme border radius
     padding: Spacing.xl, // Use theme spacing
     marginVertical: Spacing.sm, // Use theme spacing
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 3,
-    shadowRadius: 4,
-    elevation: 12,
+    // overflow: 'hidden', // Removed: This clips shadows on iOS
+    // Base shadow/elevation removed - handled by variants
   },
   default: {
     // Base styles are in 'card', specific variant styles can override if needed
@@ -100,11 +97,11 @@ const styles = StyleSheet.create({
     shadowColor: Colors.black, // Use theme color
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 5, // Adjusted height slightly
     },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 3, // Keep elevation for Android
+    elevation: 4, // Adjusted elevation slightly for Android consistency
   },
   outline: {
     // backgroundColor: Colors.white, // Already in card

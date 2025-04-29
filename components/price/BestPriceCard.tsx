@@ -44,6 +44,7 @@ export interface BestPriceCardProps
   isLowestPrice?: boolean;
   isSelected?: boolean; // Add isSelected prop
   onPress?: () => void; // Add onPress prop
+  // Removed applyElevation prop
 }
 
 export function BestPriceCard({
@@ -62,7 +63,8 @@ export function BestPriceCard({
   isLowestPrice = false,
   isSelected = false, // Default isSelected to false
   onPress, // Receive onPress handler
-}: BestPriceCardProps) {
+}: // Removed applyElevation parameter
+BestPriceCardProps) {
   const router = useRouter();
 
   const navigateToStation = () => {
@@ -84,6 +86,7 @@ export function BestPriceCard({
   return (
     <TouchableCard
       style={styles.card} // Use base style only
+      // Reverted variant back to 'elevated'
       variant='elevated'
       onPress={onPress} // Use the passed onPress handler for selection
       isSelected={isSelected} // Pass isSelected directly to TouchableCard
@@ -189,13 +192,10 @@ export function BestPriceCard({
 
 const styles = StyleSheet.create({
   card: {
+    // Use padding and borderRadius specific to this card
     padding: isSmallScreen ? Spacing.md : Spacing.xl,
     borderRadius: BorderRadius.lg,
-    elevation: 4,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    // Shadow and elevation are now handled by TouchableCard's 'elevated' variant
   },
   priceSection: {
     flexDirection: 'row',
