@@ -37,7 +37,11 @@
     - Defined `PHILIPPINES_CENTER` (`12.8797, 121.774`) for country-wide view.
     - Standardized zoom levels with semantic names (`COUNTRY`, `REGION`, `CITY`, `NEIGHBORHOOD`, `STREET`).
     - Standardized animation durations (`SHORT`, `MEDIUM`, `LONG`).
-    - Updated all relevant files to use these constants.
+  - Updated all relevant files to use these constants.
+
+- **Resolved (2025-04-29): Incorrect Favorite Stations Display on Permission Deny:** The favorite stations list was still being displayed (using default location) even when the user had denied location permission.
+
+  - _Fix:_ Updated `hooks/queries/stations/useFavoriteStationPrices.ts` to disable the data fetching query if location permission is denied. Updated `app/(tabs)/home.tsx` and `app/favorites.tsx` to check the `permissionDenied` status from the location store and display an informative message instead of the station list when permission is denied.
 
 - **Android Location Timeout:** Users may still experience `Location error: Inner location request timed out` on Android if location acquisition takes longer than 20 seconds, even with granted permissions.
 

@@ -2,9 +2,8 @@
 
 ## Current Work Focus
 
-- Implementing UI improvements for the favorite stations section in the home tab.
-- Adding a slider and "View All" button for the favorite stations section.
-- Creating a dedicated screen to display all favorite stations.
+- Improving location permission handling for the favorite stations feature.
+- Ensuring the Home screen is accessible regardless of location permission status.
 - Optimizing React Query and Zustand implementation for React Native to improve performance and battery usage.
 - Implementing React Native specific features for React Query to ensure optimal performance.
 - Creating focus-aware query hooks to optimize data fetching based on screen focus.
@@ -17,13 +16,12 @@ Previous focus:
 
 ## Recent Changes
 
-- **Favorite Stations UI Improvements:**
+- **Location Permission Handling for Favorite Stations:**
 
-  - Implemented a horizontal slider for favorite stations in the home tab using `react-native-pager-view`.
-  - Added a "View All" button next to the "Favorite Stations" header that navigates to a dedicated screen.
-  - Created a new screen (`app/favorites.tsx`) to display all favorite stations in a list.
-  - Added pagination indicators for the slider to show the current page.
-  - Improved the UI of the home screen to better showcase favorite stations.
+  - Modified `app/(tabs)/home.tsx` to no longer block rendering based on initial location status. The main content (Welcome, Contributions, FAQ) will now always be displayed.
+  - Updated `hooks/queries/stations/useFavoriteStationPrices.ts` to disable the data fetching query if location permission is denied.
+  - Updated `app/(tabs)/home.tsx` to check the `permissionDenied` status from the location store. If denied, it now displays an informative message within the "Favorite Stations" area instead of the station pager.
+  - Updated `app/favorites.tsx` to also check the `permissionDenied` status. If denied, it displays a full-screen message requesting permission instead of the list of favorite stations.
 
 - **React Query and Zustand Optimizations:**
 
