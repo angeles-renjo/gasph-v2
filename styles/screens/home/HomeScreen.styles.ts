@@ -15,8 +15,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: theme.Spacing.md,
-    marginBottom: theme.Spacing.md,
-    marginTop: theme.Spacing.lg,
   },
   headerTitle: {
     fontSize: theme.Typography.fontSizeLarge,
@@ -33,7 +31,6 @@ export const styles = StyleSheet.create({
   },
   pagerView: {
     height: 220,
-    marginBottom: theme.Spacing.sm,
   },
   pagerIndicator: {
     flexDirection: 'row',
