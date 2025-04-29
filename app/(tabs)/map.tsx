@@ -1,5 +1,6 @@
-import { StyleSheet, Platform, Linking } from 'react-native'; // Added Text for potential button text styling
+import { StyleSheet, Platform, Linking, TouchableOpacity } from 'react-native'; // Added TouchableOpacity
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons'; // Import MaterialIcons
 import { useColorScheme } from '@/components/useColorScheme'; // Import useColorScheme
 import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Use Zustand store
 import { useStationsWithPrices } from '@/hooks/queries/stations/useStationsWithPrices'; // Import the new hook
@@ -25,6 +26,7 @@ import type { FuelType } from '@/hooks/queries/prices/useBestPrices'; // Import 
 import { Button } from '@/components/ui/Button'; // Import the standard Button component (named export)
 import { useAuth } from '@/hooks/useAuth';
 import { useFavoriteStations } from '@/hooks/queries/stations/useFavoriteStations';
+import { LocationData } from '@/hooks/useLocation'; // Import LocationData type
 
 export default function MapScreen() {
   const [isAddStationModalVisible, setIsAddStationModalVisible] =
@@ -108,6 +110,21 @@ export default function MapScreen() {
     setIsAddStationModalVisible(true);
   };
 
+  // Function to animate map to user's current location
+  const handleMyLocationPress = () => {
+    if (mapRef.current && locationData) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          latitudeDelta: 0.01, // Zoom in closer
+          longitudeDelta: 0.01,
+        },
+        500 // Animation duration
+      );
+    }
+  };
+
   // Fetch favorite station IDs for the current user
   const { user } = useAuth();
   const { favoriteStationIds } = useFavoriteStations(user?.id);
@@ -128,7 +145,21 @@ export default function MapScreen() {
         defaultFuelType={fuelTypeForMap}
         onRegionChangeComplete={handleRegionChangeComplete}
         favoriteStationIds={favoriteStationIds}
+        showDefaultMyLocationButton={false} // Hide default button
       />
+
+      {/* Custom My Location Button */}
+      <TouchableOpacity
+        style={styles.myLocationButton}
+        onPress={handleMyLocationPress}
+      >
+        <MaterialIcons
+          name='my-location'
+          size={24}
+          color={theme.Colors.primary}
+        />
+      </TouchableOpacity>
+
       <Button
         title='Add Station'
         onPress={handleAddStationPress}
@@ -151,8 +182,10 @@ const styles = StyleSheet.create({
   },
   addStationButton: {
     position: 'absolute',
-    marginTop: theme.Spacing.xxl,
-    top: theme.Spacing.xl, // Use theme spacing (e.g., 16)
+    marginTop:
+      Platform.OS === 'android'
+        ? theme.Spacing.xxxl + theme.Spacing.xl
+        : theme.Spacing.xxxl, // Adjust top for Android status bar
     right: theme.Spacing.xl, // Use theme spacing (e.g., 16)
     backgroundColor: theme.Colors.primary, // Use theme primary color
     paddingVertical: theme.Spacing.sm, // Use theme spacing (e.g., 8)
@@ -164,5 +197,20 @@ const styles = StyleSheet.create({
     color: theme.Colors.white, // Use theme white color
     fontSize: theme.Typography.fontSizeMedium, // Use theme font size (e.g., 14)
     fontWeight: theme.Typography.fontWeightSemiBold, // Use theme font weight (e.g., 600)
+  },
+  myLocationButton: {
+    position: 'absolute',
+    bottom: theme.Spacing.xl, // Position at the bottom
+    right: theme.Spacing.xl, // Position at the right
+    backgroundColor: theme.Colors.white, // White background
+    padding: theme.Spacing.md, // Padding around the icon
+    borderRadius: 50, // Make it circular
+    zIndex: 1, // Ensure it's above the map
+    // Add shadow for better visibility (optional)
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5, // Elevation for Android shadow
   },
 });

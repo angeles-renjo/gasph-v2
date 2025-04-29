@@ -13,8 +13,10 @@ import {
   Dimensions,
   LayoutChangeEvent,
   Platform,
+  TouchableOpacity, // Import TouchableOpacity
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+// Removed duplicate MaterialIcons import here
 import {
   useClusterer,
   isPointCluster,
@@ -57,6 +59,7 @@ export interface StationMapViewProps {
   defaultFuelType: FuelType | null;
   onRegionChangeComplete?: (region: Region) => void;
   favoriteStationIds?: string[]; // Add favorite station IDs
+  showDefaultMyLocationButton?: boolean; // Add prop to control default button
 }
 
 // --- Memoized Marker Components ---
@@ -197,7 +200,8 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
       isLoading = false,
       defaultFuelType,
       onRegionChangeComplete: onRegionChangeCompleteProp,
-      favoriteStationIds, // <-- Add this line
+      favoriteStationIds,
+      showDefaultMyLocationButton = true, // Default to true
     },
     ref
   ) => {
@@ -404,7 +408,7 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
           onRegionChangeComplete={handleInternalRegionChangeComplete} // Use internal handler
           onLayout={onMapLayout}
           showsUserLocation={true} // <-- Change to true
-          showsMyLocationButton={true} // <-- Also enable the button
+          showsMyLocationButton={showDefaultMyLocationButton} // <-- Use prop
           loadingEnabled={isLoading}
           loadingIndicatorColor={theme.Colors.primary}
           loadingBackgroundColor={theme.Colors.white}

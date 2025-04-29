@@ -90,6 +90,7 @@ export const Spacing = {
   xl: 16, // From Button paddingHorizontal medium & Card padding & Input marginBottom & BestPriceCard card padding
   lg_xl: 20, // From LoadingIndicator padding
   xxl: 24, // From Button paddingHorizontal large
+  xxxl: 35,
   inputHeight: 48, // From Input
   // Add more as needed
 };
