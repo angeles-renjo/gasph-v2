@@ -30,14 +30,13 @@ export const styles = StyleSheet.create({
     fontSize: theme.Typography.fontSizeSmall,
   },
   pagerView: {
-    height: 240, // Increased height slightly to accommodate padding
-    paddingVertical: 10, // Add vertical padding for shadow space
+    height: 210, // Increased height slightly to accommodate padding
   },
   pagerIndicator: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.Spacing.xl,
+    marginBottom: theme.Spacing.lg,
   },
   pagerDot: {
     width: 8,
