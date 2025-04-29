@@ -218,21 +218,8 @@ export function StationInfoModal({
           {/* Header */}
           <View style={styles.headerContainer}>
             <View style={styles.headerTextContainer}>
-              {/* Container for Title and Favorite Button */}
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-                <Text style={styles.modalTitle}>{station.name}</Text>
-                {user && (
-                  /* Add margin to separate button from title */
-                  <View style={{ marginLeft: Spacing.xs }}>
-                    <FavoriteButton
-                      stationId={station.id}
-                      userId={user.id}
-                      favoriteStationIds={favoriteStationIds}
-                      size={28}
-                    />
-                  </View>
-                )}
-              </View>
+              {/* Container for Title */}
+              <Text style={styles.modalTitle}>{station.name}</Text>
               <View style={styles.addressContainer}>
                 <Feather
                   name='map-pin'
@@ -245,10 +232,17 @@ export function StationInfoModal({
                 </Text>
               </View>
             </View>
-            {/* Close Button - Positioned Absolutely */}
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Feather name='x' size={18} color={Colors.textGray} />
-            </TouchableOpacity>
+            {/* Favorite Button - Replacing the Close Button */}
+            {user && (
+              <View style={styles.closeButton}>
+                <FavoriteButton
+                  stationId={station.id}
+                  userId={user.id}
+                  favoriteStationIds={favoriteStationIds}
+                  size={28}
+                />
+              </View>
+            )}
           </View>
 
           {/* Scrollable Content Area - Wrapped for Navigation */}

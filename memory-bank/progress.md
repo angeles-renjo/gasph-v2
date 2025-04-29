@@ -20,6 +20,14 @@
 
 ## Known Issues
 
+- **Resolved (2025-04-29): Price Report Modal Keyboard Overlap and UI Improvements:** The keyboard overlapped the input fields and buttons in the `PriceReportModal`, making it difficult to submit reports on mobile devices.
+
+  - _Fix:_ Completely redesigned the modal in `components/price/PriceReportModal.tsx`:
+    - Wrapped content with `KeyboardAvoidingView` and `ScrollView` to handle keyboard appearance
+    - Moved action buttons (Submit/Cancel) to the header area to ensure they're always visible
+    - Converted fuel type selector to a horizontal scrollable list using `FlatList` for better space utilization
+    - Improved overall modal layout and responsiveness
+
 - **React Query Performance (Resolved 2025-04-28):** Identified inefficiencies in React Query implementation for React Native, including lack of focus awareness and over-invalidation.
 
   - _Fix:_ Implemented React Native specific optimizations for React Query:

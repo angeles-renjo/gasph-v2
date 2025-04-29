@@ -186,10 +186,7 @@ const styles = StyleSheet.create({
   },
   addStationButton: {
     position: 'absolute',
-    marginTop:
-      Platform.OS === 'android'
-        ? theme.Spacing.xxxl + theme.Spacing.xl
-        : theme.Spacing.xxxl, // Adjust top for Android status bar
+    marginTop: 54, // Adjust top for Android status bar
     right: theme.Spacing.xl, // Use theme spacing (e.g., 16)
     backgroundColor: theme.Colors.primary, // Use theme primary color
     paddingVertical: theme.Spacing.sm, // Use theme spacing (e.g., 8)

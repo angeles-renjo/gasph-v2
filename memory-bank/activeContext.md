@@ -44,6 +44,7 @@ Previous focus:
   - Created comprehensive documentation in `docs/react-query-optimization.md`.
 
 - **Map Performance Optimizations (Attempted):**
+
   - Adjusted `react-native-clusterer` options (`radius`, `maxZoom`) in `StationMapView.tsx`.
   - Simplified `StationMarker` `tracksViewChanges` prop to `isSelected`.
   - Added `removeClippedSubviews={true}` prop to `MapView` (iOS).
@@ -52,6 +53,13 @@ Previous focus:
   - Implemented and subsequently reverted, then re-implemented the `useGoogleMapIosPerfFix` Reanimated hack (did not resolve glide lag).
   - Replaced deprecated `min/maxZoomLevel` with `cameraZoomRange` prop for iOS in `MapView`.
   - Temporarily simplified `StationMarker` and `ClusterMarker` components in `StationMapView.tsx` to basic `<View>` elements to diagnose if rendering complexity is the primary cause of the remaining glide lag.
+
+- **Price Report Modal Improvements (2025-04-29):**
+  - Fixed keyboard overlap issue in `components/price/PriceReportModal.tsx`.
+  - Wrapped modal content in `KeyboardAvoidingView` (using `padding` for iOS, `height` for Android) and `ScrollView` to ensure inputs remain visible when the keyboard is open.
+  - Moved action buttons (Submit/Cancel) to the header area to ensure they're always visible.
+  - Converted fuel type selector to a horizontal scrollable list for better space utilization.
+  - Improved overall modal layout and responsiveness.
 
 ## Next Steps
 

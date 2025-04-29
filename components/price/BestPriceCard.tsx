@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   card: {
     padding: isSmallScreen ? Spacing.md : Spacing.xl,
     borderRadius: BorderRadius.lg,
-    elevation: 2,
+    elevation: 4,
     shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,

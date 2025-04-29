@@ -84,6 +84,10 @@ const styles = StyleSheet.create({
     padding: Spacing.xl, // Use theme spacing
     marginVertical: Spacing.sm, // Use theme spacing
     overflow: 'hidden',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 3,
+    shadowRadius: 4,
+    elevation: 12,
   },
   default: {
     // Base styles are in 'card', specific variant styles can override if needed

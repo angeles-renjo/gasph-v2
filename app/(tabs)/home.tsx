@@ -70,40 +70,6 @@ export default function HomeScreen() {
     router.push(`/station/${stationId}`);
   };
 
-  // --- Location Error Handling (Similar to BestPricesScreen) ---
-  const renderLocationError = () => (
-    <View style={styles.fullScreenContainer}>
-      <View style={styles.iconContainer}>
-        <FontAwesome5
-          name='map-marker-alt'
-          size={64}
-          color={theme.Colors.primary}
-          style={styles.fallbackIcon}
-        />
-      </View>
-      <Text style={styles.fallbackTitle}>Location Access Required</Text>
-      <Text style={styles.fallbackMessage}>
-        GasPH needs your location to calculate distances to your favorite
-        stations.
-      </Text>
-      <View style={styles.fallbackButtonContainer}>
-        <Button
-          title='Enable Location'
-          onPress={openDeviceLocationSettings} // Use utility function
-          variant='primary'
-          style={styles.fallbackButton}
-        />
-        <Button
-          title='Try Again'
-          onPress={refreshLocation} // Use refresh action from store
-          variant='outline'
-          style={styles.fallbackButton}
-        />
-      </View>
-    </View>
-  );
-  // --- End Location Error Handling ---
-
   // --- Inline Location Permission Denied Message for Favorites ---
   const renderFavoritesPermissionDenied = () => (
     <View style={styles.permissionDeniedContainer}>
@@ -146,7 +112,7 @@ export default function HomeScreen() {
 
     // Show welcome section, contributions, and FAQ regardless of favorites
     return (
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView style={styles.scrollContainer}>
           {/* Welcome Section */}
           <View style={styles.welcomeContainer}>

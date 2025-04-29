@@ -6,6 +6,10 @@ import {
   TouchableOpacity,
   Modal,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  FlatList,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,9 +19,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
-import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
-import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import location store
-import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
+import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore';
+import { useLocationStore } from '@/hooks/stores/useLocationStore';
+import { Colors } from '@/styles/theme';
 import { formatFuelType } from '@/utils/formatters';
 
 interface PriceReportModalProps {
@@ -25,7 +29,7 @@ interface PriceReportModalProps {
   onClose: () => void;
   stationId: string;
   stationName: string;
-  defaultFuelType?: FuelType; // Optional default fuel type from map or parent component
+  defaultFuelType?: FuelType;
 }
 
 export function PriceReportModal({
@@ -37,16 +41,14 @@ export function PriceReportModal({
 }: PriceReportModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  // Get necessary state for invalidating the favorites prices query
   const userPreferredFuelType = usePreferencesStore.getState().defaultFuelType;
   const location = useLocationStore.getState().location;
   const [selectedFuelType, setSelectedFuelType] =
     useState<FuelType>(defaultFuelType);
   const [price, setPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [currentCycle, setCurrentCycle] = useState<any>(null); // TODO: Better typing
+  const [currentCycle, setCurrentCycle] = useState<any>(null);
 
-  // Fetch current price cycle when modal becomes visible
   useEffect(() => {
     if (isVisible && stationId) {
       fetchCurrentCycle();
@@ -93,7 +95,6 @@ export function PriceReportModal({
       return;
     }
 
-    // Re-fetch or ensure currentCycle is available
     if (!currentCycle) {
       Alert.alert(
         'Price Cycle Unavailable',
@@ -105,7 +106,6 @@ export function PriceReportModal({
     try {
       setSubmitting(true);
 
-      // Submit the price report
       const { error: reportError } = await supabase
         .from('user_price_reports')
         .insert({
@@ -118,44 +118,35 @@ export function PriceReportModal({
 
       if (reportError) throw reportError;
 
-      // --- Invalidate Queries ---
-      // Invalidate the user contributions query so ProfileScreen updates
       await queryClient.invalidateQueries({
         queryKey: queryKeys.users.contributions(user.id),
       });
-      // Invalidate the station details for the current screen
       await queryClient.invalidateQueries({
         queryKey: queryKeys.stations.detail(stationId),
       });
-      // Invalidate best prices query as new data might affect it
       await queryClient.invalidateQueries({
         queryKey: queryKeys.prices.best.all(),
       });
-      // Invalidate the specific fuel type prices query
       await queryClient.invalidateQueries({
         queryKey: queryKeys.stations.fuelTypePrices(
           stationId,
           selectedFuelType
         ),
       });
-      // Invalidate the map query
       await queryClient.invalidateQueries({
         queryKey: queryKeys.stations.listWithPrice(selectedFuelType),
       });
-      // --- Invalidate Favorite Prices Query ---
       if (user?.id) {
         await queryClient.invalidateQueries({
           queryKey: queryKeys.stations.favorites.prices(
             user.id,
-            userPreferredFuelType ?? undefined, // Use the user's preferred type for the key
+            userPreferredFuelType ?? undefined,
             location?.latitude,
             location?.longitude
           ),
         });
       }
-      // --- End Invalidation ---
 
-      // Success feedback
       resetAndClose();
       Alert.alert(
         'Success',
@@ -175,15 +166,33 @@ export function PriceReportModal({
   const resetAndClose = () => {
     setPrice('');
     onClose();
-    // Don't reset the selected fuel type to maintain user preference
   };
 
-  // When defaultFuelType prop changes, update the selected fuel type
   useEffect(() => {
     if (defaultFuelType) {
       setSelectedFuelType(defaultFuelType);
     }
   }, [defaultFuelType]);
+
+  const renderFuelTypeItem = ({ item }: { item: FuelType }) => (
+    <TouchableOpacity
+      style={[
+        styles.fuelTypeOption,
+        selectedFuelType === item && styles.selectedFuelType,
+      ]}
+      onPress={() => setSelectedFuelType(item)}
+      disabled={submitting}
+    >
+      <Text
+        style={[
+          styles.fuelTypeOptionText,
+          selectedFuelType === item && styles.selectedFuelTypeText,
+        ]}
+      >
+        {formatFuelType(item)}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
     <Modal
@@ -192,98 +201,104 @@ export function PriceReportModal({
       animationType='slide'
       onRequestClose={resetAndClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Report Fuel Price</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={resetAndClose}
-              disabled={submitting}
-            >
-              <FontAwesome5 name='times' size={20} color='#666' />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.modalStationName}>{stationName}</Text>
-
-          {/* Cycle information */}
-          {currentCycle ? (
-            <View style={styles.cycleInfoContainer}>
-              <Text style={styles.cycleInfoLabel}>For price cycle:</Text>
-              <Text style={styles.cycleInfoValue}>
-                #{currentCycle.cycle_number}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.cycleInfoContainer}>
-              <Text style={styles.cycleInfoLabel}>
-                Checking active price cycle...
-              </Text>
-            </View>
-          )}
-
-          <Text style={styles.inputLabel}>Fuel Type</Text>
-          <View style={styles.fuelTypeSelector}>
-            {(
-              ['Diesel', 'RON 91', 'RON 95', 'RON 97', 'RON 100'] as FuelType[]
-            ).map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.fuelTypeOption,
-                  selectedFuelType === type && styles.selectedFuelType,
-                ]}
-                onPress={() => setSelectedFuelType(type)}
-                disabled={submitting}
-              >
-                <Text
-                  style={[
-                    styles.fuelTypeOptionText,
-                    selectedFuelType === type && styles.selectedFuelTypeText,
-                  ]}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitle}>Report Fuel Price</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={resetAndClose}
+                  disabled={submitting}
                 >
-                  {formatFuelType(type)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <FontAwesome5 name='times' size={20} color='#666' />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalHeaderButtons}>
+                <Button
+                  title='Cancel'
+                  variant='outline'
+                  onPress={resetAndClose}
+                  style={{ minWidth: 100, flex: 1, marginRight: 8 }}
+                  disabled={submitting}
+                />
+                <Button
+                  title={submitting ? 'Submitting...' : 'Submit'}
+                  onPress={handleReportPrice}
+                  loading={submitting}
+                  style={{ minWidth: 100, flex: 1, marginLeft: 8 }}
+                  disabled={submitting || !currentCycle}
+                />
+              </View>
+            </View>
 
-          <Text style={styles.inputLabel}>Price (PHP)</Text>
-          <Input
-            placeholder='Enter current price'
-            keyboardType='decimal-pad'
-            value={price}
-            onChangeText={setPrice}
-            leftIcon={
-              <FontAwesome5 name='dollar-sign' size={16} color='#777' />
-            }
-            editable={!submitting}
-          />
+            <ScrollView
+              style={styles.modalContent}
+              keyboardShouldPersistTaps='handled'
+            >
+              <Text style={styles.modalStationName}>{stationName}</Text>
 
-          <View style={styles.modalFooter}>
-            <Button
-              title='Cancel'
-              variant='outline'
-              onPress={resetAndClose}
-              style={styles.modalButton}
-              disabled={submitting}
-            />
-            <Button
-              title={submitting ? 'Submitting...' : 'Submit'}
-              onPress={handleReportPrice}
-              loading={submitting}
-              style={styles.modalButton}
-              disabled={submitting || !currentCycle}
-            />
+              {currentCycle ? (
+                <View style={styles.cycleInfoContainer}>
+                  <Text style={styles.cycleInfoLabel}>For price cycle:</Text>
+                  <Text style={styles.cycleInfoValue}>
+                    #{currentCycle.cycle_number}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.cycleInfoContainer}>
+                  <Text style={styles.cycleInfoLabel}>
+                    Checking active price cycle...
+                  </Text>
+                </View>
+              )}
+
+              <Text style={styles.inputLabel}>Fuel Type</Text>
+              <FlatList
+                data={
+                  [
+                    'Diesel',
+                    'RON 91',
+                    'RON 95',
+                    'RON 97',
+                    'RON 100',
+                  ] as FuelType[]
+                }
+                renderItem={renderFuelTypeItem}
+                keyExtractor={(item) => item}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.fuelTypeList}
+                contentContainerStyle={styles.fuelTypeListContent}
+              />
+
+              <Text style={styles.inputLabel}>Price (PHP)</Text>
+              <Input
+                placeholder='Enter current price'
+                keyboardType='decimal-pad'
+                value={price}
+                onChangeText={setPrice}
+                leftIcon={
+                  <FontAwesome5 name='dollar-sign' size={16} color='#777' />
+                }
+                editable={!submitting}
+              />
+            </ScrollView>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoidingContainer: {
+    flex: 1,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -293,15 +308,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 30,
-    maxHeight: '85%',
+    maxHeight: '90%',
   },
   modalHeader: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   modalTitle: {
     fontSize: 22,
@@ -310,6 +328,14 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 8,
+  },
+  modalHeaderButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  modalContent: {
+    padding: 16,
   },
   modalStationName: {
     fontSize: 16,
@@ -343,18 +369,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 8,
   },
-  fuelTypeSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  fuelTypeList: {
     marginBottom: 16,
-    justifyContent: 'center',
+  },
+  fuelTypeListContent: {
+    paddingHorizontal: 4,
   },
   fuelTypeOption: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: '#e9e9e9',
-    margin: 4,
+    marginHorizontal: 4,
   },
   selectedFuelType: {
     backgroundColor: Colors.primary,
@@ -366,18 +392,6 @@ const styles = StyleSheet.create({
   selectedFuelTypeText: {
     color: Colors.white,
     fontWeight: 'bold',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  modalButton: {
-    flex: 1,
-    marginHorizontal: 6,
   },
 });
 
