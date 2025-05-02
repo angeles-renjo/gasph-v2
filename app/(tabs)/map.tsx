@@ -15,7 +15,7 @@ import { StationMapView } from '@/components/map/StationMapView';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import theme from '@/styles/theme';
-import { View } from '@/components/Themed'; // Keep this View for the main container
+import { View } from 'react-native';
 import AddStationModal from '@/components/station/AddStationModal'; // Import the Add modal
 import { useState, useRef } from 'react'; // Import useState and useRef
 import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps'; // Import MapView types and PROVIDER_GOOGLE
