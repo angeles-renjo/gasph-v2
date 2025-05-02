@@ -1,4 +1,4 @@
-import type { LocationData } from '@/hooks/useLocation';
+import type { LocationData } from '@/constants/map/locationConstants';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { BestPricesParams } from './types';
 

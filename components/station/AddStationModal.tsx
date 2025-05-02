@@ -20,13 +20,12 @@ import { Feather } from '@expo/vector-icons'; // Import icons
 import { Button } from '@/components/ui/Button'; // Keep using custom Button
 import { Input } from '@/components/ui/Input'; // Keep using custom Input (assuming it's flexible)
 import { useAuth } from '@/hooks/useAuth';
-// import { useLocation } from '@/hooks/useLocation'; // Remove useLocation hook
-import * as Location from 'expo-location'; // Import expo-location directly
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import the location store
 import { TablesInsert } from '@/utils/supabase/types';
 import { supabase } from '@/utils/supabase/supabase';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
-import theme, { Colors, Spacing, Typography } from '@/styles/theme'; // Import theme elements
+import { Colors } from '@/styles/theme'; // Import theme elements
 import { LocationObjectCoords } from 'expo-location';
 import LocationPickerModal from '@/components/map/LocationPickerModal';
 import { reverseGeocode, AddressComponents } from '@/lib/geo';
@@ -190,36 +189,53 @@ const AddStationModal: React.FC<AddStationModalProps> = ({
   }, [isVisible, initialCoordinates]); // Rerun if initialCoordinates changes
 
   // --- Handlers ---
+  // Get location state and actions from the store
+  const permissionDenied = useLocationStore((state) => state.permissionDenied);
+  const location = useLocationStore((state) => state.location);
+  const refreshLocation = useLocationStore((state) => state.refreshLocation);
+  const openLocationSettings = useLocationStore(
+    (state) => state.openLocationSettings
+  );
+
   const handleOpenLocationPicker = async () => {
     setIsCheckingLocation(true);
     setGeocodeError(null); // Clear previous errors
 
     try {
-      // 1. Request Permission
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
+      // Check if permission is denied according to the store
+      if (permissionDenied) {
         Alert.alert(
           'Location Permission Required',
           'Please grant location permission in your device settings to set the station location.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: openAppSettings },
+            { text: 'Open Settings', onPress: openLocationSettings },
           ]
         );
         setIsCheckingLocation(false);
-        return; // Stop execution if permission denied
+        return;
       }
 
-      // 2. Get Current Location if permission granted
-      let location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High, // Request high accuracy
-      });
+      // Refresh location using the store action
+      await refreshLocation();
 
-      if (location && location.coords) {
-        setLocationForPicker(location.coords); // Set the fetched location
-        setIsLocationPickerVisible(true); // Open the picker
+      // Use the location from the store
+      if (location) {
+        // Convert to LocationObjectCoords format for the picker
+        const locationForPickerObj: LocationObjectCoords = {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          accuracy: null,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        };
+
+        setLocationForPicker(locationForPickerObj);
+        setIsLocationPickerVisible(true);
       } else {
-        throw new Error('Could not retrieve location data.'); // Handle case where location is null
+        throw new Error('Could not retrieve location data.');
       }
     } catch (error: any) {
       console.error('Error handling location for picker:', error);

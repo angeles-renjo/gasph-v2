@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../utils/queryKeys';
 import { defaultQueryOptions } from '../utils/queryOptions';
-import type { LocationData } from '@/hooks/useLocation';
+import type { LocationData } from '@/constants/map/locationConstants';
 // Import useNearbyStations and its return type
 import { useNearbyStations } from '../stations/useNearbyStations';
 import type { GasStation } from '../stations/useNearbyStations'; // Now exported

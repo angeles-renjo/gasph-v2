@@ -52,7 +52,7 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     try {
-      signOut();
+      await signOut(); // Make sure to await the signOut promise
     } catch (error: any) {
       Alert.alert(
         'Sign Out Failed',

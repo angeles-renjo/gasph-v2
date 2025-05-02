@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal, StyleSheet, Alert, Platform } from 'react-native';
-import { View, Text } from '@/components/Themed';
+import { View, Text } from 'react-native';
 import { Input } from '@/components/ui/Input'; // Assuming Input component exists
 import { Button } from '@/components/ui/Button'; // Assuming Button component exists
 import { Picker } from '@react-native-picker/picker'; // Using picker for reason selection

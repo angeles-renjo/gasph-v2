@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/utils/supabase/supabase';
-import { useLocation, LocationData } from '@/hooks/useLocation';
+import {
+  useLocationStore,
+  LocationData,
+} from '@/hooks/stores/useLocationStore';
 import { calculateDistance, getBoundingBox } from '@/lib/geo';
 import { queryKeys } from '../utils/queryKeys';
 import { defaultQueryOptions } from '../utils/queryOptions';
@@ -41,7 +44,10 @@ export function useNearbyStations({
   providedLocation,
   limit,
 }: UseNearbyStationsOptions = {}) {
-  const { getLocationWithFallback, loading: locationLoading } = useLocation();
+  const getLocationWithFallback = useLocationStore(
+    (state) => state.getLocationWithFallback
+  );
+  const locationLoading = useLocationStore((state) => state.loading);
   const location = providedLocation || getLocationWithFallback();
 
   // Determine if we should use the optimized approach for large radius

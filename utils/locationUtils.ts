@@ -73,38 +73,92 @@ export const checkOrRequestLocationPermission = async (): Promise<boolean> => {
  * @throws {Error} If location fetching fails or times out.
  */
 export const fetchCurrentLocation = async (
-  timeoutMs = LOCATION_TIMEOUT.INITIAL
+  timeoutMs = 10000 // Reduce timeout to 10 seconds (from 20 seconds)
 ): Promise<LocationData> => {
-  console.log('Fetching current location...');
+  console.log(
+    `LocationUtils: Fetching current location with timeout ${timeoutMs}ms...`
+  );
+
   try {
+    console.log('LocationUtils: Creating location promise with low accuracy');
     const locationPromise = Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Low, // Use lower accuracy as decided before
+      accuracy: Location.Accuracy.Balanced, // Try balanced accuracy instead of low
+      mayShowUserSettingsDialog: false, // Don't show settings dialog
     });
 
+    console.log('LocationUtils: Setting up timeout race');
     // Race the location promise against a timeout
-    const position = await Promise.race([
-      locationPromise,
-      new Promise<null>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('Inner location request timed out')),
-          timeoutMs
-        )
-      ),
-    ]);
+    let timeoutId: NodeJS.Timeout;
+    const timeoutPromise = new Promise<null>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        console.log(
+          `LocationUtils: Location request timed out after ${timeoutMs}ms`
+        );
+        reject(new Error('Inner location request timed out'));
+      }, timeoutMs);
+    });
 
-    if (!position) {
-      throw new Error('Received null position');
+    // Make sure to clear the timeout
+    const clearTimeoutFn = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+
+    try {
+      console.log('LocationUtils: Awaiting race between location and timeout');
+      const position = await Promise.race([locationPromise, timeoutPromise]);
+      clearTimeoutFn(); // Clear timeout if location resolves first
+
+      if (!position) {
+        console.error('LocationUtils: Received null position');
+        throw new Error('Received null position');
+      }
+
+      console.log('LocationUtils: Location fetched successfully', {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: new Date(position.timestamp).toISOString(),
+      });
+
+      return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        isDefaultLocation: false,
+      };
+    } catch (raceError) {
+      clearTimeoutFn(); // Make sure to clear timeout on error
+      throw raceError; // Re-throw the error
+    }
+  } catch (err: any) {
+    console.error('LocationUtils: Error fetching location:', err.message);
+
+    // Try a fallback approach with last known position if available
+    try {
+      console.log(
+        'LocationUtils: Trying to get last known position as fallback'
+      );
+      const lastKnownPosition = await Location.getLastKnownPositionAsync();
+
+      if (lastKnownPosition) {
+        console.log('LocationUtils: Using last known position', {
+          latitude: lastKnownPosition.coords.latitude,
+          longitude: lastKnownPosition.coords.longitude,
+          timestamp: new Date(lastKnownPosition.timestamp).toISOString(),
+        });
+
+        return {
+          latitude: lastKnownPosition.coords.latitude,
+          longitude: lastKnownPosition.coords.longitude,
+          isDefaultLocation: false,
+        };
+      } else {
+        console.log('LocationUtils: No last known position available');
+      }
+    } catch (fallbackErr) {
+      console.error('LocationUtils: Fallback also failed:', fallbackErr);
     }
 
-    console.log('Location fetched successfully.');
-    return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      isDefaultLocation: false,
-    };
-  } catch (err: any) {
-    console.error('Error fetching location:', err.message);
-    // Re-throw the error to be handled by the caller (e.g., the Zustand store)
+    // Re-throw the original error to be handled by the caller
     throw err;
   }
 };

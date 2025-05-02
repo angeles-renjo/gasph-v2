@@ -1,4 +1,10 @@
-import { StyleSheet, Platform, Linking, TouchableOpacity } from 'react-native'; // Added TouchableOpacity
+import {
+  StyleSheet,
+  Platform,
+  Linking,
+  TouchableOpacity,
+  Text,
+} from 'react-native'; // Added Text
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons'; // Import MaterialIcons
 import { useColorScheme } from '@/components/useColorScheme'; // Import useColorScheme
@@ -12,10 +18,11 @@ import theme from '@/styles/theme';
 import { View } from '@/components/Themed'; // Keep this View for the main container
 import AddStationModal from '@/components/station/AddStationModal'; // Import the Add modal
 import { useState, useRef } from 'react'; // Import useState and useRef
-import MapView, { Region } from 'react-native-maps'; // Import MapView types
+import MapView, { Region, PROVIDER_GOOGLE } from 'react-native-maps'; // Import MapView types and PROVIDER_GOOGLE
 import {
   ZOOM_LEVELS,
   ANIMATION_DURATION,
+  DEFAULT_MAP_REGION,
 } from '@/constants/map/locationConstants';
 
 // Helper function to open app settings (copied from explore.tsx logic)
@@ -30,7 +37,6 @@ import type { FuelType } from '@/hooks/queries/prices/useBestPrices'; // Import 
 import { Button } from '@/components/ui/Button'; // Import the standard Button component (named export)
 import { useAuth } from '@/hooks/useAuth';
 import { useFavoriteStations } from '@/hooks/queries/stations/useFavoriteStations';
-import { LocationData } from '@/hooks/useLocation'; // Import LocationData type
 
 export default function MapScreen() {
   const [isAddStationModalVisible, setIsAddStationModalVisible] =
@@ -66,9 +72,31 @@ export default function MapScreen() {
     isRefetching: stationsRefetching,
   } = useStationsWithPrices(fuelTypeForMap); // Use the new hook, passing the fuel type
 
+  // Add debugging for location state
+  console.log('MapScreen: Rendering with location state', {
+    locationLoading,
+    locationData,
+    permissionDenied,
+    locationError,
+    stationsLoading,
+    stationsCount: stations?.length,
+  });
+
   // Handle initial location loading
-  if (locationLoading && !locationData) {
-    return <LoadingIndicator fullScreen message='Getting location...' />;
+  if (locationLoading) {
+    // Only show loading indicator if we don't have any location data yet
+    // or if we have default location data (which means we're still trying to get the real location)
+    if (!locationData || locationData.isDefaultLocation) {
+      console.log(
+        'MapScreen: Showing loading indicator due to locationLoading && (!locationData || locationData.isDefaultLocation)'
+      );
+      return <LoadingIndicator fullScreen message='Getting location...' />;
+    } else {
+      console.log(
+        'MapScreen: Continuing to render map despite locationLoading=true because we have non-default location data'
+      );
+      // If we have real location data, continue rendering the map even if still technically loading
+    }
   }
 
   // Handle location permission denial
@@ -149,7 +177,7 @@ export default function MapScreen() {
         defaultFuelType={fuelTypeForMap}
         onRegionChangeComplete={handleRegionChangeComplete}
         favoriteStationIds={favoriteStationIds}
-        showDefaultMyLocationButton={false} // Hide default button
+        showDefaultMyLocationButton={false}
       />
 
       {/* Custom My Location Button */}
