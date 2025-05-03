@@ -45,14 +45,14 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ccc', // Or use theme color
     borderRadius: 5,
-    marginBottom: 15,
+    padding: 8,
     // Height might be needed for Android picker display
     ...(Platform.OS === 'android' && { height: 50, justifyContent: 'center' }),
   },
   picker: {
-    // iOS requires explicit height sometimes, Android uses container
-    ...(Platform.OS === 'ios' && { height: 150 }),
+    ...(Platform.OS === 'ios' && { height: 180 }), // Optional cap on height
   },
+
   pickerPlaceholder: {
     color: '#999', // Style for the placeholder item
   },
@@ -69,5 +69,26 @@ export const styles = StyleSheet.create({
   button: {
     flex: 1, // Make buttons share space
     marginHorizontal: 5, // Add some space between buttons
+  },
+
+  bottomSheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  bottomSheet: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    maxHeight: '50%',
+  },
+  optionButton: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+  },
+  optionText: {
+    fontSize: 16,
   },
 });

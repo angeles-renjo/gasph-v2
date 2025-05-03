@@ -1,9 +1,17 @@
 import { useState } from 'react';
-import { Modal, StyleSheet, Alert, Platform } from 'react-native';
-import { View, Text } from 'react-native';
+import {
+  Modal,
+  Alert,
+  View,
+  Text,
+  TouchableOpacity,
+  Modal as RNModal,
+  Pressable,
+  FlatList,
+  Platform,
+} from 'react-native';
 import { Input } from '@/components/ui/Input'; // Assuming Input component exists
 import { Button } from '@/components/ui/Button'; // Assuming Button component exists
-import { Picker } from '@react-native-picker/picker'; // Using picker for reason selection
 import { useAuth } from '@/hooks/useAuth'; // To get user ID
 import { TablesInsert, Database } from '@/utils/supabase/types'; // Import types
 import { supabase } from '@/utils/supabase/supabase'; // Import supabase client
@@ -11,7 +19,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 import { styles } from './ReportingStationModal.styles';
 
-// Use single quotes to avoid issues with the apostrophe
 type ReportReason = 'Incorrect Info' | 'Permanently Closed' | "Doesn't Exist";
 
 type ReportStationModalProps = {
@@ -21,10 +28,8 @@ type ReportStationModalProps = {
   stationName: string;
 };
 
-// Type for the report submission data
 type StationReportInsert = TablesInsert<'station_reports'>;
 
-// --- Mutation Hook ---
 const useSubmitReportMutation = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -41,7 +46,7 @@ const useSubmitReportMutation = () => {
       const dataToInsert: StationReportInsert = {
         ...reportData,
         user_id: user.id,
-        status: 'pending', // Explicitly set status
+        status: 'pending',
       };
 
       const { error } = await supabase
@@ -49,8 +54,6 @@ const useSubmitReportMutation = () => {
         .insert(dataToInsert);
 
       if (error) {
-        console.error('Error submitting report:', error);
-        // Check for the specific duplicate error from the trigger
         if (
           error.message.includes(
             'User already has a pending report for this station'
@@ -64,12 +67,9 @@ const useSubmitReportMutation = () => {
       }
     },
     onSuccess: () => {
-      // Invalidate the admin pending reports list so it refreshes
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.reports.list('pending'),
       });
-      // Optionally invalidate queries if needed, e.g., a user's reports list
-      // queryClient.invalidateQueries({ queryKey: queryKeys.userReports() }); // Example
       Alert.alert('Report Submitted', 'Thank you for your feedback!');
     },
     onError: (error: Error) => {
@@ -80,7 +80,6 @@ const useSubmitReportMutation = () => {
     },
   });
 };
-// --- End Mutation Hook ---
 
 const ReportStationModal: React.FC<ReportStationModalProps> = ({
   isVisible,
@@ -91,6 +90,7 @@ const ReportStationModal: React.FC<ReportStationModalProps> = ({
   const [selectedReason, setSelectedReason] = useState<ReportReason | null>(
     null
   );
+  const [isReasonPickerVisible, setIsReasonPickerVisible] = useState(false);
   const [comment, setComment] = useState('');
   const { user } = useAuth();
   const submitReportMutation = useSubmitReportMutation();
@@ -112,20 +112,17 @@ const ReportStationModal: React.FC<ReportStationModalProps> = ({
     let reportedData: StationReportInsert['reported_data'] = null;
 
     switch (selectedReason) {
-      case "Doesn't Exist": // Match the updated type definition
+      case "Doesn't Exist":
       case 'Permanently Closed':
         reportType = 'delete';
         break;
       case 'Incorrect Info':
         reportType = 'update';
-        // Optionally capture specific incorrect info in reported_data if UI allows
         reportedData = {
           comment: `User reported incorrect info: ${comment || '(no comment)'}`,
         };
         break;
       default:
-        // Should not happen if validation works
-        console.error('Invalid reason selected');
         return;
     }
 
@@ -135,15 +132,15 @@ const ReportStationModal: React.FC<ReportStationModalProps> = ({
     > = {
       station_id: stationId,
       report_type: reportType,
-      reason: `${selectedReason}${comment ? `: ${comment}` : ''}`, // Combine reason and comment
-      reported_data: reportedData, // Include structured data if applicable
-      latitude: null, // Not applicable for update/delete reports
-      longitude: null, // Not applicable for update/delete reports
+      reason: `${selectedReason}${comment ? `: ${comment}` : ''}`,
+      reported_data: reportedData,
+      latitude: null,
+      longitude: null,
     };
 
     submitReportMutation.mutate(reportData, {
       onSuccess: () => {
-        handleClose(); // Close modal on success
+        handleClose();
       },
     });
   };
@@ -151,7 +148,7 @@ const ReportStationModal: React.FC<ReportStationModalProps> = ({
   const handleClose = () => {
     setSelectedReason(null);
     setComment('');
-    submitReportMutation.reset(); // Reset mutation state
+    submitReportMutation.reset();
     onClose();
   };
 
@@ -168,33 +165,17 @@ const ReportStationModal: React.FC<ReportStationModalProps> = ({
           <Text style={styles.stationName}>{stationName}</Text>
 
           <Text style={styles.label}>Reason:</Text>
-          {/* Basic Picker for Reason Selection */}
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={selectedReason}
-              onValueChange={(itemValue) =>
-                setSelectedReason(itemValue as ReportReason)
-              }
-              style={styles.picker}
-              prompt='Select a reason' // iOS only
+
+          <TouchableOpacity
+            style={styles.pickerContainer}
+            onPress={() => setIsReasonPickerVisible(true)}
+          >
+            <Text
+              style={!selectedReason ? styles.pickerPlaceholder : undefined}
             >
-              <Picker.Item
-                label='Select a reason...'
-                enabled={true}
-                style={styles.pickerPlaceholder}
-              />
-              <Picker.Item label='Incorrect Info' value='Incorrect Info' />
-              <Picker.Item
-                label='Permanently Closed'
-                value='Permanently Closed'
-              />
-              <Picker.Item
-                label="Doesn't Exist Anymore"
-                value="Doesn't Exist"
-              />
-              {/* Add more Picker.Item for other reasons */}
-            </Picker>
-          </View>
+              {selectedReason || 'Select a reason...'}
+            </Text>
+          </TouchableOpacity>
 
           <Text style={styles.label}>Optional Comment:</Text>
           <Input
@@ -210,7 +191,7 @@ const ReportStationModal: React.FC<ReportStationModalProps> = ({
             <Button
               title='Cancel'
               onPress={handleClose}
-              variant='outline' // Assuming an outline variant exists
+              variant='outline'
               style={styles.button}
               disabled={submitReportMutation.isPending}
             />
@@ -218,12 +199,41 @@ const ReportStationModal: React.FC<ReportStationModalProps> = ({
               title='Submit Report'
               onPress={handleSubmit}
               style={styles.button}
-              loading={submitReportMutation.isPending} // Changed isLoading to loading
+              loading={submitReportMutation.isPending}
               disabled={!selectedReason || submitReportMutation.isPending}
             />
           </View>
         </View>
       </View>
+
+      {/* Reason Picker Modal */}
+      <RNModal
+        visible={isReasonPickerVisible}
+        transparent
+        animationType='slide'
+        onRequestClose={() => setIsReasonPickerVisible(false)}
+      >
+        <View style={styles.bottomSheetOverlay}>
+          <View style={styles.bottomSheet}>
+            <Text style={styles.modalTitle}>Choose a reason</Text>
+            <FlatList
+              data={['Incorrect Info', 'Permanently Closed', "Doesn't Exist"]}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    setSelectedReason(item as ReportReason);
+                    setIsReasonPickerVisible(false);
+                  }}
+                  style={styles.optionButton}
+                >
+                  <Text style={styles.optionText}>{item}</Text>
+                </Pressable>
+              )}
+            />
+          </View>
+        </View>
+      </RNModal>
     </Modal>
   );
 };
