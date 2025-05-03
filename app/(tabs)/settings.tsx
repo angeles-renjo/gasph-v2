@@ -13,7 +13,6 @@ import { useRouter } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { supabase } from '@/utils/supabase/supabase'; // Import Supabase client
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/Button';
 import { useUserProfile } from '@/hooks/queries/users/useUserProfile';
 import { useUserContributions } from '@/hooks/queries/users/useUserContributions';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';

@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { useFavoriteStationPrices } from '@/hooks/queries/stations/useFavoriteStationPrices';
 import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import location store
@@ -164,7 +163,7 @@ export default function FavoritesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <View style={styles.container}>
       <Stack.Screen
         options={{
           title: 'Favorite Stations',
@@ -185,7 +184,7 @@ export default function FavoritesScreen() {
       />
       <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
       {renderContent()}
-    </SafeAreaView>
+    </View>
   );
 }
 

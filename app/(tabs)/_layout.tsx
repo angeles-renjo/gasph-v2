@@ -2,8 +2,6 @@ import { Tabs } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth'; // Corrected import path
 import { Colors } from '@/styles/theme'; // Import Colors
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import Constants from 'expo-constants'; // Make sure to import Constants
 import Ionicons from '@expo/vector-icons/Ionicons';
