@@ -305,7 +305,7 @@ export default function HomeScreen() {
 
   // Render the main content, handling loading/error states internally within renderContent
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <View style={styles.container}>
       <StatusBar backgroundColor={theme.Colors.white} barStyle='dark-content' />
       {renderContent()}
 
@@ -314,6 +314,6 @@ export default function HomeScreen() {
         isVisible={isFuelModalVisible}
         onClose={() => setIsFuelModalVisible(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 }
