@@ -42,7 +42,11 @@ export default function MapScreen() {
   const [isAddStationModalVisible, setIsAddStationModalVisible] =
     useState(false); // State for Add Station Modal
   const [currentMapCenter, setCurrentMapCenter] = useState<
-    { latitude: number; longitude: number } | undefined
+    | {
+        latitude: number;
+        longitude: number;
+      }
+    | undefined
   >(undefined);
   const mapRef = useRef<MapView>(null); // Ref for the map view component
   const colorScheme = useColorScheme() ?? 'light'; // Get current color scheme
@@ -72,15 +76,9 @@ export default function MapScreen() {
     isRefetching: stationsRefetching,
   } = useStationsWithPrices(fuelTypeForMap); // Use the new hook, passing the fuel type
 
-  // Add debugging for location state
-  console.log('MapScreen: Rendering with location state', {
-    locationLoading,
-    locationData,
-    permissionDenied,
-    locationError,
-    stationsLoading,
-    stationsCount: stations?.length,
-  });
+  // MOVED THESE HOOKS HERE - BEFORE ANY CONDITIONAL RETURNS
+  const { user } = useAuth();
+  const { favoriteStationIds } = useFavoriteStations(user?.id);
 
   // Handle initial location loading
   if (locationLoading) {
@@ -102,14 +100,14 @@ export default function MapScreen() {
   // Handle location permission denial
   if (permissionDenied && !locationData.isDefaultLocation) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.container}>
         <ErrorDisplay
           fullScreen
           title='Location Permission Required'
           message='Please grant location permission in settings to view nearby stations on the map.'
           onRetry={openLocationSettings} // Use action from store
         />
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -138,7 +136,6 @@ export default function MapScreen() {
   const handleAddStationPress = () => {
     // Use the state variable holding the latest map center
     // The initial locationData could be used as a fallback if needed, but center is better
-    console.log('Add station pressed, current center:', currentMapCenter);
     setIsAddStationModalVisible(true);
   };
 
@@ -156,10 +153,6 @@ export default function MapScreen() {
       );
     }
   };
-
-  // Fetch favorite station IDs for the current user
-  const { user } = useAuth();
-  const { favoriteStationIds } = useFavoriteStations(user?.id);
 
   // Render map once location is available
   return (
