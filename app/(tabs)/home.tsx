@@ -213,6 +213,8 @@ export default function HomeScreen() {
                   const name = item.name ?? 'Unknown Station';
                   const brand = item.brand ?? 'Unknown Brand';
                   const city = item.city ?? 'Unknown City';
+                  const latitude = item.latitude ?? undefined;
+                  const longitude = item.longitude ?? undefined;
                   // BestPriceCard expects fuel_type as FuelType, handle null case
                   const fuel_type = item.fuel_type ?? 'Diesel';
 
@@ -235,6 +237,8 @@ export default function HomeScreen() {
                         price={item.price}
                         distance={distance}
                         city={city}
+                        latitude={latitude}
+                        longitude={longitude}
                         confirmations_count={confirmations_count}
                         onPress={() => navigateToStation(item.id)}
                       />

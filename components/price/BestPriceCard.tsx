@@ -18,6 +18,7 @@ import { DOEPriceDisplay } from './DOEPriceDisplay';
 import type { BestPrice } from '@/hooks/queries/prices/useBestPrices';
 import { styles } from './BestPriceCard.styles';
 import { Colors } from '@/styles/theme';
+import { openDirections } from '@/utils/navigation'; // Add this import
 
 // Get screen dimensions for responsive layout
 const { width: screenWidth } = Dimensions.get('window');
@@ -42,10 +43,11 @@ export interface BestPriceCardProps
     | 'week_of'
     | 'source_type'
   > {
+  latitude?: number | null;
+  longitude?: number | null;
   isLowestPrice?: boolean;
-  isSelected?: boolean; // Add isSelected prop
-  onPress?: () => void; // Add onPress prop
-  // Removed applyElevation prop
+  isSelected?: boolean;
+  onPress?: () => void;
 }
 
 export function BestPriceCard({
@@ -61,24 +63,25 @@ export function BestPriceCard({
   common_price = null,
   max_price = null,
   source_type = null,
+  latitude,
+  longitude,
   isLowestPrice = false,
-  isSelected = false, // Default isSelected to false
-  onPress, // Receive onPress handler
-}: // Removed applyElevation parameter
-BestPriceCardProps) {
+  isSelected = false,
+  onPress,
+}: BestPriceCardProps) {
   const router = useRouter();
 
   const navigateToStation = () => {
     router.push(`/station/${id}`);
   };
 
-  const openDirections = () => {
-    // TODO: Need station coordinates to implement this
-    // Will need to fetch station details or pass coordinates as props
-    Alert.alert(
-      'Directions Unavailable',
-      'Station coordinates not available for navigation'
-    );
+  const handleOpenDirections = () => {
+    // Changed function name to avoid confusion
+    if (!latitude || !longitude) {
+      Alert.alert('Error', 'Station location not available.');
+      return;
+    }
+    openDirections(latitude, longitude, name || 'Gas Station');
   };
 
   // Calculate if this price is below average (for highlighting)
@@ -86,11 +89,10 @@ BestPriceCardProps) {
 
   return (
     <TouchableCard
-      style={styles.card} // Use base style only
-      // Reverted variant back to 'elevated'
+      style={styles.card}
       variant='elevated'
-      onPress={onPress} // Use the passed onPress handler for selection
-      isSelected={isSelected} // Pass isSelected directly to TouchableCard
+      onPress={onPress}
+      isSelected={isSelected}
     >
       {/* Price Section - Most visually prominent */}
       <View style={styles.priceSection}>
@@ -148,17 +150,15 @@ BestPriceCardProps) {
               size={14}
               color={Colors.textGray}
             />
-            {/* Apply fix here */}
             <Text style={styles.metricText}>
-              {`${confirmations_count}`}{' '}
-              {/* Explicitly convert number to string */}
+              {`${confirmations_count}`}
               {confirmations_count === 1 ? ' confirmation' : ' confirmations'}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* DOE Price Comparison - When available - Ensure 0 is not rendered directly */}
+      {/* DOE Price Comparison - When available */}
       {min_price !== null && common_price !== null && max_price !== null ? (
         <DOEPriceDisplay
           min_price={min_price}
@@ -180,7 +180,7 @@ BestPriceCardProps) {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={openDirections}
+          onPress={handleOpenDirections} // Use the new handler function
           activeOpacity={0.7}
         >
           <FontAwesome5 name='directions' size={16} color={Colors.primary} />

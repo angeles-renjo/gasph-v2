@@ -254,6 +254,8 @@ export default function BestPricesScreen() {
               }
               isSelected={isSelected}
               onPress={handlePress}
+              latitude={item.latitude}
+              longitude={item.longitude}
             />
           );
         }}
