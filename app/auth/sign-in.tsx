@@ -1,5 +1,4 @@
 import {
-  // Remove React, useState, useEffect
   View,
   Text,
   StyleSheet,
@@ -8,17 +7,19 @@ import {
   Platform,
   ScrollView,
   Alert,
-  Image, // Import Image component
-  Keyboard, // Import Keyboard module
+  Image,
+  Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FontAwesome5 } from '@expo/vector-icons'; // Keep for input icons
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { useCallback, useState, useEffect } from 'react'; // Add these imports
+import * as SplashScreen from 'expo-splash-screen'; // Add this import
 
 // Define form schema with Zod for validation
 const loginSchema = z.object({
@@ -31,6 +32,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function SignInScreen() {
   const router = useRouter();
   const { signIn, loading } = useAuth();
+  const [isScreenReady, setIsScreenReady] = useState(false);
 
   const {
     control,
@@ -43,6 +45,20 @@ export default function SignInScreen() {
       password: '',
     },
   });
+
+  // Mark screen as ready when it mounts
+  useEffect(() => {
+    setIsScreenReady(true);
+  }, []);
+
+  // Handle layout event to hide splash screen when sign-in screen is ready
+  const onLayoutRootView = useCallback(async () => {
+    if (isScreenReady) {
+      // Add a small delay to ensure a smooth transition
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await SplashScreen.hideAsync();
+    }
+  }, [isScreenReady]);
 
   const onSubmit = async (data: LoginFormData) => {
     Keyboard.dismiss(); // Dismiss keyboard first
@@ -62,13 +78,13 @@ export default function SignInScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      onLayout={onLayoutRootView} // Add this onLayout handler
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps='handled'
       >
         <View style={styles.logoContainer}>
-          {/* Replace FontAwesome icon with Image */}
           <Image
             source={require('@/assets/icons/adaptive-icon.png')}
             style={styles.logoImage}
@@ -123,7 +139,7 @@ export default function SignInScreen() {
             title='Sign In'
             onPress={handleSubmit(onSubmit)}
             fullWidth
-            loading={loading} // Use loading state from useAuth again
+            loading={loading}
             style={styles.button}
           />
 
@@ -142,11 +158,12 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#2a9d8f', // Match splash screen background color
   },
   scrollContent: {
     flexGrow: 1,
     padding: 20,
+    backgroundColor: '#fff', // Keep inner content white
   },
   logoContainer: {
     alignItems: 'center',
@@ -154,10 +171,9 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logoImage: {
-    // Add styles for the logo image
     width: 80,
     height: 80,
-    resizeMode: 'contain', // Adjust resizeMode as needed
+    resizeMode: 'contain',
   },
   appTitle: {
     fontSize: 32,

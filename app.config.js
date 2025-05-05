@@ -65,13 +65,21 @@ export default {
         'expo-splash-screen',
         {
           image: './assets/icons/splash.png',
-          resizeMode: 'contain', // Keep the resize mode consistent
           backgroundColor: '#2A9D8F',
-          // Add dark mode config later if needed
-          // dark: {
-          //   image: "./assets/images/splash-icon-dark.png",
-          //   backgroundColor: "#000000"
-          // }
+          resizeMode: 'contain', // or 'cover' depending on your needs
+          imageResizeMode: 'contain', // For backward compatibility
+          imageWidth: 300, // Increase this value to make the image larger
+          // Optional platform-specific configurations
+          ios: {
+            image: './assets/icons/splash.png',
+            resizeMode: 'contain',
+            imageWidth: 300,
+          },
+          android: {
+            image: './assets/icons/splash.png',
+            resizeMode: 'contain',
+            imageWidth: 300, // Android uses this to determine scaling
+          },
         },
       ],
       ['expo-dev-client', { disableDevMenu: true }],
