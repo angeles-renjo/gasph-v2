@@ -20,6 +20,8 @@ export default {
         NSLocationAlwaysAndWhenInUseUsageDescription:
           'GasPH needs access to your location to find gas stations near you and show the most relevant fuel prices.',
         ITSAppUsesNonExemptEncryption: false,
+        // Add this section for navigation app deep linking
+        LSApplicationQueriesSchemes: ['comgooglemaps', 'waze'],
       },
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY_IOS,
@@ -46,6 +48,24 @@ export default {
           apiKey: process.env.GOOGLE_MAPS_API_KEY_ANDROID,
         },
       },
+      // Add this for Android 11+ package visibility
+      intentFilters: [
+        {
+          action: 'android.intent.action.VIEW',
+          data: [
+            {
+              scheme: 'geo',
+            },
+            {
+              scheme: 'google.navigation',
+            },
+            {
+              scheme: 'waze',
+            },
+          ],
+          category: ['android.intent.category.DEFAULT'],
+        },
+      ],
     },
     web: {
       bundler: 'metro',

@@ -19,19 +19,7 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme';
 
-interface UserContribution {
-  id: string;
-  fuel_type: string;
-  price: number;
-  reported_at: string;
-  station_id: string;
-  station_name: string;
-  station_brand: string;
-  station_city: string;
-  confirmations_count: number;
-  confidence_score: number;
-  cycle_id: string;
-}
+import { changeNavigationPreference } from '@/utils/navigation';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -247,6 +235,24 @@ export default function ProfileScreen() {
               style={styles.listItemIcon}
             />
             <Text style={styles.listItemLabel}>My Contributions</Text>
+            <FontAwesome5
+              name='chevron-right'
+              size={16}
+              color={Colors.mediumGray}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.listItem}
+            onPress={changeNavigationPreference}
+          >
+            <FontAwesome5
+              name='map-pin'
+              size={18}
+              color={Colors.textGray}
+              style={styles.listItemIcon}
+            />
+            <Text style={styles.listItemLabel}>Navigation App</Text>
             <FontAwesome5
               name='chevron-right'
               size={16}
