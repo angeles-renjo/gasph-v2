@@ -1,4 +1,4 @@
-import type { LocationData } from '@/hooks/useLocation';
+import type { LocationData } from '@/constants/map/locationConstants';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { BestPricesParams } from './types';
 
@@ -46,11 +46,20 @@ export const queryKeys = {
     all: ['stations'] as const,
     list: () => [...queryKeys.stations.all, 'list'] as const,
     detail: (id: string) => [...queryKeys.stations.all, 'detail', id] as const,
-    nearby: (params: { location: LocationData | null; radiusKm: number }) =>
-      [...queryKeys.stations.all, 'nearby', params] as const,
+    nearby: (params: {
+      location: LocationData | null;
+      radiusKm: number;
+      isOptimized?: boolean;
+    }) => [...queryKeys.stations.all, 'nearby', params] as const,
     // Add key for fetching stations with price for a specific fuel type
     listWithPrice: (fuelType: FuelType | 'none') =>
       [...queryKeys.stations.all, 'listWithPrice', fuelType] as const,
+    // Add key for infinite list of stations sorted by distance
+    listInfinite: (params: {
+      location: string;
+      searchTerm?: string;
+      brandFilter?: string | string[];
+    }) => [...queryKeys.stations.all, 'listInfinite', params] as const,
     // Add key for fetching all prices of a specific fuel type for a station
     fuelTypePrices: (stationId: string, fuelType: string) =>
       [
@@ -75,6 +84,21 @@ export const queryKeys = {
           'isFavorite',
           userId,
           stationId,
+        ] as const,
+      // Add key for fetching prices for favorite stations
+      prices: (
+        userId: string | undefined,
+        fuelType: FuelType | undefined,
+        lat?: number,
+        lng?: number
+      ) =>
+        [
+          ...queryKeys.stations.all,
+          'favorites',
+          'prices',
+          userId,
+          fuelType,
+          { lat, lng }, // Include location coords
         ] as const,
     },
   },

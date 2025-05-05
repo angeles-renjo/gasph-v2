@@ -1,21 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useLocation } from '@/hooks/useLocation'; // Make sure this path matches your project structure
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import {
+  useLocationStore,
+  LocationData,
+} from '@/hooks/stores/useLocationStore'; // Use the Zustand store and import LocationData type
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { Button } from '@/components/ui/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
 
 // This is a component that can be used to test the enhanced location hook
 export default function LocationAwareScreen() {
-  const {
-    location,
-    loading,
-    error,
-    permissionDenied,
-    refreshLocation,
-    getLocationWithFallback,
-    openLocationSettings,
-  } = useLocation();
+  // Use individual selectors from the Zustand store to prevent unnecessary re-renders
+  const location = useLocationStore((state) => state.location);
+  const loading = useLocationStore((state) => state.loading);
+  const error = useLocationStore((state) => state.error);
+  const permissionDenied = useLocationStore((state) => state.permissionDenied);
+  const refreshLocation = useLocationStore((state) => state.refreshLocation);
+  const getLocationWithFallback = useLocationStore(
+    (state) => state.getLocationWithFallback
+  );
+  const openLocationSettings = useLocationStore(
+    (state) => state.openLocationSettings
+  );
 
   // Track how long we've been loading
   const [loadingTime, setLoadingTime] = useState(0);

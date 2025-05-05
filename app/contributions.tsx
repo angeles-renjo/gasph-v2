@@ -1,5 +1,4 @@
 import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router'; // Import Stack for header title
 import { Card } from '@/components/ui/Card'; // Re-use Card component
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -72,7 +71,7 @@ export default function ContributionsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <View style={styles.container}>
       {/* Set Screen Title using Expo Router Stack */}
       <Stack.Screen options={{ title: 'My Contributions' }} />
 
@@ -92,7 +91,7 @@ export default function ContributionsScreen() {
           icon='list-alt' // Use a relevant icon
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

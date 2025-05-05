@@ -44,4 +44,17 @@ CLEANUP_CHECKLIST.md
 
 /ios/
 /android/
-/memory-bank
+
+
+# IntelliJ/Android Studio
+*.iml
+.idea/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries
+.idea/libraries
+.idea/caches
+.idea/modules.xml
+.idea/navEditor.xml

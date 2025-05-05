@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   View,
   Text,
@@ -8,7 +7,6 @@ import {
   Linking,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
 import FAQAccordionItem, { FAQItem } from './FAQAccordionItem';
@@ -188,7 +186,7 @@ export default function FAQScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <View style={styles.container}>
       <Stack.Screen options={{ title: 'Frequently Asked Questions' }} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -226,7 +224,7 @@ export default function FAQScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

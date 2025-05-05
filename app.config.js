@@ -20,6 +20,8 @@ export default {
         NSLocationAlwaysAndWhenInUseUsageDescription:
           'GasPH needs access to your location to find gas stations near you and show the most relevant fuel prices.',
         ITSAppUsesNonExemptEncryption: false,
+        // Add this section for navigation app deep linking
+        LSApplicationQueriesSchemes: ['comgooglemaps', 'waze'],
       },
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY_IOS,
@@ -46,6 +48,24 @@ export default {
           apiKey: process.env.GOOGLE_MAPS_API_KEY_ANDROID,
         },
       },
+      // Add this for Android 11+ package visibility
+      intentFilters: [
+        {
+          action: 'android.intent.action.VIEW',
+          data: [
+            {
+              scheme: 'geo',
+            },
+            {
+              scheme: 'google.navigation',
+            },
+            {
+              scheme: 'waze',
+            },
+          ],
+          category: ['android.intent.category.DEFAULT'],
+        },
+      ],
     },
     web: {
       bundler: 'metro',
@@ -61,18 +81,25 @@ export default {
             'Allow GasPH to use your location to find nearby gas stations and fuel prices.',
         },
       ],
-      // Note: Removed "react-native-maps" from here if it was added previously, as it's not a valid plugin name.
       [
         'expo-splash-screen',
         {
-          image: './assets/icons/splash-icon-light.png',
-          resizeMode: 'contain', // Keep the resize mode consistent
+          image: './assets/icons/splash.png',
           backgroundColor: '#2A9D8F',
-          // Add dark mode config later if needed
-          // dark: {
-          //   image: "./assets/images/splash-icon-dark.png",
-          //   backgroundColor: "#000000"
-          // }
+          resizeMode: 'contain', // or 'cover' depending on your needs
+          imageResizeMode: 'contain', // For backward compatibility
+          imageWidth: 300, // Increase this value to make the image larger
+          // Optional platform-specific configurations
+          ios: {
+            image: './assets/icons/splash.png',
+            resizeMode: 'contain',
+            imageWidth: 300,
+          },
+          android: {
+            image: './assets/icons/splash.png',
+            resizeMode: 'contain',
+            imageWidth: 300, // Android uses this to determine scaling
+          },
         },
       ],
       ['expo-dev-client', { disableDevMenu: true }],

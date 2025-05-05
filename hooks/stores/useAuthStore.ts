@@ -1,10 +1,10 @@
-import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/utils/supabase/supabase";
-import { queryClient } from "@/lib/query-client";
-import { queryKeys } from "@/hooks/queries/utils/queryKeys";
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/utils/supabase/supabase';
+import { queryClient } from '@/lib/query-client';
+import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 
 interface AuthState {
   user: User | null;
@@ -37,9 +37,9 @@ export const useAuthStore = create<AuthState>()(
           if (session?.user) {
             // Get admin status
             const { data: profileData } = await supabase
-              .from("profiles")
-              .select("is_admin")
-              .eq("id", session.user.id)
+              .from('profiles')
+              .select('is_admin')
+              .eq('id', session.user.id)
               .single();
 
             set({
@@ -59,7 +59,7 @@ export const useAuthStore = create<AuthState>()(
             });
           }
         } catch (error) {
-          console.error("Error initializing auth:", error);
+          console.error('Error initializing auth:', error);
           set({ loading: false, initialized: true });
         }
       },
@@ -75,9 +75,9 @@ export const useAuthStore = create<AuthState>()(
 
           // Get admin status
           const { data: profileData } = await supabase
-            .from("profiles")
-            .select("is_admin")
-            .eq("id", data.user.id)
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', data.user.id)
             .single();
 
           set({
@@ -110,7 +110,7 @@ export const useAuthStore = create<AuthState>()(
 
           queryClient.invalidateQueries({ queryKey: queryKeys.auth.session() });
           queryClient.removeQueries({
-            predicate: (query) => !query.queryKey.includes("auth"),
+            predicate: (query) => !query.queryKey.includes('auth'),
           });
         } catch (error) {
           set({ loading: false });
@@ -135,7 +135,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "auth-storage",
+      name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         user: state.user,

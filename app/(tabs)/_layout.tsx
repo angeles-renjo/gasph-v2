@@ -1,22 +1,23 @@
 import { Tabs } from 'expo-router';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth'; // Corrected import path
-import { View } from '@/components/Themed'; // Corrected import path
 import { Colors } from '@/styles/theme'; // Import Colors
+import { View } from 'react-native';
+import Constants from 'expo-constants'; // Make sure to import Constants
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function TabsLayout() {
   const { isAdmin } = useAuth();
+  const statusBarHeight = Constants.statusBarHeight;
 
   return (
     <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
+          headerShown: false,
           tabBarActiveTintColor: Colors.primary, // Use theme primary color
           tabBarInactiveTintColor: Colors.gray, // Use theme gray color
-          tabBarStyle: {
-            paddingBottom: 5,
-            // Removed justifyContent
-          },
+
           tabBarItemStyle: {
             // Add this style
             flex: 1, // Make each item flexible
@@ -30,6 +31,17 @@ export default function TabsLayout() {
           },
         }}
       >
+        {/* Home Tab - Added as the first tab */}
+        <Tabs.Screen
+          name='home' // Corresponds to app/(tabs)/home.tsx
+          options={{
+            title: 'Home',
+            tabBarIcon: ({ color, size }) => (
+              <FontAwesome5 name='home' size={size} color={color} /> // Use 'home' icon
+            ),
+          }}
+        />
+
         {/* Common Tabs */}
         <Tabs.Screen
           name='index'
@@ -59,11 +71,11 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name='profile'
+          name='settings'
           options={{
-            title: 'Profile',
+            title: 'settings',
             tabBarIcon: ({ color, size }) => (
-              <FontAwesome5 name='user' size={size} color={color} />
+              <Ionicons name='settings' size={size} color={color} />
             ),
           }}
         />

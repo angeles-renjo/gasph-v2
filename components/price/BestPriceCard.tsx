@@ -14,10 +14,11 @@ import {
   formatDistance,
   formatFuelType,
 } from '@/utils/formatters';
-import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
-import { openDirections } from '@/utils/navigation';
 import { DOEPriceDisplay } from './DOEPriceDisplay';
 import type { BestPrice } from '@/hooks/queries/prices/useBestPrices';
+import { styles } from './BestPriceCard.styles';
+import { Colors } from '@/styles/theme';
+import { openDirections } from '@/utils/navigation'; // Add this import
 
 // Get screen dimensions for responsive layout
 const { width: screenWidth } = Dimensions.get('window');
@@ -42,9 +43,11 @@ export interface BestPriceCardProps
     | 'week_of'
     | 'source_type'
   > {
+  latitude?: number | null;
+  longitude?: number | null;
   isLowestPrice?: boolean;
-  isSelected?: boolean; // Add isSelected prop
-  onPress?: () => void; // Add onPress prop
+  isSelected?: boolean;
+  onPress?: () => void;
 }
 
 export function BestPriceCard({
@@ -60,9 +63,11 @@ export function BestPriceCard({
   common_price = null,
   max_price = null,
   source_type = null,
+  latitude,
+  longitude,
   isLowestPrice = false,
-  isSelected = false, // Default isSelected to false
-  onPress, // Receive onPress handler
+  isSelected = false,
+  onPress,
 }: BestPriceCardProps) {
   const router = useRouter();
 
@@ -70,13 +75,13 @@ export function BestPriceCard({
     router.push(`/station/${id}`);
   };
 
-  const openDirections = () => {
-    // TODO: Need station coordinates to implement this
-    // Will need to fetch station details or pass coordinates as props
-    Alert.alert(
-      'Directions Unavailable',
-      'Station coordinates not available for navigation'
-    );
+  const handleOpenDirections = () => {
+    // Changed function name to avoid confusion
+    if (!latitude || !longitude) {
+      Alert.alert('Error', 'Station location not available.');
+      return;
+    }
+    openDirections(latitude, longitude, name || 'Gas Station');
   };
 
   // Calculate if this price is below average (for highlighting)
@@ -84,10 +89,10 @@ export function BestPriceCard({
 
   return (
     <TouchableCard
-      style={styles.card} // Use base style only
+      style={styles.card}
       variant='elevated'
-      onPress={onPress} // Use the passed onPress handler for selection
-      isSelected={isSelected} // Pass isSelected directly to TouchableCard
+      onPress={onPress}
+      isSelected={isSelected}
     >
       {/* Price Section - Most visually prominent */}
       <View style={styles.priceSection}>
@@ -145,17 +150,15 @@ export function BestPriceCard({
               size={14}
               color={Colors.textGray}
             />
-            {/* Apply fix here */}
             <Text style={styles.metricText}>
-              {`${confirmations_count}`}{' '}
-              {/* Explicitly convert number to string */}
+              {`${confirmations_count}`}
               {confirmations_count === 1 ? ' confirmation' : ' confirmations'}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* DOE Price Comparison - When available - Ensure 0 is not rendered directly */}
+      {/* DOE Price Comparison - When available */}
       {min_price !== null && common_price !== null && max_price !== null ? (
         <DOEPriceDisplay
           min_price={min_price}
@@ -177,7 +180,7 @@ export function BestPriceCard({
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={openDirections}
+          onPress={handleOpenDirections} // Use the new handler function
           activeOpacity={0.7}
         >
           <FontAwesome5 name='directions' size={16} color={Colors.primary} />
@@ -187,150 +190,3 @@ export function BestPriceCard({
     </TouchableCard>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    marginVertical: Spacing.md, // Increased margin for separation
-    padding: isSmallScreen ? Spacing.md : Spacing.xl,
-    borderRadius: BorderRadius.lg,
-    elevation: 2,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  // Removed selectedCard style definition from here
-  priceSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-    paddingBottom: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.dividerGray,
-  },
-  fuelTypeContainer: {
-    backgroundColor: Colors.primaryLightTint,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.lg_xl,
-    alignSelf: 'flex-start',
-  },
-  fuelType: {
-    fontSize: isSmallScreen
-      ? Typography.fontSizeSmall
-      : Typography.fontSizeMedium,
-    fontWeight: Typography.fontWeightSemiBold,
-    color: Colors.primary,
-  },
-  priceContainer: {
-    alignItems: 'flex-end',
-  },
-  price: {
-    fontSize: isSmallScreen
-      ? Typography.fontSizeXLarge
-      : Typography.fontSizeXXLarge,
-    fontWeight: Typography.fontWeightBold,
-    color: Colors.primary,
-  },
-  savingsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.successLightTint,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: Spacing.xxxs,
-    borderRadius: BorderRadius.sm,
-    marginTop: Spacing.xxs,
-  },
-  savingsIcon: {
-    marginRight: 3,
-  },
-  savingsBadgeText: {
-    fontSize: Typography.fontSizeXXSmall,
-    fontWeight: Typography.fontWeightMedium,
-    color: Colors.success,
-  },
-
-  // Content container - adaptive based on screen size
-  contentContainer: {
-    marginBottom: Spacing.md,
-  },
-  standardLayout: {
-    flexDirection: 'column',
-  },
-  wideLayout: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-
-  // Station section
-  stationSection: {
-    marginBottom: isLargeScreen ? 0 : Spacing.sm,
-    width: isLargeScreen ? '60%' : '100%',
-  },
-  stationName: {
-    fontSize: Typography.fontSizeLarge,
-    fontWeight: Typography.fontWeightSemiBold,
-    color: Colors.darkGray,
-    marginBottom: Spacing.xxxs,
-  },
-  stationBrand: {
-    fontSize: Typography.fontSizeSmall,
-    color: Colors.textGray,
-  },
-
-  // Metrics section
-  metricsSection: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: isLargeScreen ? 'flex-end' : 'flex-start',
-    width: isLargeScreen ? '40%' : '100%',
-  },
-  metricItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-    marginBottom: isSmallScreen ? Spacing.xs : 0,
-    backgroundColor: Colors.lightGray2,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xxs,
-    borderRadius: BorderRadius.md,
-  },
-  metricText: {
-    fontSize: Typography.fontSizeSmall,
-    color: Colors.textGray,
-    marginLeft: Spacing.xs,
-    fontWeight: Typography.fontWeightMedium,
-  },
-
-  // Action section
-  actionSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: Colors.dividerGray,
-    paddingTop: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.lightGray2,
-    minHeight: 44,
-    minWidth: 44,
-    flex: 1,
-    marginHorizontal: Spacing.xxs,
-    justifyContent: 'center',
-  },
-  actionButtonText: {
-    color: Colors.primary,
-    fontWeight: Typography.fontWeightMedium,
-    marginLeft: Spacing.xs,
-    fontSize: Typography.fontSizeSmall,
-  },
-});

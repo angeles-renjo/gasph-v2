@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,23 +9,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
-// Removed FlashList import
-import { useNearbyStations } from '@/hooks/queries/stations/useNearbyStations';
-import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Use Zustand store
+import {
+  useInfiniteStationsSortedByDistance,
+  StationWithDistance,
+} from '@/hooks/queries/stations/useInfiniteStationsSortedByDistance';
+import { useLocationStore } from '@/hooks/stores/useLocationStore';
 import { StationCard } from '@/components/station/StationCard';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
-import { Database } from '@/utils/supabase/types';
 import { styles } from '@/styles/screens/ExploreScreen.styles';
 import { Colors } from '@/styles/theme';
-
-type GasStation = Database['public']['Tables']['gas_stations']['Row'] & {
-  distance?: number;
-};
 
 const POPULAR_BRANDS = [
   'Shell',
@@ -37,14 +35,13 @@ const POPULAR_BRANDS = [
 ];
 
 /**
- * ExploreScreen component provides a user interface for exploring nearby gas stations.
- * It fetches location data and displays stations within a specified radius.
+ * ExploreScreen component provides a user interface for exploring gas stations.
+ * It fetches location data and displays stations sorted by distance.
  * Users can search for stations by name, brand, or address, and filter results by popular brands.
  * The screen handles location errors and displays a loading indicator while fetching data.
  * It manages user permissions and shows notifications when using a default location.
  * The component also allows refreshing the station list and shows an empty state if no stations are found.
  */
-
 export default function ExploreScreen() {
   // Get state and actions from Zustand store using individual selectors to prevent re-renders
   const getLocationWithFallback = useLocationStore(
@@ -56,20 +53,26 @@ export default function ExploreScreen() {
 
   const locationData = getLocationWithFallback();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
-  const [filteredStations, setFilteredStations] = useState<GasStation[]>([]);
+  const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
   const [usingDefaultLocation, setUsingDefaultLocation] = useState(false);
 
+  // Use the infinite query hook with filters
   const {
-    data: stations,
+    data,
     isLoading,
+    isError,
     error,
     refetch,
     isRefetching,
-  } = useNearbyStations({
-    radiusKm: 15,
-    enabled: true,
-    providedLocation: locationData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteStationsSortedByDistance({
+    location: locationData,
+    searchTerm: searchQuery,
+    brandFilter:
+      selectedBrands.size > 0 ? Array.from(selectedBrands) : undefined,
+    enabled: !locationLoading,
   });
 
   // Update notification banner when using default location
@@ -77,40 +80,34 @@ export default function ExploreScreen() {
     setUsingDefaultLocation(!!locationData.isDefaultLocation);
   }, [locationData.isDefaultLocation]);
 
-  // Filter stations based on search query and selected brand
-  useEffect(() => {
-    if (!stations) {
-      setFilteredStations([]);
-      return;
-    }
-
-    // Ensure stations is iterable before spreading
-    let filtered = Array.isArray(stations) ? [...stations] : [];
-
-    // Apply brand filter
-    if (selectedBrand) {
-      filtered = filtered.filter(
-        (station) => station.brand.toLowerCase() === selectedBrand.toLowerCase()
-      );
-    }
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(
-        (station) =>
-          station.name.toLowerCase().includes(query) ||
-          station.brand.toLowerCase().includes(query) ||
-          station.address.toLowerCase().includes(query) ||
-          station.city.toLowerCase().includes(query)
-      );
-    }
-
-    setFilteredStations(filtered);
-  }, [stations, searchQuery, selectedBrand]);
+  // Flatten the pages of stations data for rendering
+  const stations = useMemo(() => {
+    return data?.pages.flatMap((page) => page.stations) || [];
+  }, [data]);
 
   const handleBrandSelect = (brand: string) => {
-    setSelectedBrand(selectedBrand === brand ? null : brand);
+    setSelectedBrands((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(brand)) {
+        newSet.delete(brand); // Deselect if already selected
+      } else {
+        newSet.add(brand); // Select if not selected
+      }
+      return newSet;
+    });
+  };
+
+  // Handle end reached for infinite scrolling
+  const handleEndReached = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedBrands(new Set());
   };
 
   if (locationLoading) {
@@ -119,7 +116,7 @@ export default function ExploreScreen() {
     );
   }
 
-  if (error) {
+  if (isError && error) {
     return (
       <ErrorDisplay
         fullScreen
@@ -130,7 +127,7 @@ export default function ExploreScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -174,16 +171,17 @@ export default function ExploreScreen() {
             <TextInput
               style={styles.searchInput}
               placeholder='Search stations, brands, or addresses'
-              placeholderTextColor={Colors.placeholderGray} // Add prop here
+              placeholderTextColor={Colors.placeholderGray}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              clearButtonMode='while-editing' // Rely on this for iOS clear button
+              clearButtonMode='while-editing'
             />
-            {/* Removed custom TouchableOpacity clear button to avoid duplication on iOS */}
           </View>
         </View>
 
+        {/* Brand Filter */}
         <View style={styles.brandFilterContainer}>
+          <Text style={styles.filterLabel}>Brand</Text>
           <FlatList
             horizontal
             data={POPULAR_BRANDS}
@@ -192,14 +190,14 @@ export default function ExploreScreen() {
               <TouchableOpacity
                 style={[
                   styles.brandChip,
-                  selectedBrand === item && styles.selectedBrandChip,
+                  selectedBrands.has(item) && styles.selectedBrandChip,
                 ]}
                 onPress={() => handleBrandSelect(item)}
               >
                 <Text
                   style={[
                     styles.brandChipText,
-                    selectedBrand === item && styles.selectedBrandChipText,
+                    selectedBrands.has(item) && styles.selectedBrandChipText,
                   ]}
                 >
                   {item}
@@ -211,38 +209,51 @@ export default function ExploreScreen() {
           />
         </View>
 
-        {isLoading ? (
+        {isLoading && !data ? (
           <LoadingIndicator message='Finding stations near you...' />
-        ) : filteredStations.length > 0 ? (
+        ) : stations.length > 0 ? (
           <FlatList
-            data={filteredStations}
+            data={stations}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <StationCard station={item} />}
-            // Removed estimatedItemSize
+            renderItem={({ item }) => (
+              <StationCard
+                station={item}
+                isFavorite={false} // You can implement favorite functionality if needed
+              />
+            )}
             contentContainerStyle={styles.stationList}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+            }
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <View style={styles.loadingMoreContainer}>
+                  <ActivityIndicator size='small' color={Colors.primary} />
+                  <Text style={styles.loadingMoreText}>
+                    Loading more stations...
+                  </Text>
+                </View>
+              ) : null
             }
           />
         ) : (
           <EmptyState
             title='No Stations Found'
             message={
-              searchQuery || selectedBrand
+              searchQuery || selectedBrands.size > 0
                 ? "We couldn't find any stations matching your filters. Try a different search or clear your filters."
-                : "We couldn't find any gas stations near you. Try increasing the search radius."
+                : "We couldn't find any gas stations. Try adjusting your search criteria."
             }
             icon='gas-pump'
             actionLabel={
-              searchQuery || selectedBrand ? 'Clear Filters' : undefined
+              searchQuery || selectedBrands.size > 0
+                ? 'Clear Filters'
+                : undefined
             }
             onAction={
-              searchQuery || selectedBrand
-                ? () => {
-                    setSearchQuery('');
-                    setSelectedBrand(null);
-                  }
-                : undefined
+              searchQuery || selectedBrands.size > 0 ? clearFilters : undefined
             }
           />
         )}

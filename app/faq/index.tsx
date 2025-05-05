@@ -1,4 +1,4 @@
-import { View } from '@/components/Themed';
+import { View } from 'react-native';
 import FAQScreen from '@/components/faq/FAQScreen';
 
 export default function FAQ() {

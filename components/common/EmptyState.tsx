@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
-import { Colors, Typography, Spacing } from '@/styles/theme'; // Import theme constants
+import { Colors, Typography, Spacing } from '@/styles/theme';
 
 interface EmptyStateProps {
   title?: string;
@@ -15,6 +15,10 @@ interface EmptyStateProps {
         onPress: () => void;
       }
     | (() => void);
+  onSecondaryAction?: {
+    label: string;
+    onPress: () => void;
+  };
   fullScreen?: boolean;
   containerStyle?: ViewStyle;
   titleStyle?: TextStyle;
@@ -25,9 +29,10 @@ export function EmptyState({
   title = 'No Data Found',
   message = "There's nothing to display here yet.",
   icon = 'info-circle',
-  iconColor = Colors.primary, // Use theme color as default
+  iconColor = Colors.primary,
   actionLabel,
   onAction,
+  onSecondaryAction,
   fullScreen = false,
   containerStyle,
   titleStyle,
@@ -51,13 +56,24 @@ export function EmptyState({
       <Text style={[styles.title, titleStyle]}>{title}</Text>
       <Text style={[styles.message, messageStyle]}>{message}</Text>
 
-      {actionProps && (
+      {(actionProps || onSecondaryAction) && (
         <View style={styles.buttonContainer}>
-          <Button
-            title={actionProps.label}
-            onPress={actionProps.onPress}
-            variant='outline'
-          />
+          {actionProps && (
+            <Button
+              title={actionProps.label}
+              onPress={actionProps.onPress}
+              variant='primary'
+              style={styles.actionButton}
+            />
+          )}
+          {onSecondaryAction && (
+            <Button
+              title={onSecondaryAction.label}
+              onPress={onSecondaryAction.onPress}
+              variant='outline'
+              style={styles.actionButton}
+            />
+          )}
         </View>
       )}
     </View>
@@ -66,28 +82,35 @@ export function EmptyState({
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.lg_xl, // Use theme spacing
+    padding: Spacing.lg_xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   fullScreen: {
     flex: 1,
-    backgroundColor: Colors.white, // Use theme color
+    backgroundColor: Colors.white,
   },
   title: {
-    marginTop: Spacing.xl, // Use theme spacing
-    fontSize: Typography.fontSizeLarge, // Use theme typography
-    fontWeight: Typography.fontWeightBold, // Use theme typography
-    color: Colors.darkGray, // Use theme color
+    marginTop: Spacing.xl,
+    fontSize: Typography.fontSizeLarge,
+    fontWeight: Typography.fontWeightBold,
+    color: Colors.darkGray,
     textAlign: 'center',
   },
   message: {
-    marginTop: Spacing.sm, // Use theme spacing
-    fontSize: Typography.fontSizeMedium, // Use theme typography
-    color: Colors.textGray, // Use theme color
+    marginTop: Spacing.sm,
+    fontSize: Typography.fontSizeMedium,
+    color: Colors.textGray,
     textAlign: 'center',
   },
   buttonContainer: {
-    marginTop: Spacing.lg_xl, // Use theme spacing
+    marginTop: Spacing.lg_xl,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionButton: {
+    marginHorizontal: Spacing.sm,
+    minWidth: 120,
   },
 });

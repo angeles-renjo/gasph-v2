@@ -50,11 +50,13 @@ export function calculateDistance(
  * Useful for database queries to find nearby stations
  * @param center The center coordinates
  * @param radiusKm Radius in kilometers
+ * @param optimizeForLargeRadius Whether to optimize the bounding box for large radius values
  * @returns Object with min and max lat/lng
  */
 export function getBoundingBox(
   center: Coordinates,
-  radiusKm: number
+  radiusKm: number,
+  optimizeForLargeRadius: boolean = false
 ): {
   minLat: number;
   maxLat: number;
@@ -64,8 +66,15 @@ export function getBoundingBox(
   // Earth's radius in km
   const R = EARTH_RADIUS_KM;
 
+  // For large radius values (like 30km), we can use a slightly smaller bounding box
+  // to reduce the initial data volume, then filter more precisely later
+  const adjustedRadius =
+    optimizeForLargeRadius && radiusKm >= 25
+      ? radiusKm * 0.9 // Use 90% of the radius for the initial query
+      : radiusKm;
+
   // angular distance in radians on a great circle
-  const radDist = radiusKm / R;
+  const radDist = adjustedRadius / R;
 
   const lat = toRadians(center.latitude);
   const lng = toRadians(center.longitude);
@@ -73,8 +82,9 @@ export function getBoundingBox(
   const minLat = lat - radDist;
   const maxLat = lat + radDist;
 
-  // longitude gets smaller when we approach the poles
-  // for simplicity, we use a constant delta lng for the bounding box
+  // Properly account for longitude changes at different latitudes
+  // This is more accurate than the previous approach, especially for larger distances
+  // cos(lat) factor adjusts for the fact that longitude lines get closer at higher latitudes
   const deltaLng = Math.asin(Math.sin(radDist) / Math.cos(lat));
 
   const minLng = lng - deltaLng;

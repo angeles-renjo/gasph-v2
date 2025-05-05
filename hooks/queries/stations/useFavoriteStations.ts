@@ -2,7 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/utils/supabase/supabase';
 import { queryKeys } from '@/hooks/queries/utils/queryKeys';
 import type { Tables, TablesInsert } from '@/utils/supabase/types';
-import { useUserProfile } from '@/hooks/queries/users/useUserProfile'; // Import useUserProfile
+import { useUserProfile } from '@/hooks/queries/users/useUserProfile';
+import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import location store
+import type { FuelType } from '@/hooks/queries/prices/useBestPrices'; // Import FuelType
 
 type UserFavorite = Tables<'user_favorites'>;
 type InsertUserFavorite = TablesInsert<'user_favorites'>;
@@ -30,6 +33,9 @@ export function useFavoriteStations(
   userId: string | undefined
 ): UseFavoriteStationsResult {
   const queryClient = useQueryClient();
+  // Get necessary state for invalidating the prices query
+  const defaultFuelType = usePreferencesStore.getState().defaultFuelType;
+  const location = useLocationStore.getState().location;
 
   // Fetch favorite station IDs for the user
   const { data, isLoading, isError, error } = useQuery({
@@ -92,6 +98,15 @@ export function useFavoriteStations(
         queryClient.invalidateQueries({
           queryKey: queryKeys.stations.favorites.list(userId),
         });
+        // Invalidate the prices query for the Home screen
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.stations.favorites.prices(
+            userId,
+            defaultFuelType ?? undefined,
+            location?.latitude,
+            location?.longitude
+          ),
+        });
         // Also invalidate the specific isFavorite query if you implement it
         // queryClient.invalidateQueries({ queryKey: queryKeys.stations.favorites.isFavorite(userId, stationId) });
       }
@@ -130,6 +145,15 @@ export function useFavoriteStations(
       if (userId) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.stations.favorites.list(userId),
+        });
+        // Invalidate the prices query for the Home screen
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.stations.favorites.prices(
+            userId,
+            defaultFuelType ?? undefined,
+            location?.latitude,
+            location?.longitude
+          ),
         });
         // queryClient.invalidateQueries({ queryKey: queryKeys.stations.favorites.isFavorite(userId, stationId) });
       }

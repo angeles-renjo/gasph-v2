@@ -64,6 +64,13 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.dividerGray, // Use theme color
   },
+  filterLabel: {
+    fontSize: Typography.fontSizeMedium,
+    fontWeight: Typography.fontWeightMedium,
+    color: Colors.darkGray,
+    marginLeft: Spacing.xl,
+    marginBottom: Spacing.xs,
+  },
   brandList: {
     paddingHorizontal: Spacing.xl, // Use theme spacing
   },
@@ -90,5 +97,42 @@ export const styles = StyleSheet.create({
   },
   stationList: {
     padding: Spacing.xl, // Use theme spacing
+  },
+  // Selection banner styles
+  selectionBanner: {
+    backgroundColor: Colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.inputPaddingHorizontal,
+  },
+  selectionText: {
+    color: Colors.white,
+    fontSize: Typography.fontSizeMedium,
+    fontWeight: Typography.fontWeightMedium,
+  },
+  clearSelectionButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingVertical: Spacing.xxs,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+  },
+  clearSelectionText: {
+    color: Colors.white,
+    fontSize: Typography.fontSizeSmall,
+    fontWeight: Typography.fontWeightSemiBold,
+  },
+  // Loading more indicator styles
+  loadingMoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+  },
+  loadingMoreText: {
+    marginLeft: Spacing.sm,
+    fontSize: Typography.fontSizeMedium,
+    color: Colors.textGray,
   },
 });

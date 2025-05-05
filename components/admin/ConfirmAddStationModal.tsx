@@ -11,7 +11,7 @@ import {
   Linking, // <-- Add Linking
   TouchableOpacity, // <-- Add TouchableOpacity
 } from 'react-native';
-import { View, Text } from '@/components/Themed';
+import { View, Text } from 'react-native';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import Checkbox from 'expo-checkbox';

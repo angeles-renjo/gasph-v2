@@ -1,5 +1,4 @@
 import {
-  // Remove React, useState, useEffect
   View,
   Text,
   StyleSheet,
@@ -8,14 +7,14 @@ import {
   Platform,
   ScrollView,
   Alert,
-  Image, // Import Image component
-  Keyboard, // Import Keyboard module
+  Image,
+  Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FontAwesome5 } from '@expo/vector-icons'; // Keep for input icons
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -68,7 +67,6 @@ export default function SignInScreen() {
         keyboardShouldPersistTaps='handled'
       >
         <View style={styles.logoContainer}>
-          {/* Replace FontAwesome icon with Image */}
           <Image
             source={require('@/assets/icons/adaptive-icon.png')}
             style={styles.logoImage}
@@ -123,7 +121,7 @@ export default function SignInScreen() {
             title='Sign In'
             onPress={handleSubmit(onSubmit)}
             fullWidth
-            loading={loading} // Use loading state from useAuth again
+            loading={loading}
             style={styles.button}
           />
 
@@ -142,11 +140,12 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#2a9d8f', // Match splash screen background color
   },
   scrollContent: {
     flexGrow: 1,
     padding: 20,
+    backgroundColor: '#fff', // Keep inner content white
   },
   logoContainer: {
     alignItems: 'center',
@@ -154,10 +153,9 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logoImage: {
-    // Add styles for the logo image
     width: 80,
     height: 80,
-    resizeMode: 'contain', // Adjust resizeMode as needed
+    resizeMode: 'contain',
   },
   appTitle: {
     fontSize: 32,

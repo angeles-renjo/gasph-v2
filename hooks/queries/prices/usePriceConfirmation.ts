@@ -3,6 +3,8 @@ import { Alert } from 'react-native';
 import { supabase } from '@/utils/supabase/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '../utils/queryKeys';
+import { usePreferencesStore } from '@/hooks/stores/usePreferencesStore'; // Import preferences store
+import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import location store
 import {
   defaultQueryOptions,
   defaultMutationOptions,
@@ -25,6 +27,9 @@ interface ConfirmPriceContext {
 export function usePriceConfirmation() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  // Get necessary state for invalidating the favorites prices query
+  const defaultFuelType = usePreferencesStore.getState().defaultFuelType;
+  const location = useLocationStore.getState().location;
 
   return useMutation({
     mutationFn: async ({ reportId, stationId }: ConfirmPriceVariables) => {
@@ -123,6 +128,17 @@ export function usePriceConfirmation() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.prices.best.all(),
       });
+      // Invalidate favorite prices query
+      if (user?.id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.stations.favorites.prices(
+            user.id,
+            defaultFuelType ?? undefined,
+            location?.latitude,
+            location?.longitude
+          ),
+        });
+      }
     },
 
     // Handle errors
@@ -168,6 +184,17 @@ export function usePriceConfirmation() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.stations.detail(stationId),
       });
+      // Invalidate favorite prices query on settled as well
+      if (user?.id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.stations.favorites.prices(
+            user.id,
+            defaultFuelType ?? undefined,
+            location?.latitude,
+            location?.longitude
+          ),
+        });
+      }
     },
 
     ...defaultMutationOptions.prices.confirmations,

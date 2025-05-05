@@ -6,7 +6,6 @@ import React, {
   forwardRef,
 } from 'react';
 import {
-  StyleSheet,
   View,
   Text,
   Animated,
@@ -23,27 +22,24 @@ import {
 import type { Feature, Point, GeoJsonProperties } from 'geojson'; // Import GeoJSON types
 
 import { GasStation } from '@/hooks/queries/stations/useNearbyStations';
-import { LocationData } from '@/hooks/useLocation';
+import { LocationData } from '@/constants/map/locationConstants';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
 import { StationInfoModal } from './StationInfoModal';
 import theme from '@/styles/theme';
 import mapStyle from '@/styles/mapStyle.json';
 import { formatPrice } from '@/utils/formatters'; // Import correct formatter
+import { useGoogleMapIosPerfFix } from '@/hooks/useGoogleMapIosPerfFix'; // Import the perf fix hook
+import {
+  PHILIPPINES_CENTER,
+  PHILIPPINES_WIDE_REGION,
+  PHILIPPINES_BOUNDS,
+  ZOOM_LEVELS,
+  ANIMATION_DURATION,
+  DEFAULT_MAP_REGION,
+} from '@/constants/map/locationConstants';
 
-// --- Constants for Map Views ---
-const PHILIPPINES_CENTER = { latitude: 12.8797, longitude: 121.774 }; // Approx center
-const PHILIPPINES_DELTA = { latitudeDelta: 15, longitudeDelta: 15 }; // Zoom level for whole country view
-const USER_DELTA = { latitudeDelta: 0.1, longitudeDelta: 0.1 }; // Keep for potential future use?
-const CLUSTER_ZOOM_DELTA = { latitudeDelta: 0.02, longitudeDelta: 0.02 }; // Zoom level when clicking a cluster
-
-// ++ Add Bounding Box and Zoom Limits ++
-const PHILIPPINES_BOUNDS = {
-  // Looser bounds to allow slight over-panning before snapping back
-  sw: { latitude: 4.0, longitude: 116.0 }, // Approx Southwest corner
-  ne: { latitude: 21.5, longitude: 127.5 }, // Approx Northeast corner
-};
-const MIN_ZOOM_LEVEL = 6; // Prevent zooming out too far (Higher number = more zoomed in)
-const MAX_ZOOM_LEVEL = 18; // Optional: Limit max zoom
+import { styles } from '@/styles/components/map/StationMapView.styles';
+import { MaterialIcons } from '@expo/vector-icons';
 
 const { width: INITIAL_MAP_WIDTH, height: INITIAL_MAP_HEIGHT } =
   Dimensions.get('window');
@@ -56,6 +52,7 @@ export interface StationMapViewProps {
   defaultFuelType: FuelType | null;
   onRegionChangeComplete?: (region: Region) => void;
   favoriteStationIds?: string[]; // Add favorite station IDs
+  showDefaultMyLocationButton?: boolean; // Add prop to control default button
 }
 
 // --- Memoized Marker Components ---
@@ -75,8 +72,6 @@ interface StationMarkerProps {
   onPress: (station: GasStation) => void;
   isFavorite?: boolean; // Add favorite prop
 }
-
-import { MaterialIcons } from '@expo/vector-icons';
 
 const StationMarker = React.memo(
   ({ point, isSelected, onPress, isFavorite }: StationMarkerProps) => {
@@ -196,10 +191,14 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
       isLoading = false,
       defaultFuelType,
       onRegionChangeComplete: onRegionChangeCompleteProp,
-      favoriteStationIds, // <-- Add this line
+      favoriteStationIds,
+      showDefaultMyLocationButton = true, // Default to true
     },
     ref
   ) => {
+    // Apply the iOS performance fix hook (no-op on other platforms)
+    useGoogleMapIosPerfFix();
+
     const [selectedStationData, setSelectedStationData] =
       useState<GasStation | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -215,12 +214,16 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
 
     // Calculate initial region based on the provided initialLocation
     const calculatedInitialRegion = useMemo(() => {
+      // Use the centralized default region if location is the fallback
+      if (initialLocation.isDefaultLocation) {
+        return DEFAULT_MAP_REGION;
+      }
+      // Otherwise, use user's location but with the default zoom level for consistency
       return {
         latitude: initialLocation.latitude,
         longitude: initialLocation.longitude,
-        // Use a reasonable delta for initial zoom, maybe USER_DELTA or a bit wider
-        latitudeDelta: 0.0922, // Standard delta
-        longitudeDelta: 0.0421, // Standard delta
+        latitudeDelta: ZOOM_LEVELS.CITY.latitudeDelta,
+        longitudeDelta: ZOOM_LEVELS.CITY.longitudeDelta,
       };
     }, [initialLocation]); // Depend on initialLocation
 
@@ -237,13 +240,13 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
 
         // Boundary Clamping Logic (simplified for brevity, assume it's correct)
         if (
-          newRegion.latitudeDelta > PHILIPPINES_DELTA.latitudeDelta + 5 ||
-          newRegion.longitudeDelta > PHILIPPINES_DELTA.longitudeDelta + 5
+          newRegion.latitudeDelta > PHILIPPINES_WIDE_REGION.latitudeDelta + 5 ||
+          newRegion.longitudeDelta > PHILIPPINES_WIDE_REGION.longitudeDelta + 5
         ) {
           targetLat = PHILIPPINES_CENTER.latitude;
           targetLng = PHILIPPINES_CENTER.longitude;
-          newRegion.latitudeDelta = PHILIPPINES_DELTA.latitudeDelta;
-          newRegion.longitudeDelta = PHILIPPINES_DELTA.longitudeDelta;
+          newRegion.latitudeDelta = PHILIPPINES_WIDE_REGION.latitudeDelta;
+          newRegion.longitudeDelta = PHILIPPINES_WIDE_REGION.longitudeDelta;
           needsAdjustment = true;
         } else {
           if (newRegion.latitude < PHILIPPINES_BOUNDS.sw.latitude)
@@ -286,7 +289,10 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
             latitudeDelta: currentTargetRegion.latitudeDelta,
             longitudeDelta: currentTargetRegion.longitudeDelta,
           };
-          mapViewRef.current.animateToRegion(centerFocusedRegion, 200);
+          mapViewRef.current.animateToRegion(
+            centerFocusedRegion,
+            ANIMATION_DURATION.SHORT
+          );
         }
       },
       [onRegionChangeCompleteProp, mapViewRef] // Include mapViewRef
@@ -353,7 +359,7 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
               latitudeDelta: region.latitudeDelta, // Use current delta
               longitudeDelta: region.longitudeDelta, // Use current delta
             },
-            300
+            ANIMATION_DURATION.MEDIUM
           );
         }
       },
@@ -371,7 +377,10 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
         const expansionRegion =
           superclusterInstance.getClusterExpansionRegion(clusterId);
         if (expansionRegion) {
-          mapViewRef.current.animateToRegion(expansionRegion, 300);
+          mapViewRef.current.animateToRegion(
+            expansionRegion,
+            ANIMATION_DURATION.MEDIUM
+          );
         }
       },
       [superclusterInstance, mapViewRef] // Include mapViewRef
@@ -392,61 +401,70 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
 
     return (
       <View style={styles.container}>
-        <MapView
-          ref={mapViewRef} // Pass the ref here
-          style={styles.map}
-          provider={PROVIDER_GOOGLE}
-          initialRegion={calculatedInitialRegion}
-          onRegionChangeComplete={handleInternalRegionChangeComplete} // Use internal handler
-          onLayout={onMapLayout}
-          showsUserLocation={true} // <-- Change to true
-          showsMyLocationButton={true} // <-- Also enable the button
-          loadingEnabled={isLoading}
-          loadingIndicatorColor={theme.Colors.primary}
-          loadingBackgroundColor={theme.Colors.white}
-          customMapStyle={mapStyle}
-          showsCompass={false}
-          showsTraffic={false}
-          toolbarEnabled={false}
-          onPress={handleCloseModal}
-          minZoomLevel={MIN_ZOOM_LEVEL}
-          maxZoomLevel={MAX_ZOOM_LEVEL}
-          rotateEnabled={false}
-          pitchEnabled={false}
-          removeClippedSubviews={Platform.OS === 'ios'} // iOS only performance optimization
-          onPanDrag={() => {}} // Workaround for iOS panning lag issue #4937
-        >
-          {points.map((point) => {
-            if (isPointCluster(point)) {
-              const clusterId = point.properties.cluster_id;
-              const bestPrice = clusterBestPrices.get(clusterId) ?? null;
-              return (
-                <ClusterMarker
-                  key={`cluster-${clusterId}`}
-                  point={point}
-                  bestPrice={bestPrice}
-                  onPress={handleClusterPress}
-                />
-              );
-            } else {
-              const pointFeature = point as Feature<Point, PointProperties>;
-              const isSelected =
-                selectedStationData?.id === pointFeature.properties.id;
-              const isFavorite =
-                Array.isArray(favoriteStationIds) &&
-                favoriteStationIds.includes(pointFeature.properties.id);
-              return (
-                <StationMarker
-                  key={`station-${pointFeature.properties.id}`}
-                  point={pointFeature}
-                  isSelected={isSelected}
-                  onPress={handleMarkerPress}
-                  isFavorite={isFavorite}
-                />
-              );
-            }
-          })}
-        </MapView>
+        <View style={{ flex: 1 }}>
+          <MapView
+            ref={mapViewRef}
+            style={styles.map}
+            // provider={Platform.OS === 'ios' ? undefined : PROVIDER_GOOGLE} // Use Apple Maps on iOS, Google Maps on Android
+            provider={PROVIDER_GOOGLE}
+            initialRegion={calculatedInitialRegion}
+            onRegionChangeComplete={handleInternalRegionChangeComplete}
+            onLayout={onMapLayout}
+            onMapReady={() => {
+              console.log('StationMapView: Map is ready!', {
+                provider: Platform.OS === 'ios' ? 'Apple Maps' : 'Google Maps',
+                initialRegion: calculatedInitialRegion,
+                hasStations: stations?.length > 0,
+                stationsCount: stations?.length,
+              });
+            }}
+            showsUserLocation={true}
+            showsMyLocationButton={showDefaultMyLocationButton}
+            loadingEnabled={isLoading}
+            loadingIndicatorColor={theme.Colors.primary}
+            loadingBackgroundColor={theme.Colors.white}
+            customMapStyle={mapStyle}
+            showsCompass={false}
+            showsTraffic={false}
+            toolbarEnabled={false}
+            onPress={handleCloseModal}
+            rotateEnabled={false}
+            pitchEnabled={false}
+            removeClippedSubviews={Platform.OS === 'ios'}
+            onPanDrag={() => {}}
+          >
+            {points.map((point) => {
+              if (isPointCluster(point)) {
+                const clusterId = point.properties.cluster_id;
+                const bestPrice = clusterBestPrices.get(clusterId) ?? null;
+                return (
+                  <ClusterMarker
+                    key={`cluster-${clusterId}`}
+                    point={point}
+                    bestPrice={bestPrice}
+                    onPress={handleClusterPress}
+                  />
+                );
+              } else {
+                const pointFeature = point as Feature<Point, PointProperties>;
+                const isSelected =
+                  selectedStationData?.id === pointFeature.properties.id;
+                const isFavorite =
+                  Array.isArray(favoriteStationIds) &&
+                  favoriteStationIds.includes(pointFeature.properties.id);
+                return (
+                  <StationMarker
+                    key={`station-${pointFeature.properties.id}`}
+                    point={pointFeature}
+                    isSelected={isSelected}
+                    onPress={handleMarkerPress}
+                    isFavorite={isFavorite}
+                  />
+                );
+              }
+            })}
+          </MapView>
+        </View>
 
         <StationInfoModal
           station={selectedStationData}
@@ -459,114 +477,3 @@ export const StationMapView = forwardRef<MapView, StationMapViewProps>(
   }
 );
 // --- End Render Logic ---
-
-// Styles remain the same
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // --- Revised Marker Styles ---
-  markerContainer: {
-    alignItems: 'center',
-  },
-  markerWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 34,
-    height: 34,
-    marginBottom: 2,
-  },
-  starContainer: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: 8,
-    paddingHorizontal: 2,
-    paddingVertical: 0,
-    zIndex: 2,
-  },
-  starText: {
-    color: '#FFD700',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textShadowColor: '#fff',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  favoriteMarkerContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  favoriteStarIcon: {
-    textShadowColor: '#fff',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  favoriteMarkerPriceText: {
-    fontSize: theme.Typography.fontSizeSmall,
-    fontWeight: theme.Typography.fontWeightBold,
-    color: '#FFD700',
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    paddingHorizontal: theme.Spacing.xs,
-    paddingVertical: 1,
-    borderRadius: theme.BorderRadius.sm,
-    overflow: 'hidden',
-    marginTop: -2,
-  },
-  markerRing: {
-    width: 29, // Increased size (approx 1.2x)
-    height: 29, // Increased size (approx 1.2x)
-    borderRadius: 14.5, // Adjusted for new size
-    backgroundColor: theme.Colors.white, // Default white background
-    position: 'absolute',
-    borderWidth: 2, // Make border slightly thicker
-    borderColor: theme.Colors.primary, // Default primary border
-    // Add centering for the child Text element
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectedMarkerRing: {
-    // Style for selected state
-    backgroundColor: theme.Colors.primary, // Primary background when selected
-    borderColor: theme.Colors.darkGray, // Darker border when selected
-  },
-  marker: {
-    // Central dot
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.Colors.primary, // Primary color dot
-  },
-  markerPriceText: {
-    // Style for the price text below the marker
-    fontSize: theme.Typography.fontSizeSmall,
-    fontWeight: theme.Typography.fontWeightBold,
-    color: theme.Colors.primary,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)', // Semi-transparent white background
-    paddingHorizontal: theme.Spacing.xs,
-    paddingVertical: 1,
-    borderRadius: theme.BorderRadius.sm,
-    overflow: 'hidden', // Clip background to border radius
-  },
-  selectedMarkerPriceText: {
-    // Optional: Style changes for text when marker is selected
-    // e.g., color: theme.Colors.white, backgroundColor: 'rgba(0, 0, 0, 0.5)'
-  },
-  clusterCountText: {
-    // Style for the count text inside the cluster circle
-    fontSize: theme.Typography.fontSizeSmall, // Adjust size as needed
-    fontWeight: theme.Typography.fontWeightBold,
-    color: theme.Colors.primary, // Use primary color for the count text
-    textAlign: 'center', // Ensure text is centered
-  },
-  // --- End Revised Marker Styles ---
-});
