@@ -18,8 +18,6 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { useCallback, useState, useEffect } from 'react'; // Add these imports
-import * as SplashScreen from 'expo-splash-screen'; // Add this import
 
 // Define form schema with Zod for validation
 const loginSchema = z.object({
@@ -32,7 +30,6 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function SignInScreen() {
   const router = useRouter();
   const { signIn, loading } = useAuth();
-  const [isScreenReady, setIsScreenReady] = useState(false);
 
   const {
     control,
@@ -45,20 +42,6 @@ export default function SignInScreen() {
       password: '',
     },
   });
-
-  // Mark screen as ready when it mounts
-  useEffect(() => {
-    setIsScreenReady(true);
-  }, []);
-
-  // Handle layout event to hide splash screen when sign-in screen is ready
-  const onLayoutRootView = useCallback(async () => {
-    if (isScreenReady) {
-      // Add a small delay to ensure a smooth transition
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      await SplashScreen.hideAsync();
-    }
-  }, [isScreenReady]);
 
   const onSubmit = async (data: LoginFormData) => {
     Keyboard.dismiss(); // Dismiss keyboard first
@@ -78,7 +61,6 @@ export default function SignInScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      onLayout={onLayoutRootView} // Add this onLayout handler
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}

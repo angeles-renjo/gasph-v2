@@ -1,5 +1,5 @@
 import 'expo-dev-client';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Stack,
   useRouter,
@@ -9,7 +9,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as SplashScreen from 'expo-splash-screen';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, AppState, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
@@ -20,34 +20,104 @@ import { useAuthStore } from '@/hooks/stores/useAuthStore';
 import { useLocationStore } from '@/hooks/stores/useLocationStore';
 import { Colors } from '@/styles/theme';
 
-// Tell the splash screen to remain visible
+// Keep splash screen visible initially, but don't await
 SplashScreen.preventAutoHideAsync().catch(() => {
   /* ignore errors */
 });
 
 export default function RootLayout() {
   const { initialize, initialized } = useAuthStore();
+  const [appReady, setAppReady] = useState(false);
 
-  // Do initialization work on mount
+  // --- Emergency Splash Screen Handler ---
+  // This ensures the splash screen always hides, even if initialization hangs
   useEffect(() => {
-    async function prepare() {
+    // Set a safety timeout to force-hide the splash screen after 3 seconds
+    const emergencyTimeout = setTimeout(() => {
+      console.log('[Emergency] Forcing splash screen to hide after timeout');
+      SplashScreen.hideAsync().catch((e) => {
+        console.warn('[Emergency] Error hiding splash screen:', e);
+      });
+    }, 3000); // 3 seconds max wait
+
+    return () => clearTimeout(emergencyTimeout);
+  }, []);
+
+  // --- App State Listener ---
+  // This handles cases where the app is backgrounded/foregrounded
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        // App came to foreground - force-hide splash screen
+        SplashScreen.hideAsync().catch(() => {});
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // --- Main Initialization Logic ---
+  // This runs all initialization tasks OFF the main thread
+  useEffect(() => {
+    let isMounted = true;
+
+    // Move initialization to a separate function to be run off the main thread
+    const runInitialization = async () => {
       try {
-        // Initialize auth
+        console.log('[Initialization] Starting app initialization');
+
+        // If auth needs initialization, do it first
         if (!initialized) {
           await initialize();
         }
 
-        // Initialize location
+        // Start location services (don't wait for completion)
         useLocationStore.getState().initializeLocation();
 
-        // Set up React Query
+        // Setup React Query
         setupReactQueryForReactNative();
-      } catch (e) {
-        console.warn('Error preparing app:', e);
+
+        // Small delay for UI to render properly
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        if (isMounted) {
+          console.log(
+            '[Initialization] App fully initialized, ready to hide splash screen'
+          );
+
+          // Set app ready state
+          setAppReady(true);
+
+          // Hide splash screen
+          await SplashScreen.hideAsync();
+        }
+      } catch (error) {
+        console.error('[Initialization] Error during initialization:', error);
+
+        // Even on error, try to hide splash screen and mark app as ready
+        if (isMounted) {
+          setAppReady(true);
+          SplashScreen.hideAsync().catch(() => {});
+        }
       }
+    };
+
+    // Run initialization in a non-blocking way
+    if (Platform.OS === 'android') {
+      // On Android, use setTimeout with 0 delay to move work off main thread
+      setTimeout(() => {
+        runInitialization();
+      }, 0);
+    } else {
+      // On iOS, we can directly run it (iOS handles threading differently)
+      runInitialization();
     }
 
-    prepare();
+    return () => {
+      isMounted = false;
+    };
   }, [initialize, initialized]);
 
   return (
