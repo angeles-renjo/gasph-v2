@@ -61,11 +61,10 @@ export default {
             'Allow GasPH to use your location to find nearby gas stations and fuel prices.',
         },
       ],
-      // Note: Removed "react-native-maps" from here if it was added previously, as it's not a valid plugin name.
       [
         'expo-splash-screen',
         {
-          image: './assets/icons/splash-icon-light.png',
+          image: './assets/icons/splash.png',
           resizeMode: 'contain', // Keep the resize mode consistent
           backgroundColor: '#2A9D8F',
           // Add dark mode config later if needed
