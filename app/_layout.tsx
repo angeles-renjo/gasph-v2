@@ -18,7 +18,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/hooks/stores/useAuthStore';
 import { useLocationStore } from '@/hooks/stores/useLocationStore'; // Import Zustand store
 import { Colors } from '@/styles/theme';
-import { View, Text } from 'react-native';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
