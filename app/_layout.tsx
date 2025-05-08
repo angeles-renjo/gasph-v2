@@ -213,7 +213,6 @@ function AuthenticatedNavigator() {
         name='auth/sign-in'
         options={{
           title: 'Sign In',
-          presentation: 'modal',
           headerShown: false,
         }}
       />
@@ -221,7 +220,6 @@ function AuthenticatedNavigator() {
         name='auth/sign-up'
         options={{
           title: 'Sign Up',
-          presentation: 'modal',
           headerShown: false,
         }}
       />
