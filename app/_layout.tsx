@@ -20,6 +20,8 @@ import { useAuthStore } from '@/hooks/stores/useAuthStore';
 import { useLocationStore } from '@/hooks/stores/useLocationStore';
 import { Colors } from '@/styles/theme';
 
+import * as Linking from 'expo-linking';
+
 // Keep splash screen visible initially, but don't await
 SplashScreen.preventAutoHideAsync().catch(() => {
   /* ignore errors */
@@ -28,6 +30,19 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 export default function RootLayout() {
   const { initialize, initialized } = useAuthStore();
   const [appReady, setAppReady] = useState(false);
+
+  useEffect(() => {
+    const subscription = Linking.addEventListener('url', (event) => {
+      console.log('Deep link received in _layout:', event.url);
+    });
+
+    // Also try to get the initial URL if the app was opened with a URL
+    Linking.getInitialURL().then((url) => {
+      if (url) console.log('Initial URL in _layout:', url);
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   // --- Emergency Splash Screen Handler ---
   // This ensures the splash screen always hides, even if initialization hangs

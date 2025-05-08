@@ -7,7 +7,7 @@ export default {
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icons/adaptive-icon.png',
-    scheme: 'myapp',
+    scheme: 'gasph',
     userInterfaceStyle: 'automatic',
     newArchEnabled: false,
     // Removed legacy splash config, using plugin below
