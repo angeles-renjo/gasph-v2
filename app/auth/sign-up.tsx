@@ -8,12 +8,13 @@ import {
   Platform,
   ScrollView,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FontAwesome5, FontAwesome } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,6 +24,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography, BorderRadius } from '@/styles/theme';
+import { useDebounce } from '@/hooks/useDebounce';
 
 // Validation schema
 const signupSchema = z.object({
@@ -39,11 +41,26 @@ export default function SignUpScreen() {
   const { signUp, loading } = useAuth();
   const initialize = useAuthStore((state) => state.initialize);
   const [googleSignInLoading, setGoogleSignInLoading] = useState(false);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+
+  // Real-time validation states
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [usernameExists, setUsernameExists] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
+
+  // Debounce values to prevent too many database calls
+  const debouncedUsername = useDebounce(username, 500);
+  const debouncedEmail = useDebounce(email, 500);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
+    setError,
+    clearErrors,
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
@@ -54,16 +71,124 @@ export default function SignUpScreen() {
     },
   });
 
+  // Check username availability when debounced value changes
+  useEffect(() => {
+    const checkUsername = async () => {
+      if (!debouncedUsername || debouncedUsername.length < 3) return;
+
+      setIsCheckingUsername(true);
+      try {
+        const { data, error } = await supabase.rpc('check_username_exists', {
+          username_to_check: debouncedUsername,
+        });
+
+        setUsernameExists(!!data);
+
+        if (data) {
+          setError('username', {
+            type: 'manual',
+            message: 'This username is already taken',
+          });
+        } else {
+          // Only clear errors if it was a "username exists" error
+          if (errors.username?.message === 'This username is already taken') {
+            clearErrors('username');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking username:', error);
+      } finally {
+        setIsCheckingUsername(false);
+      }
+    };
+
+    checkUsername();
+  }, [debouncedUsername, setError, clearErrors, errors.username?.message]);
+
+  // Check email availability when debounced value changes
+  useEffect(() => {
+    const checkEmail = async () => {
+      if (!debouncedEmail || !debouncedEmail.includes('@')) return;
+
+      setIsCheckingEmail(true);
+      try {
+        const { data, error } = await supabase.rpc('check_email_exists', {
+          email_to_check: debouncedEmail,
+        });
+
+        setEmailExists(!!data);
+
+        if (data) {
+          setError('email', {
+            type: 'manual',
+            message: 'This email is already registered',
+          });
+        } else {
+          // Only clear errors if it was a "email exists" error
+          if (errors.email?.message === 'This email is already registered') {
+            clearErrors('email');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking email:', error);
+      } finally {
+        setIsCheckingEmail(false);
+      }
+    };
+
+    checkEmail();
+  }, [debouncedEmail, setError, clearErrors, errors.email?.message]);
+
   const onSubmit = async (data: SignupFormData) => {
+    // Stop submission if username or email already exists
+    if (usernameExists) {
+      setError('username', {
+        type: 'manual',
+        message: 'This username is already taken',
+      });
+      return;
+    }
+
+    if (emailExists) {
+      setError('email', {
+        type: 'manual',
+        message: 'This email is already registered',
+      });
+      return;
+    }
+
     try {
-      await signUp({
+      setFormSubmitting(true);
+
+      // 1. Sign up the user
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.fullName,
+            username: data.username,
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      // 2. Now sign in the user immediately
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
+      if (signInError) throw signInError;
+
+      // 3. Initialize auth state
+      await initialize();
+
+      // 4. Show welcome message and redirect to home
       Alert.alert(
-        'Sign Up Successful',
-        'Your account has been created. Please check your email to verify your account.',
+        'Account Created',
+        'Welcome to GasPh! You are now signed in.',
         [{ text: 'OK', onPress: () => router.replace('/') }]
       );
     } catch (error: any) {
@@ -73,26 +198,28 @@ export default function SignUpScreen() {
           (error.message.toLowerCase().includes('username') &&
             error.message.toLowerCase().includes('unique constraint')))
       ) {
-        Alert.alert(
-          'Sign Up Failed',
-          'This username is already taken. Please choose a different one.'
-        );
+        setError('username', {
+          type: 'manual',
+          message: 'This username is already taken',
+        });
       } else if (
         error.message &&
         (error.message.includes('users_email_key') ||
           (error.message.toLowerCase().includes('email') &&
             error.message.toLowerCase().includes('unique constraint')))
       ) {
-        Alert.alert(
-          'Sign Up Failed',
-          'This email address is already registered. Please try logging in.'
-        );
+        setError('email', {
+          type: 'manual',
+          message: 'This email is already registered',
+        });
       } else {
         Alert.alert(
           'Sign Up Failed',
           error?.message || 'An unexpected error occurred'
         );
       }
+    } finally {
+      setFormSubmitting(false);
     }
   };
 
@@ -234,13 +361,33 @@ export default function SignUpScreen() {
                     color={Colors.iconGray}
                   />
                 }
-                onChangeText={onChange}
+                onChangeText={(text) => {
+                  onChange(text);
+                  setEmail(text);
+                }}
                 onBlur={onBlur}
                 value={value}
                 error={errors.email?.message}
                 keyboardType='email-address'
                 autoCapitalize='none'
                 autoComplete='email'
+                rightIcon={
+                  isCheckingEmail ? (
+                    <ActivityIndicator size='small' color={Colors.primary} />
+                  ) : emailExists ? (
+                    <FontAwesome5
+                      name='times-circle'
+                      size={16}
+                      color={Colors.error}
+                    />
+                  ) : value && value.includes('@') && !errors.email ? (
+                    <FontAwesome5
+                      name='check-circle'
+                      size={16}
+                      color={Colors.success}
+                    />
+                  ) : null
+                }
               />
             )}
           />
@@ -255,11 +402,31 @@ export default function SignUpScreen() {
                 leftIcon={
                   <FontAwesome5 name='at' size={16} color={Colors.iconGray} />
                 }
-                onChangeText={onChange}
+                onChangeText={(text) => {
+                  onChange(text);
+                  setUsername(text);
+                }}
                 onBlur={onBlur}
                 value={value}
                 error={errors.username?.message}
                 autoCapitalize='none'
+                rightIcon={
+                  isCheckingUsername ? (
+                    <ActivityIndicator size='small' color={Colors.primary} />
+                  ) : usernameExists ? (
+                    <FontAwesome5
+                      name='times-circle'
+                      size={16}
+                      color={Colors.error}
+                    />
+                  ) : value && value.length >= 3 && !errors.username ? (
+                    <FontAwesome5
+                      name='check-circle'
+                      size={16}
+                      color={Colors.success}
+                    />
+                  ) : null
+                }
               />
             )}
           />
@@ -288,9 +455,15 @@ export default function SignUpScreen() {
           <Button
             title='Create account'
             onPress={handleSubmit(onSubmit)}
-            loading={loading}
+            loading={formSubmitting}
             style={styles.button}
             fullWidth
+            disabled={
+              isCheckingUsername ||
+              isCheckingEmail ||
+              usernameExists ||
+              emailExists
+            }
           />
 
           <View style={styles.separatorContainer}>
@@ -314,7 +487,7 @@ export default function SignUpScreen() {
               />
             }
             fullWidth
-            disabled={googleSignInLoading || loading}
+            disabled={googleSignInLoading || formSubmitting}
           />
 
           <View style={styles.footer}>
