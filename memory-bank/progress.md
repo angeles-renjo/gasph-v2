@@ -9,10 +9,10 @@
 ## What's Left to Build
 
 - Implement the core functionality of the app, including:
-  - Fetching and displaying gas price data.
-  - Allowing users to report gas prices.
+  - Fetching and displaying gas price data using the updated `active_price_reports` and `doe_price_view`.
+  - Allowing users to report gas prices, integrated with the enhanced price cycle management.
   - Implementing user authentication and authorization.
-  - Providing admin functionality.
+  - Providing admin functionality, including the enhanced price cycle management interface.
 
 ## Current Status
 
@@ -78,6 +78,7 @@
 ## Evolution of Project Decisions
 
 - The project is following the KISS and SOLID principles.
+- **Enhanced Price Cycle Management (2025-09-05):** Implemented enhanced price cycle management in the database schema, including cycle numbering, status transitions (active, completed, archived), and a trigger for automatic status updates. Updated the `active_price_reports` and `doe_price_view` to respect cycle status. This provides a more robust system for managing price data over time.
 - **Location Management (2025-04-24):** Refactored location state management from direct hook usage in multiple screens to a centralized Zustand store (`useLocationStore`) initialized at the root layout. This aligns with the project's preference for Zustand for global state and resolves issues with redundant hook calls.
 - **Map Performance Strategy (2025-04-26):** Due to persistent iOS lag with Google Maps provider (known community issue #4937), current strategy involves testing marker simplification. If unsuccessful, the next step is likely switching to Apple Maps provider for iOS.
 - **React Query Optimization (2025-04-28):** Implemented React Native specific optimizations for React Query to improve performance and battery usage. This includes online status management, app focus management, screen focus awareness, and targeted query invalidation. Created utilities for focus-aware query hooks and optimized versions of key hooks. This aligns with the project's focus on performance and user experience.

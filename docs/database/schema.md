@@ -24,34 +24,43 @@ select
   gs.latitude as station_latitude,
   gs.longitude as station_longitude,
   p.username as reporter_username,
-  COALESCE(pc.confirmations_count, 0) as confirmations_count,
-  case
-    when COALESCE(pc.confirmations_count, 0) >= 5 then 90
-    when COALESCE(pc.confirmations_count, 0) >= 3 then 80
-    when COALESCE(pc.confirmations_count, 0) >= 1 then 70
-    else case
-      when upr.reported_at > (now() - '1 day'::interval) then 65
-      when upr.reported_at > (now() - '3 days'::interval) then 55
-      when upr.reported_at > (now() - '7 days'::interval) then 45
-      else 35
-    end
-  end as confidence_score
+  COALESCE(pc.confirmations_count, 0)::integer AS confirmations_count,
+  -- Calculate confidence score based on confirmations and recency
+  CASE
+    WHEN COALESCE(pc.confirmations_count, 0) >= 5 THEN 90 -- High confidence with many confirmations
+    WHEN COALESCE(pc.confirmations_count, 0) >= 3 THEN 80
+    WHEN COALESCE(pc.confirmations_count, 0) >= 1 THEN 70
+    ELSE
+      CASE
+        -- More recent reports get higher baseline confidence
+        WHEN upr.reported_at > (NOW() - INTERVAL '1 day') THEN 65
+        WHEN upr.reported_at > (NOW() - INTERVAL '3 days') THEN 55
+        WHEN upr.reported_at > (NOW() - INTERVAL '7 days') THEN 45
+        ELSE 35
+      END
+  END AS confidence_score
 from
   user_price_reports upr
-  join gas_stations gs on upr.station_id = gs.id
-  join profiles p on upr.user_id = p.id
-  left join (
-    select
-      pc_inner.report_id,
-      count(*)::integer as confirmations_count
-    from
-      price_confirmations pc_inner
-    group by
-      pc_inner.report_id
-  ) pc on upr.id = pc.report_id
-  join price_reporting_cycles prc on upr.cycle_id = prc.id
-where
-  prc.status = 'active'::text;
+JOIN
+  gas_stations gs ON upr.station_id = gs.id
+JOIN
+  profiles p ON upr.user_id = p.id
+LEFT JOIN (
+  SELECT
+    report_id,
+    COUNT(*)::integer AS confirmations_count
+  FROM
+    price_confirmations
+  GROUP BY
+    report_id
+) pc ON upr.id = pc.report_id
+JOIN
+  price_reporting_cycles prc ON upr.cycle_id = prc.id
+WHERE
+  -- Only include reports from active or completed cycles (not archived)
+  prc.status IN ('active', 'completed')
+  -- And reports that haven't expired yet
+  AND upr.expires_at > NOW();
 ```
 
 ### `current_price_cycle`
@@ -349,8 +358,9 @@ create table public.gas_stations (
   status text not null default 'active'::text,
   created_at timestamp with time zone null default now(),
   updated_at timestamp with time zone null default now(),
+  place_id text null,
   constraint gas_stations_pkey primary key (id),
-  constraint gas_stations_name_address_unique unique (name, address)
+  constraint gas_stations_place_id_unique unique (place_id)
 ) TABLESPACE pg_default;
 
 create index IF not exists gas_stations_latitude_idx on public.gas_stations using btree (latitude) TABLESPACE pg_default;
@@ -358,6 +368,7 @@ create index IF not exists gas_stations_longitude_idx on public.gas_stations usi
 create index IF not exists gas_stations_brand_idx on public.gas_stations using btree (brand) TABLESPACE pg_default;
 create index IF not exists gas_stations_city_idx on public.gas_stations using btree (city) TABLESPACE pg_default;
 create index IF not exists gas_stations_status_idx on public.gas_stations using btree (status) TABLESPACE pg_default;
+create index IF not exists idx_gas_stations_lower_city on public.gas_stations using btree (lower(city)) TABLESPACE pg_default;
 ```
 
 ### `price_confirmations`
@@ -497,13 +508,119 @@ create table public.profiles (
   reputation_score integer null default 0,
   is_admin boolean null default false,
   created_at timestamp with time zone null default now(),
+  is_pro boolean not null default false,
+  full_name text null,
   constraint profiles_pkey primary key (id),
   constraint profiles_username_key unique (username),
   constraint profiles_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE,
   constraint profiles_username_check check ((char_length(username) >= 3))
 ) TABLESPACE pg_default;
 
+create index IF not exists idx_profiles_is_pro on public.profiles using btree (is_pro) TABLESPACE pg_default;
+
 create index IF not exists idx_profiles_id_is_admin on public.profiles using btree (id) INCLUDE (is_admin) TABLESPACE pg_default;
+
+create trigger on_profile_deleted after DELETE on profiles for EACH row execute FUNCTION handle_delete_user ();
+```
+
+### `station_reports`
+
+```sql
+create table public.station_reports (
+  id uuid not null default gen_random_uuid (),
+  user_id uuid null,
+  report_type public.report_type not null,
+  station_id uuid null,
+  latitude numeric(10, 6) null,
+  longitude numeric(10, 6) null,
+  reported_data jsonb null,
+  reason text null,
+  status public.report_status not null default 'pending'::report_status,
+  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  resolved_at timestamp with time zone null,
+  resolver_id uuid null,
+  constraint station_reports_pkey primary key (id),
+  constraint station_reports_resolver_id_fkey foreign KEY (resolver_id) references auth.users (id) on delete set null,
+  constraint station_reports_station_id_fkey foreign KEY (station_id) references gas_stations (id) on delete CASCADE,
+  constraint station_reports_user_id_fkey foreign KEY (user_id) references profiles (id),
+  constraint check_reason_for_delete_update check (
+    (
+      (report_type = 'add'::report_type)
+      or (
+        (
+          report_type = any (
+            array['update'::report_type, 'delete'::report_type]
+          )
+        )
+        and (reason is not null)
+        and (reason <> ''::text)
+      )
+    )
+  ),
+  constraint check_station_id_for_report_type check (
+    (
+      (
+        (report_type = 'add'::report_type)
+        and (station_id is null)
+      )
+      or (
+        (
+          report_type = any (
+            array['update'::report_type, 'delete'::report_type]
+          )
+        )
+        and (station_id is not null)
+      )
+    )
+  ),
+  constraint check_location_for_add_report check (
+    (
+      (report_type <> 'add'::report_type)
+      or (
+        (report_type = 'add'::report_type)
+        and (latitude is not null)
+        and (longitude is not null)
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_station_reports_user_id on public.station_reports using btree (user_id) TABLESPACE pg_default;
+
+create index IF not exists idx_station_reports_station_id on public.station_reports using btree (station_id) TABLESPACE pg_default
+where
+  (station_id is not null);
+
+create index IF not exists idx_station_reports_status on public.station_reports using btree (status) TABLESPACE pg_default;
+
+create index IF not exists idx_station_reports_report_type on public.station_reports using btree (report_type) TABLESPACE pg_default;
+
+create trigger before_insert_update_station_report_check_duplicate BEFORE INSERT
+or
+update on station_reports for EACH row when (new.status = 'pending'::report_status)
+execute FUNCTION check_duplicate_pending_report ();
+```
+
+### `user_favorites`
+
+```sql
+create table public.user_favorites (
+  id uuid not null default gen_random_uuid (),
+  user_id uuid not null,
+  station_id uuid not null,
+  created_at timestamp with time zone not null default now(),
+  constraint user_favorites_pkey primary key (id),
+  constraint user_favorites_user_id_station_id_key unique (user_id, station_id),
+  constraint user_favorites_station_id_fkey foreign KEY (station_id) references gas_stations (id) on delete CASCADE,
+  constraint user_favorites_user_id_fkey foreign KEY (user_id) references profiles (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_user_favorites_user_id on public.user_favorites using btree (user_id) TABLESPACE pg_default;
+
+create index IF not exists idx_user_favorites_station_id on public.user_favorites using btree (station_id) TABLESPACE pg_default;
+
+create trigger enforce_favorite_limit_before_insert BEFORE INSERT on user_favorites for EACH row
+execute FUNCTION check_favorite_limit ();
 ```
 
 ### `user_price_reports`
@@ -531,3 +648,5 @@ create index IF not exists user_price_reports_user_id_idx on public.user_price_r
 create index IF not exists user_price_reports_reported_at_idx on public.user_price_reports using btree (reported_at) TABLESPACE pg_default;
 create index IF not exists user_price_reports_cycle_id_idx on public.user_price_reports using btree (cycle_id) TABLESPACE pg_default;
 ```
+
+</final_file_content>

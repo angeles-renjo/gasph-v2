@@ -49,13 +49,13 @@ The application uses a Supabase PostgreSQL database. The key tables and views ar
 
 ### Views
 
-- `active_price_reports`: Provides a consolidated view of user-reported prices for the currently active reporting cycle.
+- `active_price_reports`: Provides a consolidated view of user-reported prices that belong to the currently active or completed reporting cycles, including station details, reporter info, confirmation counts, and a calculated confidence score. Reports from archived cycles are excluded, and only reports that have not expired are included.
 - `current_price_cycle`: Selects the details of the price reporting cycle that is currently marked as 'active'.
-- `doe_price_view`: Determines the most relevant Department of Energy (DOE) price reference for each gas station and fuel type.
+- `doe_price_view`: Determines the most relevant Department of Energy (DOE) price reference for each gas station and fuel type using a tiered fallback system (brand-specific, city overall, NCR prevailing). It now respects cycle status, only including data from active or completed cycles.
 
 ### Tables
 
-- `gas_stations`: Stores information about individual gas stations.
+- `gas_stations`: Stores information about individual gas stations, including a `place_id` for integration with external location services like Google Places.
 - `price_confirmations`: Records user confirmations for specific price reports.
 - `price_references`: Stores official DOE price reference data.
 - `price_reporting_cycles`: Manages the cycles for community price reporting and DOE data imports.
