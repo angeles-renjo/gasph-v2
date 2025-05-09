@@ -106,17 +106,15 @@ export function PriceReportModal({
     try {
       setSubmitting(true);
 
-      const { error: reportError } = await supabase
-        .from('user_price_reports')
-        .insert({
-          station_id: stationId,
-          fuel_type: selectedFuelType,
-          price: parsedPrice,
-          user_id: user.id,
-          cycle_id: currentCycle.id,
-        });
+      // Call the RPC function instead of directly inserting
+      const { data, error } = await supabase.rpc('submit_price_report', {
+        p_station_id: stationId,
+        p_fuel_type: selectedFuelType,
+        p_price: parsedPrice,
+        p_cycle_id: currentCycle.id,
+      });
 
-      if (reportError) throw reportError;
+      if (error) throw error;
 
       await queryClient.invalidateQueries({
         queryKey: queryKeys.users.contributions(user.id),
@@ -154,10 +152,19 @@ export function PriceReportModal({
       );
     } catch (error: any) {
       console.error('Error submitting price report:', error);
-      Alert.alert(
-        'Submission Error',
-        error.message || 'Failed to submit price report. Please try again.'
-      );
+
+      // Provide a more specific error message for cooldown violations
+      if (error.message && error.message.includes('already reported')) {
+        Alert.alert(
+          'Submission Limit',
+          'You have already reported a price for this station and fuel type within the last 24 hours. Please try again later.'
+        );
+      } else {
+        Alert.alert(
+          'Submission Error',
+          error.message || 'Failed to submit price report. Please try again.'
+        );
+      }
     } finally {
       setSubmitting(false);
     }
