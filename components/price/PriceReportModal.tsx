@@ -249,21 +249,6 @@ export function PriceReportModal({
             >
               <Text style={styles.modalStationName}>{stationName}</Text>
 
-              {currentCycle ? (
-                <View style={styles.cycleInfoContainer}>
-                  <Text style={styles.cycleInfoLabel}>For price cycle:</Text>
-                  <Text style={styles.cycleInfoValue}>
-                    #{currentCycle.cycle_number}
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.cycleInfoContainer}>
-                  <Text style={styles.cycleInfoLabel}>
-                    Checking active price cycle...
-                  </Text>
-                </View>
-              )}
-
               <Text style={styles.inputLabel}>Fuel Type</Text>
               <FlatList
                 data={
