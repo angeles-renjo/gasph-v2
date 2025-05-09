@@ -106,7 +106,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: Spacing.md,
     marginBottom: isSmallScreen ? Spacing.xs : 0,
-    backgroundColor: Colors.lightGray2,
+    backgroundColor: Colors.primaryLightTint,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xxs,
     borderRadius: BorderRadius.md,
