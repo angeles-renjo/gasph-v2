@@ -67,12 +67,17 @@ export function BestPriceCard({
   longitude,
   isLowestPrice = false,
   isSelected = false,
+  week_of = null,
   onPress,
 }: BestPriceCardProps) {
   const router = useRouter();
 
   const navigateToStation = () => {
-    router.push(`/station/${id}`);
+    if (onPress) {
+      onPress(); // This will call handleNavigateToStation from the modal, which includes onClose
+    } else {
+      router.push(`/station/${id}`); // Fallback if no onPress is provided
+    }
   };
 
   const handleOpenDirections = () => {
@@ -165,6 +170,7 @@ export function BestPriceCard({
           common_price={common_price}
           max_price={max_price}
           source_type={source_type}
+          week_of={week_of}
         />
       ) : null}
 

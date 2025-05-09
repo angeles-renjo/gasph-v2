@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { formatPrice } from '@/utils/formatters';
+import { formatPrice, formatDate } from '@/utils/formatters';
 import { Colors, Typography, Spacing, BorderRadius } from '@/styles/theme';
 
 interface DOEPriceDisplayProps {
@@ -7,6 +7,7 @@ interface DOEPriceDisplayProps {
   common_price: number | null;
   max_price: number | null;
   source_type: string | null;
+  week_of: string | null;
 }
 
 // Helper function to format source_type label (kept local for now)
@@ -31,6 +32,7 @@ export function DOEPriceDisplay({
   common_price,
   max_price,
   source_type,
+  week_of,
 }: DOEPriceDisplayProps) {
   // Don't render if all prices are null
   if (min_price === null && common_price === null && max_price === null) {
@@ -41,15 +43,20 @@ export function DOEPriceDisplay({
     <View style={styles.doeContainer}>
       {/* Row 1: Label + Badge */}
       <View style={styles.doeInfoRow}>
-        <Text style={styles.doeLabel}>DOE:</Text>
-        {/* Explicitly render null if source_type is falsy (e.g., null, undefined, '') */}
-        {source_type ? (
-          <View style={styles.doeTypeBadge}>
-            <Text style={styles.doeTypeBadgeText}>
-              {formatSourceTypeLabel(source_type)}
-            </Text>
-          </View>
-        ) : null}
+        <View style={{ flexDirection: 'row' }}>
+          <Text style={styles.doeLabel}>DOE:</Text>
+          {/* Explicitly render null if source_type is falsy (e.g., null, undefined, '') */}
+          {source_type ? (
+            <View style={styles.doeTypeBadge}>
+              <Text style={styles.doeTypeBadgeText}>
+                {formatSourceTypeLabel(source_type)}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={styles.dateText}>
+          As of {week_of ? formatDate(week_of) : ''}
+        </Text>
       </View>
       {/* Row 2: Min/Common/Max Table */}
       <View style={styles.doeTableRow}>
@@ -84,6 +91,8 @@ const styles = StyleSheet.create({
   doeInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'space-between',
     marginBottom: Spacing.xxs,
   },
   doeLabel: {
@@ -125,5 +134,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSizeSmallMedium,
     color: Colors.mediumDarkGray,
     fontWeight: Typography.fontWeightMedium,
+  },
+  dateText: {
+    marginTop: Spacing.xs, // Use theme spacing
+    fontSize: Typography.fontSizeSmall, // Use theme typography
+    color: Colors.textGray, // Use theme color
+    fontStyle: 'italic', // Keep fontStyle local
+    textAlign: 'right',
   },
 });

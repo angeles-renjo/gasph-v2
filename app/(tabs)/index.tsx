@@ -247,6 +247,7 @@ export default function BestPricesScreen() {
               common_price={item.common_price}
               max_price={item.max_price}
               source_type={item.source_type}
+              week_of={item.week_of}
               isLowestPrice={
                 lowestPrice !== null &&
                 item.price !== null &&

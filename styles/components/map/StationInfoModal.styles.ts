@@ -100,6 +100,11 @@ export const styles = StyleSheet.create({
     color: Colors.textGray,
     fontWeight: Typography.fontWeightRegular,
   },
+  doeWeekOf: {
+    fontSize: Typography.fontSizeXSmall,
+    color: Colors.textGray,
+    fontWeight: Typography.fontWeightRegular,
+  },
   warningContainer: {
     flexDirection: 'row',
     alignItems: 'center',

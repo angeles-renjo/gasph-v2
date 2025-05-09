@@ -14,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useStationFuelTypePrices } from '@/hooks/queries/stations/useStationFuelTypePrices';
 import type { GasStation } from '@/hooks/queries/stations/useNearbyStations';
 import type { FuelType } from '@/hooks/queries/prices/useBestPrices';
-import { formatPrice, formatFuelType } from '@/utils/formatters';
+import { formatPrice, formatFuelType, formatDate } from '@/utils/formatters';
 import { Colors, Spacing } from '@/styles/theme';
 import { openDirections } from '@/utils/navigation';
 import ReportStationModal from '../station/ReportStationModal';
@@ -285,6 +285,13 @@ export function StationInfoModal({
                         {formatDoeSourceType(doePriceDataResult?.source_type)}
                       </Text>
                     </View>
+                    {/* Week of date display */}
+                    <Text style={styles.doeWeekOf}>
+                      As of{' '}
+                      {doePriceDataResult?.week_of
+                        ? formatDate(doePriceDataResult.week_of)
+                        : 'N/A'}
+                    </Text>
                     {showNoOfficialData && (
                       <View style={styles.warningContainer}>
                         <Feather

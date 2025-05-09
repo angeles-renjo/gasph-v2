@@ -9,6 +9,7 @@ type DoePriceData = {
   min_price: number | null;
   max_price: number | null;
   source_type: string | null;
+  week_of: string | null;
 } | null; // Can be null if no data found
 
 export const useStationDoePrice = (
@@ -26,7 +27,7 @@ export const useStationDoePrice = (
 
       const { data, error } = await supabase
         .from('doe_price_view')
-        .select('common_price, min_price, max_price, source_type')
+        .select('common_price, min_price, max_price, source_type, week_of')
         .eq('gas_station_id', stationId)
         .eq('fuel_type', dbFuelType)
         .maybeSingle(); // Use maybeSingle to handle 0 or 1 row
