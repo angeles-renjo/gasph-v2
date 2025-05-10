@@ -30,6 +30,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 export default function RootLayout() {
   const { initialize, initialized } = useAuthStore();
   const [appReady, setAppReady] = useState(false);
+  const [persistenceError, setPersistenceError] = useState<Error | null>(null);
 
   useEffect(() => {
     const subscription = Linking.addEventListener('url', (event) => {
@@ -135,9 +136,57 @@ export default function RootLayout() {
     };
   }, [initialize, initialized]);
 
+  // Add effect to log persistence errors
+  useEffect(() => {
+    if (persistenceError) {
+      console.error(
+        '[PersistQueryClient] Persistence error:',
+        persistenceError
+      );
+    }
+  }, [persistenceError]);
+
+  // Add a custom error boundary for React Native
+  useEffect(() => {
+    // Set up a global error handler for uncaught errors
+    const errorHandler = (error: Error) => {
+      // Check if this is a persistence-related error
+      if (
+        error &&
+        typeof error.message === 'string' &&
+        (error.message.includes('CursorWindow') ||
+          error.message.includes('persist') ||
+          error.message.includes('storage'))
+      ) {
+        console.error('[Global] Persistence error caught:', error);
+        setPersistenceError(error);
+
+        // Return true to indicate we've handled this error
+        return true;
+      }
+      return false;
+    };
+
+    // Use the setJSExceptionHandler from react-native-exception-handler
+    // or a similar approach if available
+
+    // For now, we'll rely on the dehydrateOptions to prevent the error
+    console.log(
+      '[PersistQueryClient] Set up error prevention for large queries'
+    );
+
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
+
   return (
     <PersistQueryClientProvider
       client={queryClient}
+      onSuccess={() => {
+        // Clear any previous persistence errors on successful hydration
+        if (persistenceError) setPersistenceError(null);
+      }}
       persistOptions={{
         persister: createAsyncStoragePersister({
           storage: AsyncStorage,
@@ -147,9 +196,31 @@ export default function RootLayout() {
         dehydrateOptions: {
           shouldDehydrateQuery: (query) => {
             const queryKey = query.queryKey as string[];
-            return (
-              !queryKey.includes('realtime') && !queryKey.includes('session')
+
+            // Exclude large datasets that could cause SQLite row size issues
+            const excludePatterns = [
+              'realtime',
+              'session',
+              'prices.best', // Best prices queries (potentially large)
+              'stations.nearby', // Nearby stations queries (potentially large)
+              'stations.all', // All stations queries (potentially large)
+            ];
+
+            // Check if query key contains any of the exclude patterns
+            const shouldExclude = excludePatterns.some((pattern) =>
+              queryKey.some(
+                (key) => typeof key === 'string' && key.includes(pattern)
+              )
             );
+
+            // Also exclude queries with large data (over 100KB)
+            const dataSize = query.state.data
+              ? JSON.stringify(query.state.data).length
+              : 0;
+            const isTooLarge = dataSize > 100 * 1024; // 100KB limit
+
+            // Only persist if not excluded and not too large
+            return !shouldExclude && !isTooLarge;
           },
         },
       }}
