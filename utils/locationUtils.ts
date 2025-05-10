@@ -67,100 +67,165 @@ export const checkOrRequestLocationPermission = async (): Promise<boolean> => {
 };
 
 /**
- * Fetches the current device location with a timeout.
- * @param {number} timeoutMs - Timeout duration in milliseconds.
+ * Fetches the current device location using a progressive strategy.
+ * First tries to get a quick, low-accuracy location, then attempts a more accurate one.
  * @returns {Promise<LocationData>} The location data (latitude, longitude).
- * @throws {Error} If location fetching fails or times out.
+ * @throws {Error} If all location fetching attempts fail.
  */
-export const fetchCurrentLocation = async (
-  timeoutMs = 10000 // Reduce timeout to 10 seconds (from 20 seconds)
-): Promise<LocationData> => {
-  console.log(
-    `LocationUtils: Fetching current location with timeout ${timeoutMs}ms...`
-  );
+export const fetchCurrentLocation = async (): Promise<LocationData> => {
+  console.log('LocationUtils: Starting progressive location acquisition');
+
+  // Create a controller to manage the location acquisition process
+  const controller = {
+    bestLocation: null as Location.LocationObject | null,
+    bestAccuracy: Infinity,
+    hasReturned: false,
+    timeoutIds: [] as NodeJS.Timeout[],
+  };
+
+  // Function to clear all timeouts
+  const clearAllTimeouts = () => {
+    controller.timeoutIds.forEach((id) => clearTimeout(id));
+    controller.timeoutIds = [];
+  };
 
   try {
-    console.log('LocationUtils: Creating location promise with low accuracy');
-    const locationPromise = Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced, // Try balanced accuracy instead of low
-      mayShowUserSettingsDialog: false, // Don't show settings dialog
+    // Try to get the last known position immediately (fastest option)
+    const lastKnownPromise = getLastKnownLocationWithTimeout();
+
+    // Start a quick, low-accuracy location request
+    const quickLocationPromise = getLocationWithOptions({
+      accuracy: Location.Accuracy.Low,
+      timeoutMs: LOCATION_TIMEOUT.QUICK,
     });
 
-    console.log('LocationUtils: Setting up timeout race');
-    // Race the location promise against a timeout
-    let timeoutId: NodeJS.Timeout;
-    const timeoutPromise = new Promise<null>((_, reject) => {
-      timeoutId = setTimeout(() => {
-        console.log(
-          `LocationUtils: Location request timed out after ${timeoutMs}ms`
-        );
-        reject(new Error('Inner location request timed out'));
-      }, timeoutMs);
+    // Start a more accurate location request in parallel
+    const accurateLocationPromise = getLocationWithOptions({
+      accuracy: Location.Accuracy.Balanced,
+      timeoutMs: LOCATION_TIMEOUT.ACCURATE,
     });
 
-    // Make sure to clear the timeout
-    const clearTimeoutFn = () => {
-      if (timeoutId) clearTimeout(timeoutId);
+    // Wait for any of the promises to resolve
+    const locationResult = await Promise.any([
+      lastKnownPromise,
+      quickLocationPromise,
+      accurateLocationPromise,
+    ]);
+
+    // Clear all timeouts since we got a result
+    clearAllTimeouts();
+
+    console.log('LocationUtils: Location acquired successfully', {
+      latitude: locationResult.coords.latitude,
+      longitude: locationResult.coords.longitude,
+      accuracy: locationResult.coords.accuracy,
+      source: locationResult.source,
+    });
+
+    return {
+      latitude: locationResult.coords.latitude,
+      longitude: locationResult.coords.longitude,
+      isDefaultLocation: false,
     };
+  } catch (error) {
+    // Clear all timeouts on error
+    clearAllTimeouts();
 
-    try {
-      console.log('LocationUtils: Awaiting race between location and timeout');
-      const position = await Promise.race([locationPromise, timeoutPromise]);
-      clearTimeoutFn(); // Clear timeout if location resolves first
-
-      if (!position) {
-        console.error('LocationUtils: Received null position');
-        throw new Error('Received null position');
-      }
-
-      console.log('LocationUtils: Location fetched successfully', {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
-        timestamp: new Date(position.timestamp).toISOString(),
-      });
-
-      return {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        isDefaultLocation: false,
-      };
-    } catch (raceError) {
-      clearTimeoutFn(); // Make sure to clear timeout on error
-      throw raceError; // Re-throw the error
-    }
-  } catch (err: any) {
-    console.error('LocationUtils: Error fetching location:', err.message);
-
-    // Try a fallback approach with last known position if available
-    try {
-      console.log(
-        'LocationUtils: Trying to get last known position as fallback'
-      );
-      const lastKnownPosition = await Location.getLastKnownPositionAsync();
-
-      if (lastKnownPosition) {
-        console.log('LocationUtils: Using last known position', {
-          latitude: lastKnownPosition.coords.latitude,
-          longitude: lastKnownPosition.coords.longitude,
-          timestamp: new Date(lastKnownPosition.timestamp).toISOString(),
-        });
-
-        return {
-          latitude: lastKnownPosition.coords.latitude,
-          longitude: lastKnownPosition.coords.longitude,
-          isDefaultLocation: false,
-        };
-      } else {
-        console.log('LocationUtils: No last known position available');
-      }
-    } catch (fallbackErr) {
-      console.error('LocationUtils: Fallback also failed:', fallbackErr);
-    }
-
-    // Re-throw the original error to be handled by the caller
-    throw err;
+    console.error(
+      'LocationUtils: All location acquisition methods failed:',
+      error
+    );
+    throw new Error('Failed to acquire location after multiple attempts');
   }
+};
+
+/**
+ * Gets the last known location with a timeout.
+ * @returns {Promise<Location.LocationObject>} The location object with a source property.
+ */
+const getLastKnownLocationWithTimeout = async (): Promise<
+  Location.LocationObject & { source: string }
+> => {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('Last known location request timed out'));
+    }, LOCATION_TIMEOUT.QUICK);
+
+    Location.getLastKnownPositionAsync()
+      .then((position) => {
+        if (position) {
+          clearTimeout(timeoutId);
+          console.log('LocationUtils: Got last known position');
+          resolve({
+            ...position,
+            source: 'last_known',
+          });
+        } else {
+          reject(new Error('No last known position available'));
+        }
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+};
+
+/**
+ * Gets the current location with specific options and a timeout.
+ * @param {Object} options - The options for location acquisition.
+ * @param {Location.Accuracy} options.accuracy - The accuracy level to use.
+ * @param {number} options.timeoutMs - The timeout in milliseconds.
+ * @returns {Promise<Location.LocationObject>} The location object with a source property.
+ */
+const getLocationWithOptions = async ({
+  accuracy,
+  timeoutMs,
+}: {
+  accuracy: Location.Accuracy;
+  timeoutMs: number;
+}): Promise<Location.LocationObject & { source: string }> => {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(
+        new Error(
+          `Location request with accuracy ${accuracy} timed out after ${timeoutMs}ms`
+        )
+      );
+    }, timeoutMs);
+
+    // Convert accuracy to a string for logging and source identification
+    const accuracyName =
+      typeof accuracy === 'number'
+        ? Location.Accuracy[accuracy] || String(accuracy)
+        : String(accuracy);
+
+    console.log(
+      `LocationUtils: Requesting location with accuracy: ${accuracyName}, timeout: ${timeoutMs}ms`
+    );
+
+    Location.getCurrentPositionAsync({
+      accuracy,
+      mayShowUserSettingsDialog: false,
+    })
+      .then((position) => {
+        clearTimeout(timeoutId);
+        console.log(
+          `LocationUtils: Got position with accuracy: ${accuracyName}`,
+          {
+            accuracy: position.coords.accuracy,
+          }
+        );
+        resolve({
+          ...position,
+          source: `current_${accuracyName.toString().toLowerCase()}`,
+        });
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
 };
 
 /**

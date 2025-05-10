@@ -68,8 +68,26 @@ export const ANIMATION_DURATION = {
 
 // Location request timeouts (in milliseconds)
 export const LOCATION_TIMEOUT = {
-  INITIAL: 20000, // Initial location request timeout
+  INITIAL: 30000, // Increased initial location request timeout
   REFRESH: 20000, // Location refresh timeout
+  QUICK: 5000, // Quick location acquisition timeout
+  ACCURATE: 15000, // Accurate location acquisition timeout
+};
+
+// Location accuracy levels
+export const LOCATION_ACCURACY = {
+  LOW: {
+    accuracy: 'low',
+    timeoutMs: 5000,
+  },
+  BALANCED: {
+    accuracy: 'balanced',
+    timeoutMs: 15000,
+  },
+  HIGH: {
+    accuracy: 'high',
+    timeoutMs: 20000,
+  },
 };
 
 // Location permission storage key
